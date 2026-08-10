@@ -1,0 +1,221 @@
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { Card, Pill, EmptyState, CreditChip, StreakStrip } from '@/components/ui';
+import { CheckInButton } from './checkin-button';
+import { IconArrow, IconUpload, IconFeedback, IconCheck } from '@/components/app/icons';
+import { EARN, RULES } from '@/lib/economy';
+import {
+  podDay, stripFor, checkedInToday, daysRemaining, n, fmtDate, missedDays,
+} from '@/lib/pods';
+import type { AppRow, Assignment, Feedback, LedgerEntry, Pod } from '@/lib/types';
+
+export const dynamic = 'force-dynamic';
+export const metadata = { title: 'My tests — TesterPool' };
+
+type TestRow = Assignment & { apps: AppRow | AppRow[] | null; pods: Pod | Pod[] | null };
+
+function one<T>(value: T | T[] | null | undefined): T | null {
+  if (!value) return null;
+  return Array.isArray(value) ? value[0] ?? null : value;
+}
+
+export default async function TestsPage() {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  const user = auth?.user;
+  if (!user) redirect('/login');
+
+  const { data: rows } = await supabase
+    .from('assignments')
+    .select('*, apps(*), pods(*)')
+    .eq('tester_id', user.id)
+    .order('created_at', { ascending: false });
+
+  const tests = (rows ?? []) as TestRow[];
+  const ids = tests.map((t) => t.id);
+
+  const [{ data: feedbackRows }, { data: ledgerRows }] = await Promise.all([
+    ids.length
+      ? supabase.from('feedback').select('id, assignment_id, status, credits_awarded').in('assignment_id', ids)
+      : Promise.resolve({ data: [] as unknown[] }),
+    supabase
+      .from('credit_ledger')
+      .select('delta, reason, ref_type, ref_id')
+      .eq('user_id', user.id)
+      .gt('delta', 0),
+  ]);
+
+  const feedbackByAssignment = new Map<string, Pick<Feedback, 'id' | 'assignment_id' | 'status' | 'credits_awarded'>>();
+  for (const f of (feedbackRows ?? []) as Pick<Feedback, 'id' | 'assignment_id' | 'status' | 'credits_awarded'>[]) {
+    feedbackByAssignment.set(f.assignment_id, f);
+  }
+
+  const earnedByAssignment = new Map<string, number>();
+  for (const entry of (ledgerRows ?? []) as Pick<LedgerEntry, 'delta' | 'ref_type' | 'ref_id'>[]) {
+    if (entry.ref_type !== 'assignment' || !entry.ref_id) continue;
+    earnedByAssignment.set(entry.ref_id, (earnedByAssignment.get(entry.ref_id) ?? 0) + n(entry.delta));
+  }
+
+  const active = tests.filter((t) => t.status !== 'dropped' && t.status !== 'removed');
+  const finished = tests.filter((t) => t.status === 'dropped' || t.status === 'removed');
+  const totalEarned = [...earnedByAssignment.values()].reduce((a, b) => a + b, 0);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">My tests</h1>
+          <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
+            Every app you are testing. One open a day keeps someone else&apos;s launch alive, and a full
+            14 of 14 pays a bonus on top of the daily credits.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-[var(--color-dim)]">
+          Earned from testing <CreditChip amount={totalEarned} />
+        </div>
+      </header>
+
+      {active.length === 0 ? (
+        <EmptyState
+          title="You are not testing anything yet"
+          body="Join a pod with your own app and you are automatically seated as a tester for everyone else in it. That is the trade: fourteen days of your attention for fourteen days of theirs."
+          action={<Link href="/pods" className="btn btn-primary">Browse forming pods <IconArrow size={15} /></Link>}
+        />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {active.map((test) => (
+            <TestCard
+              key={test.id}
+              test={test}
+              feedback={feedbackByAssignment.get(test.id) ?? null}
+              earned={earnedByAssignment.get(test.id) ?? 0}
+            />
+          ))}
+        </div>
+      )}
+
+      {finished.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-mute)]">
+            Closed
+          </h2>
+          <div className="flex flex-col gap-2">
+            {finished.map((test) => {
+              const app = one<AppRow>(test.apps);
+              return (
+                <Card key={test.id} className="flex items-center gap-3 px-4 py-3 opacity-70">
+                  <span className="text-sm font-medium">{app?.name ?? 'App'}</span>
+                  <Pill tone="red">{test.status === 'dropped' ? 'Dropped' : 'Removed'}</Pill>
+                  <span className="ml-auto text-xs text-[var(--color-mute)]">
+                    <span className="num">{n(test.days_checked_in)}</span> days logged
+                  </span>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function TestCard({
+  test, feedback, earned,
+}: {
+  test: TestRow;
+  feedback: Pick<Feedback, 'id' | 'status'> | null;
+  earned: number;
+}) {
+  const app = one<AppRow>(test.apps);
+  const pod = one<Pod>(test.pods);
+  const duration = pod?.duration_days ?? RULES.requiredDays;
+  const currentDay = podDay(pod?.starts_at, duration);
+  const days = n(test.days_checked_in);
+  const remaining = daysRemaining(pod?.starts_at, duration);
+  const podActive = pod?.status === 'active' && currentDay >= 1;
+  const verified = !!test.opt_in_verified_at;
+  const today = checkedInToday(test.last_checkin_on);
+  const missed = missedDays(days, currentDay);
+  const feedbackDue = podActive && currentDay >= 7;
+  const feedbackSent = !!feedback && feedback.status !== 'draft';
+
+  return (
+    <Card className="p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base font-semibold">{app?.name ?? 'App'}</h2>
+            {app?.category && <Pill tone="neutral">{app.category}</Pill>}
+            {!verified && <Pill tone="amber">Opt-in required</Pill>}
+            {verified && missed >= 2 && <Pill tone="red"><span className="num">{missed}</span> days missed</Pill>}
+            {days >= duration && <Pill tone="green">Full 14 days</Pill>}
+          </div>
+          {app?.tagline && <p className="mt-1 text-sm text-[var(--color-dim)]">{app.tagline}</p>}
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-[var(--color-mute)]">
+            <span>
+              {podActive
+                ? <>Day <span className="num">{currentDay}</span> of <span className="num">{duration}</span> · <span className="num">{remaining}</span> days remaining</>
+                : pod?.status === 'forming'
+                  ? 'Pod still filling. The clock has not started.'
+                  : `Starts ${fmtDate(pod?.starts_at)}`}
+            </span>
+            <span className="inline-flex items-center gap-1.5">Earned <CreditChip amount={earned} size="sm" /></span>
+            {app?.focus_areas && app.focus_areas.length > 0 && (
+              <span className="truncate">Focus: {app.focus_areas.slice(0, 2).join(', ')}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="lg:w-[300px] lg:shrink-0">
+          {!verified ? (
+            <div className="flex flex-col gap-2">
+              <StreakStrip days={stripFor(days, currentDay, duration)} total={duration} size={12} />
+              <Link href={`/tests/${test.id}/optin`} className="btn btn-primary">
+                <IconUpload size={15} /> Verify your opt-in <span className="num">+{EARN.optInVerified}</span>
+              </Link>
+              <p className="text-xs text-[var(--color-mute)]">
+                Nothing counts until the developer can see you in their tester list.
+              </p>
+            </div>
+          ) : (
+            <CheckInButton
+              assignmentId={test.id}
+              days={stripFor(days, currentDay, duration)}
+              currentDay={currentDay}
+              total={duration}
+              alreadyToday={today}
+              disabled={!podActive}
+              disabledReason={!podActive ? 'Check-ins open when the pod starts.' : undefined}
+            />
+          )}
+        </div>
+      </div>
+
+      {verified && (feedbackDue || feedbackSent) && (
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[var(--color-line)] pt-4">
+          {feedbackSent ? (
+            <span className="inline-flex items-center gap-2 text-sm text-[var(--color-dim)]">
+              <IconCheck size={15} /> Feedback report sent
+              {feedback?.status === 'approved' && <Pill tone="green">Paid</Pill>}
+              {feedback?.status === 'submitted' && <Pill tone="neutral">Awaiting review</Pill>}
+              {feedback?.status === 'disputed' && <Pill tone="amber">In arbitration</Pill>}
+              {feedback?.status === 'arbitrated' && <Pill tone="green">Paid on arbitration</Pill>}
+              {feedback?.status === 'rejected' && <Pill tone="red">Rejected</Pill>}
+            </span>
+          ) : (
+            <>
+              <Link href={`/tests/${test.id}/feedback`} className="btn btn-secondary">
+                <IconFeedback size={15} /> Submit your feedback report <span className="num">+{EARN.feedbackApproved}</span>
+              </Link>
+              <p className="text-xs text-[var(--color-mute)]">
+                You are past day seven, so you have seen enough to write something the developer can act on.
+              </p>
+            </>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}

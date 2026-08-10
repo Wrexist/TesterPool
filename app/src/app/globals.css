@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   TESTERPOOL — design tokens
+   Dark-first. Thin borders, no shadow soup, tabular numerals everywhere it
+   matters. The 14-day clock is the emotional centre of the product, so green
+   is reserved for progress and approval and never used decoratively.
+   ========================================================================== */
+
+@theme {
+  --color-bg:        #0B0C0E;
+  --color-surface:   #131519;
+  --color-surface-2: #1A1D23;
+  --color-line:      #252932;
+  --color-line-hi:   #333947;
+
+  --color-ink:       #F2F4F7;
+  --color-dim:       #98A1B2;
+  --color-mute:      #6B7482;
+
+  --color-accent:     #2BD97C;
+  --color-accent-dim: #1FA85E;
+  --color-credit:     #F5B544;
+  --color-violet:     #7C6CFF;
+  --color-danger:     #FF5C5C;
+
+  --radius-card: 14px;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  * { border-color: var(--color-line); }
+
+  html { color-scheme: dark; }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'cv02','cv03','cv04','cv11';
+  }
+
+  /* Every number that a user compares across rows must be tabular. */
+  .num, table td, table th { font-variant-numeric: tabular-nums; }
+
+  ::selection { background: color-mix(in oklab, var(--color-accent) 30%, transparent); }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line); border-radius: 99px;
+    border: 3px solid var(--color-bg);
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-line-hi); }
+}
+
+@layer components {
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+  }
+  .card-hover {
+    transition: transform .16s cubic-bezier(.2,.8,.2,1), border-color .16s;
+  }
+  .card-hover:hover {
+    transform: translateY(-1px);
+    border-color: var(--color-line-hi);
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+    font-weight: 600; font-size: .875rem; line-height: 1;
+    padding: .625rem 1rem; border-radius: 10px; border: 1px solid transparent;
+    transition: all .14s cubic-bezier(.2,.8,.2,1);
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  .btn-primary { background: var(--color-accent); color: #04150C; }
+  .btn-primary:hover:not(:disabled) { background: #4AE592; transform: translateY(-1px); }
+
+  .btn-secondary {
+    background: var(--color-surface-2); color: var(--color-ink);
+    border-color: var(--color-line);
+  }
+  .btn-secondary:hover:not(:disabled) { border-color: var(--color-line-hi); background: #21252C; }
+
+  .btn-ghost { background: transparent; color: var(--color-dim); }
+  .btn-ghost:hover:not(:disabled) { background: var(--color-surface-2); color: var(--color-ink); }
+
+  .btn-danger { background: color-mix(in oklab, var(--color-danger) 15%, transparent); color: var(--color-danger); border-color: color-mix(in oklab, var(--color-danger) 30%, transparent); }
+  .btn-danger:hover:not(:disabled) { background: color-mix(in oklab, var(--color-danger) 25%, transparent); }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: .375rem;
+    font-size: .6875rem; font-weight: 600; letter-spacing: .02em;
+    padding: .25rem .5rem; border-radius: 999px; border: 1px solid;
+    text-transform: uppercase;
+  }
+
+  .input {
+    width: 100%; background: var(--color-bg); color: var(--color-ink);
+    border: 1px solid var(--color-line); border-radius: 10px;
+    padding: .625rem .75rem; font-size: .875rem;
+    transition: border-color .14s, box-shadow .14s;
+  }
+  .input:focus {
+    outline: none; border-color: var(--color-accent-dim);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 12%, transparent);
+  }
+  .input::placeholder { color: var(--color-mute); }
+
+  .label { display:block; font-size: .75rem; font-weight: 600; color: var(--color-dim); margin-bottom: .375rem; }
+
+  .dotgrid {
+    background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.045) 1px, transparent 0);
+    background-size: 22px 22px;
+  }
+}
+
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+@keyframes pop { 0%{transform:scale(.85);opacity:0} 60%{transform:scale(1.04)} 100%{transform:scale(1);opacity:1} }
+.animate-pop { animation: pop .28s cubic-bezier(.2,.8,.2,1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
