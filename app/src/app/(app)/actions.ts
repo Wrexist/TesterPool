@@ -11,7 +11,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import type { ActionResult, LedgerReason } from '@/lib/types';
+import type { ActionResult } from '@/lib/types';
 import { checkHandle, looksLikeEmail } from '@/lib/pods';
 
 type Supa = Awaited<ReturnType<typeof createClient>>;
@@ -354,58 +354,82 @@ export async function reviewFeedback(
 
 /* ------------------------------------------------------------- spending */
 
-const SPEND_REASONS: Record<string, LedgerReason> = {
-  cost_buffer_seat: 'buffer_seat_spend',
-  cost_rescue_seat: 'rescue_seat_spend',
-  cost_priority_pod: 'priority_spend',
-  cost_expert_seat: 'expert_seat_spend',
-  cost_extra_app: 'extra_app_spend',
-};
+/**
+ * The five things credits buy. This list is a mirror of the allowlist inside
+ * `purchase_upgrade`, kept here only so an unknown key costs no round trip —
+ * the database is the one that decides, and it does not trust this copy.
+ */
+const SPENDABLE = new Set([
+  'cost_buffer_seat',
+  'cost_rescue_seat',
+  'cost_priority_pod',
+  'cost_expert_seat',
+  'cost_extra_app',
+]);
 
+/**
+ * Spending goes through `purchase_upgrade`, never `spend_credits`.
+ *
+ * `spend_credits` takes a user id and an amount and is deliberately not
+ * callable by `authenticated` — it is a money printer if it is. So the RPC
+ * here takes neither: the buyer is `auth.uid()` and the price is read from
+ * `economy_config` inside the database, where the caller cannot reach it.
+ */
 export async function spendCredits(configKey: string, appId?: string): Promise<ActionResult> {
   const auth = await requireUser();
   if ('error' in auth) return fail(auth.error, 'no_session');
-  const { supabase, userId } = auth;
 
-  const reason = SPEND_REASONS[configKey];
-  if (!reason) return fail('Unknown purchase.', 'bad_request');
+  if (!SPENDABLE.has(configKey)) return fail('Unknown purchase.', 'bad_request');
 
-  const { data: cfg } = await supabase
-    .from('economy_config')
-    .select('value')
-    .eq('key', configKey)
-    .maybeSingle();
-
-  const price = (cfg?.value ?? null) as number | null;
-  if (price === null) return fail('That option is not available right now.', 'no_config');
-
-  const { data: profile } = await supabase.from('profiles').select('credits').eq('id', userId).maybeSingle();
-  const balance = (profile?.credits ?? 0) as number;
-  if (balance < price) {
-    return fail(`You need ${price - balance} more credits.`, 'insufficient');
-  }
-
-  const { data, error } = await supabase.rpc('spend_credits', {
-    p_user: userId,
-    p_amount: price,
-    p_reason: reason,
-    p_ref_type: appId ? 'app' : null,
-    p_ref_id: appId ?? null,
+  const { data, error } = await auth.supabase.rpc('purchase_upgrade', {
+    p_key: configKey,
+    p_app: appId ?? null,
   });
 
-  if (error) return fail(error.message, 'rpc_error');
-  if (data === false) return fail('Not enough credits for that.', 'insufficient');
+  if (error) {
+    if (/not your app/i.test(error.message)) return fail('That app is not yours.', 'forbidden');
+    return fail(error.message, 'rpc_error');
+  }
 
-  revalidatePath('/credits');
-  revalidatePath('/dashboard');
-  return { ok: true, message: `Done. ${price} credits spent.` };
+  const result = fromRpc(data, 'Could not complete that purchase.');
+  if (result.ok) {
+    revalidatePath('/credits');
+    revalidatePath('/dashboard');
+    const spent = (result.data as { spent?: number } | undefined)?.spent;
+    result.message = spent === undefined ? 'Done.' : `Done. ${spent} credits spent.`;
+  }
+  return result;
 }
 
-/** Dashboard shortcut: buy a rescue seat for a specific app. */
+/**
+ * Dashboard shortcut: buy a rescue seat for a specific app.
+ *
+ * This is `claim_rescue` rather than a plain spend because a developer who
+ * already paid nine dollars for a rescue must not be charged credits on top.
+ * The RPC consumes an unspent rescue entitlement first and only falls back to
+ * credits when there is none.
+ */
 export async function requestRescueSeat(appId: string): Promise<ActionResult> {
-  const result = await spendCredits('cost_rescue_seat', appId);
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+
+  const { data, error } = await auth.supabase.rpc('claim_rescue', { p_app: appId });
+
+  if (error) {
+    if (/not your app/i.test(error.message)) return fail('That app is not yours.', 'forbidden');
+    return fail(error.message, 'rpc_error');
+  }
+
+  const result = fromRpc(data, 'Could not request a rescue tester.');
   if (result.ok) {
-    result.message = 'Rescue tester requested. We match a verified replacement within hours.';
+    revalidatePath('/dashboard');
+    revalidatePath('/pods');
+    revalidatePath('/credits');
+    const paidWith = (result.data as { paid_with?: string } | undefined)?.paid_with;
+    result.message =
+      paidWith === 'entitlement'
+        ? 'Rescue tester requested, using the rescue you already bought. We match a verified replacement within hours.'
+        : 'Rescue tester requested. We match a verified replacement within hours.';
   }
   return result;
 }

@@ -1,0 +1,141 @@
+# TESTERPOOL — manual deploy.
+#
+# Run it from the Actions tab: "Deploy" -> "Run workflow", pick a branch and a
+# target. Preview is the default on purpose. A preview deployment gets its own
+# URL and touches nothing anyone is using; production replaces the live site,
+# so it has to be chosen deliberately rather than reached by pressing enter.
+#
+# Setup is three repository secrets. See docs/DEPLOY.md.
+#
+# Nothing deploys until the checks the project uses locally have passed: lint,
+# build, then types. That order is not cosmetic — see the verify job.
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Where to deploy'
+        type: choice
+        options: [preview, production]
+        default: preview
+        required: true
+
+# One deploy at a time per target. Queue rather than cancel: a half-finished
+# production deploy is worse than a slow one.
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Build BEFORE typechecking. `LayoutProps` and the other route helpers are
+      # generated into .next/types by the build, so on a clean checkout
+      # `tsc --noEmit` fails with "Cannot find name 'LayoutProps'" if it runs
+      # first. That is a missing build, not a type error.
+      - name: Build
+        run: npm run build
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+  deploy:
+    name: Deploy (${{ inputs.environment }})
+    needs: verify
+    runs-on: ubuntu-latest
+    # Referencing an environment creates it on first run. Add a required
+    # reviewer to `production` in Settings -> Environments to gate live deploys.
+    environment: ${{ inputs.environment }}
+    env:
+      # The Vercel CLI reads all three from the environment, so the token never
+      # appears in a command line or in the run log.
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      # Empty string for preview, so the flag simply disappears from the command.
+      PROD_FLAG: ${{ inputs.environment == 'production' && '--prod' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Fail with a sentence rather than a stack trace. A missing secret
+      # otherwise surfaces as an opaque CLI error about linking a project.
+      - name: Check secrets are set
+        run: |
+          missing=()
+          [ -n "$VERCEL_TOKEN" ]      || missing+=("VERCEL_TOKEN")
+          [ -n "$VERCEL_ORG_ID" ]     || missing+=("VERCEL_ORG_ID")
+          [ -n "$VERCEL_PROJECT_ID" ] || missing+=("VERCEL_PROJECT_ID")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Missing repository secret(s): ${missing[*]}"
+            echo "Add them under Settings -> Secrets and variables -> Actions."
+            echo "docs/DEPLOY.md says where each value comes from."
+            exit 1
+          fi
+
+      # Vercel's own CI guidance installs the current CLI rather than pinning.
+      # Pin here if you would rather a deploy never change underneath you.
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      # Pulls the project settings — including Root Directory, which must be
+      # `app` — and the environment variables. NEXT_PUBLIC_SUPABASE_URL and
+      # NEXT_PUBLIC_SUPABASE_ANON_KEY are baked into the client bundle at build
+      # time, so without this the build succeeds and every page renders empty.
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=${{ inputs.environment }}
+
+      - name: Build
+        run: vercel build $PROD_FLAG
+
+      # --prebuilt uploads what we just built. Without it Vercel rebuilds from
+      # source and the artefact that ships is not the one that was verified.
+      - name: Deploy
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt $PROD_FLAG)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          {
+            echo "### Deployed to ${{ inputs.environment }}"
+            echo ""
+            echo "**$URL**"
+            echo ""
+            echo "Branch \`${{ github.ref_name }}\` at \`${{ github.sha }}\`."
+            if [ "${{ inputs.environment }}" = "preview" ]; then
+              echo ""
+              echo "Sign-in fails on a new preview URL until it is allowed in"
+              echo "Supabase: Authentication -> URL Configuration -> Redirect URLs."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
