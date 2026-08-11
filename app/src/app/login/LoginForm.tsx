@@ -69,6 +69,22 @@ function AppleIcon() {
   );
 }
 
+/**
+ * GoTrue's wording for the two failures a half-configured deployment actually
+ * produces is accurate and useless to the person reading it. Translate the ones
+ * we recognise, and always name the way in that is definitely working.
+ */
+function readableAuthError(message: string, provider?: Provider): string {
+  if (/provider is not enabled|unsupported provider/i.test(message)) {
+    const name = provider ? PROVIDER_LABEL[provider] : 'That provider';
+    return `${name} sign-in is not switched on for this deployment yet. Use the email link below — it works now.`;
+  }
+  if (/requested path is invalid|redirect/i.test(message)) {
+    return 'This deployment’s address is not on the allow list in Supabase, so sign-in cannot get back here. Use the email link below.';
+  }
+  return message;
+}
+
 function MailIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -100,7 +116,38 @@ export default function LoginForm({
   const [email, setEmail] = React.useState('');
   const [status, setStatus] = React.useState<Status>('idle');
   const [oauthBusy, setOauthBusy] = React.useState<Provider | null>(null);
-  const [error, setError] = React.useState<string | null>(initialError);
+  const [error, setError] = React.useState<string | null>(
+    initialError ? readableAuthError(initialError) : null
+  );
+
+  /**
+   * `signInWithOAuth` does not ask Supabase whether the provider exists — it
+   * builds the authorize URL in the browser and navigates. So a provider that
+   * was never configured returns no error here, and the button sits on
+   * "Opening Google…" forever while the redirect dies somewhere the user cannot
+   * see. This is the escape hatch: if we are still on this page after ten
+   * seconds, the redirect did not happen, and saying nothing is not an option.
+   *
+   * Misfiring is harmless. It re-enables the button and shows a message; it
+   * cannot cancel a navigation that is merely slow, and `pagehide` clears it the
+   * moment one commits.
+   */
+  const stallTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearStallTimer = React.useCallback(() => {
+    if (stallTimer.current) {
+      clearTimeout(stallTimer.current);
+      stallTimer.current = null;
+    }
+  }, []);
+
+  React.useEffect(() => {
+    window.addEventListener('pagehide', clearStallTimer);
+    return () => {
+      clearStallTimer();
+      window.removeEventListener('pagehide', clearStallTimer);
+    };
+  }, [clearStallTimer]);
 
   const callbackUrl = React.useCallback(() => {
     const origin = typeof window === 'undefined' ? '' : window.location.origin;
@@ -133,6 +180,7 @@ export default function LoginForm({
 
   async function signInWithProvider(provider: Provider) {
     if (oauthBusy || status === 'sending') return;
+    clearStallTimer();
     setOauthBusy(provider);
     setError(null);
     try {
@@ -144,12 +192,24 @@ export default function LoginForm({
         options: { redirectTo: callbackUrl() },
       });
       if (err) throw err;
-      // On success the browser is navigating away; leave the button busy.
+
+      // The browser should now be navigating away. If it is still here in ten
+      // seconds, it is not going to be.
+      stallTimer.current = setTimeout(() => {
+        stallTimer.current = null;
+        setOauthBusy(null);
+        setError(
+          `${PROVIDER_LABEL[provider]} did not open. It is most likely not configured for this deployment yet. Use the email link below — it works now.`
+        );
+      }, 10_000);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : `${PROVIDER_LABEL[provider]} sign-in is unavailable right now. Use the email link below.`
+        readableAuthError(
+          err instanceof Error
+            ? err.message
+            : `${PROVIDER_LABEL[provider]} sign-in is unavailable right now. Use the email link below.`,
+          provider
+        )
       );
       setOauthBusy(null);
     }

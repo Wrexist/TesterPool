@@ -40,6 +40,7 @@ More in [`screenshots/`](screenshots).
 docs/STRATEGY.md      Research, competitor teardown, economy design, growth loops
 docs/BUILD-PLAN.md    Stack, services, costs, phased roadmap, metrics
 docs/AUTH-SETUP.md    Google, GitHub and Apple sign-in — step by step
+docs/COWORK-OAUTH-SETUP.md  The same, as a runbook to hand an agent, with the values filled in
 docs/OPERATIONS.md    The scheduled jobs, health checks, secrets, cost profile
 docs/PAYMENTS.md      Stripe setup, webhooks, idempotent fulfilment, payment methods
 docs/DEPLOY.md        Vercel setup and the manual deploy workflow
