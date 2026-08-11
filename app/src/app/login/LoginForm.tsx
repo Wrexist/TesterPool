@@ -420,7 +420,15 @@ export default function LoginForm({
           <Pill tone="green">Closed testing only</Pill>
           <p className="max-w-xs text-xs leading-relaxed text-[var(--color-mute)]">
             TesterPool never asks for a store review, a rating, or a production
-            install. By continuing you agree to the terms and the privacy policy.
+            install. By continuing you agree to the{' '}
+            <Link href="/terms" className="underline hover:text-[var(--color-dim)]">
+              terms
+            </Link>{' '}
+            and the{' '}
+            <Link href="/privacy" className="underline hover:text-[var(--color-dim)]">
+              privacy policy
+            </Link>
+            .
           </p>
           <Link
             href="/readiness"
