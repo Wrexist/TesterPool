@@ -15,7 +15,7 @@
  */
 import Link from 'next/link';
 import { Card, StreakStrip, CreditChip, cx } from '@/components/ui';
-import { RULES, EARN, FULL_CYCLE_EARNINGS } from '@/lib/economy';
+import { RULES, EARN } from '@/lib/economy';
 
 function Seat({ filled = false, you = false }: { filled?: boolean; you?: boolean }) {
   return (
@@ -161,7 +161,7 @@ export function FirstRun({ credits }: { credits: number }) {
               <CreditChip amount={credits} size="lg" />
             </div>
             <div className="mt-1 text-xs text-[var(--color-dim)]">
-              One spare seat. A full cycle earns about <span className="num">{FULL_CYCLE_EARNINGS}</span> more.
+              Enough to pay for your whole first pod. Testing everyone else&apos;s app earns it back.
             </div>
           </div>
         </div>
@@ -192,9 +192,10 @@ export function FirstRun({ credits }: { credits: number }) {
       </div>
 
       <p className="px-1 text-xs text-[var(--color-mute)]">
-        Earning, in short: <span className="num">{EARN.optInVerified}</span> for a verified opt-in,{' '}
-        <span className="num">{EARN.dailyCheckin}</span> a day for showing up,{' '}
-        <span className="num">{EARN.feedbackApproved}</span> for a report the developer finds useful.
+        Credits, in short: you earn <span className="num">{EARN.optInVerified}</span> for a confirmed
+        install and <span className="num">{EARN.feedbackApproved}</span> for a confirmed report — paid by
+        the developer whose app it is. Yours pays your testers the same way, so a pod you carry your
+        weight in costs you nothing.
       </p>
     </div>
   );

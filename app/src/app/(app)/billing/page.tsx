@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Card, Pill, CreditChip, Stat, EmptyState } from '@/components/ui';
-import { PLANS, COST, FULL_CYCLE_EARNINGS, RULES } from '@/lib/economy';
+import { PLANS, CHARGE, FULL_CYCLE_EARNINGS, FULL_POD_COST, RULES } from '@/lib/economy';
 import {
   PLAN_SKUS,
   CREDIT_PACKS,
@@ -174,7 +174,8 @@ export default async function BillingPage({
             <CreditChip amount={balance} size="lg" />
           </div>
           <p className="mt-2 text-xs text-[var(--color-dim)]">
-            One full cycle of testing pays <span className="num">{FULL_CYCLE_EARNINGS}</span>.
+            A pod costs <span className="num">{FULL_POD_COST}</span> and testing one back earns{' '}
+            <span className="num">{FULL_CYCLE_EARNINGS}</span>.
           </p>
         </Card>
         <Stat
@@ -293,12 +294,11 @@ export default async function BillingPage({
           ))}
         </div>
         <p className="mt-3 max-w-3xl text-xs text-[var(--color-dim)]">
-          Credits price the edges of the pod, not the pod itself. A buffer seat costs{' '}
-          <span className="num">{COST.bufferSeat}</span>, a rescue tester{' '}
-          <span className="num">{COST.rescueSeat}</span>, a priority start{' '}
-          <span className="num">{COST.priorityPod}</span> — and a single honest cycle of testing
-          earns <span className="num">{FULL_CYCLE_EARNINGS}</span>. Buying credits skips the
-          fourteen days; it does not buy anything a tester could not earn.
+          Credits pay your testers: <span className="num">{CHARGE.install}</span> per confirmed install
+          and <span className="num">{CHARGE.review}</span> per confirmed report, so a full pod costs{' '}
+          <span className="num">{FULL_POD_COST}</span>. Testing a pod&apos;s worth of apps back earns
+          exactly that, which is why doing your share is free. Buying credits skips the fourteen days;
+          it does not buy anything a tester could not earn.
         </p>
       </section>
 

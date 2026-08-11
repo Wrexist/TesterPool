@@ -58,6 +58,7 @@ export default async function PodsPage() {
       name: a.name,
       status: a.status,
       reachable: !!a.opt_in_url || !!a.google_group,
+      creditsPaused: !!a.credits_paused,
     }));
 
   return (

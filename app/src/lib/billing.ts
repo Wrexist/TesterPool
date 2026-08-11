@@ -20,7 +20,7 @@
 
 import { PLANS } from '@/lib/economy';
 
-export type EntitlementKind = 'fast_pod' | 'pro' | 'rescue';
+export type EntitlementKind = 'fast_pod' | 'pro' | 'rescue' | 'unlimited';
 
 export interface Sku {
   /** Stable identifier. Written to `purchases.sku`; never renumber these. */
@@ -49,11 +49,29 @@ function plan(key: (typeof PLANS)[number]['key']) {
   return found;
 }
 
+const UNLIMITED = plan('unlimited');
 const FAST = plan('fast');
 const PRO = plan('pro');
 const RESCUE = plan('rescue');
 
 export const SKUS: Sku[] = [
+  {
+    // Sold as a 30-day pass through the same one-off Checkout the other SKUs
+    // use, so it needs no new webhook handling. Real auto-renewing billing is a
+    // follow-up: it means `mode: 'subscription'` plus an `invoice.paid` handler
+    // to extend the entitlement, and until that exists the honest word for this
+    // is a pass you re-buy, which is what the billing page calls it.
+    id: 'unlimited_monthly',
+    kind: 'plan',
+    name: UNLIMITED.name,
+    description: 'No daily testing limit for 30 days.',
+    amountCents: UNLIMITED.price * 100,
+    currency: 'usd',
+    planKey: 'unlimited',
+    entitlement: 'unlimited',
+    expiresDays: 30,
+    requiresApp: false,
+  },
   {
     id: 'fast_pod',
     kind: 'plan',

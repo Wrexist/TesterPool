@@ -11,6 +11,8 @@ export interface JoinableApp {
   status: string;
   /** False when the app has no opt-in link and no Google Group yet. */
   reachable: boolean;
+  /** True when the owner's balance ran out and the app cannot take on new work. */
+  creditsPaused: boolean;
 }
 
 /**
@@ -55,6 +57,20 @@ export function JoinPodButton({ apps, disabled }: { apps: JoinableApp[]; disable
         </select>
       )}
 
+      {selected?.creditsPaused && !joined && (
+        <p
+          className="rounded-lg border px-3 py-2 text-xs"
+          style={{
+            borderColor: 'color-mix(in oklab, var(--color-credit) 30%, transparent)',
+            background: 'color-mix(in oklab, var(--color-credit) 8%, transparent)',
+            color: 'var(--color-credit)',
+          }}
+        >
+          {selected.name} is out of credits. Test someone else&apos;s app to earn some, or buy a pack —
+          it can join again the moment your balance is positive.
+        </p>
+      )}
+
       {needsLink && !joined && (
         <div>
           <label className="label" htmlFor={`optin-${selected.id}`}>
@@ -80,7 +96,11 @@ export function JoinPodButton({ apps, disabled }: { apps: JoinableApp[]; disable
       <button
         type="button"
         className="btn btn-primary w-full"
-        disabled={pending || joined || disabled || !appId || (needsLink && !optInUrl.trim())}
+        disabled={
+          pending || joined || disabled || !appId ||
+          !!selected?.creditsPaused ||
+          (needsLink && !optInUrl.trim())
+        }
         onClick={() => void join()}
       >
         {pending && <Spinner />}

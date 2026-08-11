@@ -13,6 +13,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import type { ActionResult } from '@/lib/types';
 import { checkHandle, looksLikeEmail } from '@/lib/pods';
+import { CAPS } from '@/lib/economy';
 import { normaliseCategory, parseAppLink, suggestFocusAreas } from '@/lib/store-links';
 import { isCountryCode } from '@/lib/countries';
 
@@ -27,6 +28,55 @@ async function requireUser(): Promise<{ supabase: Supa; userId: string } | { err
 
 function fail<T = unknown>(message: string, code = 'error'): ActionResult<T> {
   return { ok: false, error: code, message };
+}
+
+/**
+ * The daily cap is enforced by a database trigger, not here — Supabase exposes
+ * every table over REST, so a check that lives only in a Server Action is one a
+ * determined farmer can POST around. The trigger raises a bare code; this turns
+ * it into a sentence, with the hint Postgres carried along.
+ */
+function capMessage(raw: string | undefined): string | null {
+  if (!raw) return null;
+  if (raw.includes('daily_review_cap')) {
+    return `That is your ${CAPS.dailyReviews}th report today. The limit resets at midnight UTC, or Unlimited removes it.`;
+  }
+  if (raw.includes('daily_install_cap')) {
+    return `That is your ${CAPS.dailyInstalls}th install today. The limit resets at midnight UTC, or Unlimited removes it.`;
+  }
+  return null;
+}
+
+export interface TestingQuota {
+  unlimited: boolean;
+  installsToday: number;
+  reviewsToday: number;
+  installCap: number | null;
+  reviewCap: number | null;
+}
+
+/** Today's testing allowance for the signed-in member. Null if unreadable. */
+export async function readTestingQuota(): Promise<TestingQuota | null> {
+  const auth = await requireUser();
+  if ('error' in auth) return null;
+
+  const { data, error } = await auth.supabase.rpc('testing_quota');
+  if (error || !data) return null;
+
+  const row = data as {
+    unlimited?: boolean;
+    installs_today?: number;
+    reviews_today?: number;
+    install_cap?: number | null;
+    review_cap?: number | null;
+  };
+  return {
+    unlimited: !!row.unlimited,
+    installsToday: row.installs_today ?? 0,
+    reviewsToday: row.reviews_today ?? 0,
+    installCap: row.install_cap ?? null,
+    reviewCap: row.review_cap ?? null,
+  };
 }
 
 /** RPCs return jsonb; normalise the two shapes we get back. */
@@ -534,7 +584,13 @@ export async function recordOptInProof(
       .update({ opt_in_verified_at: new Date().toISOString(), status: 'active' })
       .eq('id', assignmentId)
       .eq('tester_id', userId);
-    if (assignError) return fail(assignError.message, 'db_error');
+    if (assignError) {
+      const capped = capMessage(assignError.message);
+      // The proof row is already saved, so the work is not lost — it simply
+      // waits for tomorrow's allowance or a moderator, whichever comes first.
+      if (capped) return fail(capped, 'daily_cap');
+      return fail(assignError.message, 'db_error');
+    }
   }
 
   revalidatePath('/tests');
@@ -602,7 +658,11 @@ export async function submitFeedback(input: FeedbackInput): Promise<ActionResult
     .from('feedback')
     .upsert(payload, { onConflict: 'assignment_id' });
 
-  if (error) return fail(error.message, 'db_error');
+  if (error) {
+    const capped = capMessage(error.message);
+    if (capped) return fail(capped, 'daily_cap');
+    return fail(error.message, 'db_error');
+  }
 
   revalidatePath('/tests');
   revalidatePath('/feedback');

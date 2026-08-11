@@ -5,6 +5,7 @@ import { Card, Pill, EmptyState, CreditChip, StreakStrip } from '@/components/ui
 import { CheckInButton } from './checkin-button';
 import { IconArrow, IconUpload, IconFeedback, IconCheck } from '@/components/app/icons';
 import { EARN, RULES } from '@/lib/economy';
+import { readTestingQuota, type TestingQuota } from '@/app/(app)/actions';
 import {
   podDay, stripFor, checkedInToday, daysRemaining, n, fmtDate, missedDays,
 } from '@/lib/pods';
@@ -57,6 +58,7 @@ export default async function TestsPage() {
     earnedByAssignment.set(entry.ref_id, (earnedByAssignment.get(entry.ref_id) ?? 0) + n(entry.delta));
   }
 
+  const quota = await readTestingQuota();
   const active = tests.filter((t) => t.status !== 'dropped' && t.status !== 'removed');
   const finished = tests.filter((t) => t.status === 'dropped' || t.status === 'removed');
   const totalEarned = [...earnedByAssignment.values()].reduce((a, b) => a + b, 0);
@@ -74,6 +76,8 @@ export default async function TestsPage() {
           Earned from testing <CreditChip amount={totalEarned} />
         </div>
       </header>
+
+      <QuotaStrip quota={quota} />
 
       {active.length === 0 ? (
         <EmptyState
@@ -116,6 +120,52 @@ export default async function TestsPage() {
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * Today's allowance, stated before it bites.
+ *
+ * A cap a tester only meets at the moment it stops them is a cap they
+ * experience as a bug. Shown here, above the work, it reads as a budget.
+ */
+function QuotaStrip({ quota }: { quota: TestingQuota | null }) {
+  if (!quota || quota.unlimited) return null;
+
+  const rows = [
+    { label: 'Installs', used: quota.installsToday, cap: quota.installCap },
+    { label: 'Reports', used: quota.reviewsToday, cap: quota.reviewCap },
+  ].filter((r): r is { label: string; used: number; cap: number } => r.cap != null);
+
+  if (rows.length === 0) return null;
+  const anyFull = rows.some((r) => r.used >= r.cap);
+
+  return (
+    <Card className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3.5">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-mute)]">
+        Today
+      </span>
+      {rows.map(({ label, used, cap }) => {
+        const full = used >= cap;
+        return (
+          <span key={label} className="flex items-center gap-2 text-sm">
+            <span className="text-[var(--color-dim)]">{label}</span>
+            <span
+              className="num font-semibold"
+              style={{ color: full ? 'var(--color-credit)' : 'var(--color-ink)' }}
+            >
+              {used} of {cap}
+            </span>
+          </span>
+        );
+      })}
+      <span className="ml-auto text-xs text-[var(--color-mute)]">
+        {anyFull ? 'Resets at midnight UTC. ' : ''}
+        <Link href="/billing" className="underline decoration-[var(--color-line-hi)] underline-offset-2">
+          {anyFull ? 'Remove the limit' : 'Unlimited removes the limit'}
+        </Link>
+      </span>
+    </Card>
   );
 }
 

@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Card, CreditChip, EmptyState, Stat, Pill } from '@/components/ui';
 import { SpendButton } from './spend-button';
 import { InvitePanel } from '@/components/app/invite-panel';
-import { EARN, COST, FULL_CYCLE_EARNINGS, RULES } from '@/lib/economy';
+import { EARN, COST, CHARGE, CAPS, FULL_CYCLE_EARNINGS, FULL_POD_COST, RULES } from '@/lib/economy';
 import { fmtDate, ledgerLabel, n } from '@/lib/pods';
 import type { LedgerEntry, Profile } from '@/lib/types';
 
@@ -11,13 +11,18 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Credits — TesterPool' };
 
 const EARN_ROWS = [
-  { label: 'Verified opt-in', value: EARN.optInVerified, note: 'Escrowed, released when the pod completes.' },
+  { label: 'Confirmed install', value: EARN.optInVerified, note: 'Your closed-track opt-in verified. Paid by the app owner.' },
+  { label: 'Confirmed report', value: EARN.feedbackApproved, note: 'Paid by the app owner. Criticism pays exactly what praise pays.' },
   { label: 'Daily check-in', value: EARN.dailyCheckin, note: `${EARN.dailyCheckin} x ${RULES.requiredDays} = ${EARN.dailyCheckin * RULES.requiredDays} over a full run.` },
   { label: 'Perfect 14 of 14', value: EARN.streakBonusFull, note: 'Paid only on a clean sheet.' },
-  { label: 'Approved feedback report', value: EARN.feedbackApproved, note: 'Specific and on-rubric. Criticism pays the same as praise.' },
-  { label: 'Blocker with repro steps', value: EARN.bugBountyBlocker, note: 'Bonus on top of the report.' },
+  { label: 'Blocker with repro steps', value: EARN.bugBountyBlocker, note: 'Funded by us, not the developer. Finding the worst bug must never cost them most.' },
   { label: 'Rescue a broken pod', value: EARN.rescueBonus, note: 'Joining mid-cycle to replace a dropout.' },
   { label: 'Referral, when they finish', value: EARN.referralReferrer, note: 'Paid on their first completed pod, never on signup.' },
+];
+
+const CHARGE_ROWS = [
+  { label: 'A tester installs your app', value: CHARGE.install, note: 'Charged when their opt-in is confirmed, not before.' },
+  { label: 'A tester reports on your app', value: CHARGE.review, note: 'Flat, whatever they found. Disputing and losing costs the same.' },
 ];
 
 const SPEND_ROWS = [
@@ -61,8 +66,8 @@ export default async function CreditsPage() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Credits</h1>
         <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
-          The pod itself is barter: everyone tests everyone. Credits only price the edges, which is why one
-          honest cycle of tester work pays exactly what one buffer seat costs.
+          Credits move, they are never minted. What you earn testing comes out of the balance of the
+          developer whose app you tested — and yours pays your testers the same way.
         </p>
       </header>
 
@@ -71,7 +76,8 @@ export default async function CreditsPage() {
           <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-mute)]">Balance</div>
           <div className="mt-2"><CreditChip amount={balance} size="lg" /></div>
           <p className="mt-2 text-xs text-[var(--color-dim)]">
-            A full cycle of testing pays <span className="num">{FULL_CYCLE_EARNINGS}</span>.
+            A full pod costs <span className="num">{FULL_POD_COST}</span> and pays{' '}
+            <span className="num">{FULL_CYCLE_EARNINGS}</span>. Do your share and you break even.
           </p>
         </Card>
         <Stat label="Earned, recent" value={<span className="num">{earnedTotal}</span>} sub="last 60 entries" />
@@ -146,8 +152,35 @@ export default async function CreditsPage() {
                 </div>
               ))}
               <div className="px-4 py-3 text-xs text-[var(--color-dim)]">
-                Abandoning a pod mid-cycle costs <span className="num">120</span> credits and a large
-                reliability hit. You broke fourteen other clocks.
+                Free members bank <span className="num">{CAPS.dailyInstalls}</span> installs and{' '}
+                <span className="num">{CAPS.dailyReviews}</span> reports a day. The limit resets at midnight
+                UTC.{' '}
+                <a href="/billing" className="underline decoration-[var(--color-line-hi)] underline-offset-2">
+                  Unlimited removes it
+                </a>
+                .
+              </div>
+            </Card>
+          </section>
+
+          <section>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-mute)]">
+              What your own app costs you
+            </h2>
+            <Card className="divide-y divide-[var(--color-line)]">
+              {CHARGE_ROWS.map((row) => (
+                <div key={row.label} className="flex items-start justify-between gap-3 px-4 py-3">
+                  <div>
+                    <div className="text-sm font-medium">{row.label}</div>
+                    <div className="text-xs text-[var(--color-mute)]">{row.note}</div>
+                  </div>
+                  <CreditChip amount={-row.value} size="sm" signed />
+                </div>
+              ))}
+              <div className="px-4 py-3 text-xs text-[var(--color-dim)]">
+                Run out mid-pod and your testers are still paid — your app just stops taking new work until
+                you top up. Abandoning a pod costs <span className="num">120</span> and a large reliability
+                hit; you broke fourteen other clocks.
               </div>
             </Card>
           </section>
