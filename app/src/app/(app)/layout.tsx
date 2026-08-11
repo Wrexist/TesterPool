@@ -105,8 +105,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         ) : (
           <span className="truncate text-xs text-[var(--color-dim)]">
             {pods.some((p) => p.status === 'forming')
-              ? 'Your pod is filling. The 14-day clock starts when the last seat is taken.'
-              : 'No active pod. Join one to start your 14 days.'}
+              ? 'Pod filling. The clock starts when the last seat fills.'
+              : 'No active pod yet.'}
           </span>
         )}
 
@@ -116,7 +116,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           )}
           {todoToday > 0 && (
             <Link href="/tests" className="btn btn-primary hidden sm:inline-flex">
-              <span className="num">{todoToday}</span> waiting on you today
+              <span className="num">{todoToday}</span> to do today
             </Link>
           )}
         </div>

@@ -46,8 +46,7 @@ export default async function FeedbackInboxPage() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Feedback inbox</h1>
         <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
-          Private, structured reports on your apps. Nothing here is public, and nothing here can become a
-          store review. Paying a report costs you nothing you did not already agree to when you joined a pod.
+          Private reports on your apps. Nothing here is public, and nothing here can become a store review.
         </p>
       </header>
 
@@ -60,9 +59,8 @@ export default async function FeedbackInboxPage() {
       >
         <IconAlert size={16} className="mt-0.5 shrink-0" />
         <p className="text-[var(--color-dim)]">
-          Sending a report to arbitration is not a rejection. A moderator reads it and pays the tester anyway
-          if the report was specific. That rule exists to protect testers who told you something you did not
-          want to hear, which is the feedback most worth having.
+          Arbitration is not rejection. A moderator reads the report and pays the tester anyway if it was
+          specific — that protects the feedback you did not want to hear, which is the feedback worth having.
         </p>
       </div>
 

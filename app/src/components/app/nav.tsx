@@ -4,9 +4,14 @@
  * TESTERPOOL — app navigation.
  *
  * One component, two shapes: a fixed left rail on desktop, a bottom tab bar on
- * mobile. The tab bar carries the five surfaces a tester touches daily; the
+ * mobile. The tab bar carries the four surfaces a tester touches daily; the
  * rest live behind a sheet, because a 14-day habit lives or dies on how fast
  * "check in" is reachable with a thumb.
+ *
+ * The rail is grouped rather than flat. Nine equally-weighted links read as
+ * nine equally-important places; two of them — Dashboard and My tests — are
+ * where a developer spends every day of the fourteen, and the grouping says so
+ * without hiding anything.
  */
 
 import * as React from 'react';
@@ -43,19 +48,43 @@ const IconBilling = ({ size = 18, className }: { size?: number; className?: stri
   </svg>
 );
 
-function items(isModerator: boolean, isAdmin: boolean, counts: { tests?: number; feedback?: number }): Item[] {
-  const base: Item[] = [
-    { href: '/dashboard', label: 'Dashboard', Icon: IconDashboard },
-    { href: '/tests', label: 'My Tests', Icon: IconTests, badge: counts.tests },
-    { href: '/pods', label: 'Pods', Icon: IconPods },
-    { href: '/feedback', label: 'Feedback', Icon: IconFeedback, badge: counts.feedback },
-    { href: '/credits', label: 'Credits', Icon: IconCredits },
-    { href: '/billing', label: 'Billing', Icon: IconBilling },
-    { href: '/leaderboard', label: 'Leaderboard', Icon: IconTrophy },
+type Group = { label: string | null; items: Item[] };
+
+/**
+ * Daily work first, unlabelled — it needs no heading to be found. Everything
+ * occasional sits under a heading below it, and staff tools below that.
+ */
+function groups(
+  isModerator: boolean,
+  isAdmin: boolean,
+  counts: { tests?: number; feedback?: number }
+): Group[] {
+  const out: Group[] = [
+    {
+      label: null,
+      items: [
+        { href: '/dashboard', label: 'Dashboard', Icon: IconDashboard },
+        { href: '/tests', label: 'My tests', Icon: IconTests, badge: counts.tests },
+        { href: '/pods', label: 'Pods', Icon: IconPods },
+        { href: '/feedback', label: 'Feedback', Icon: IconFeedback, badge: counts.feedback },
+      ],
+    },
+    {
+      label: 'Account',
+      items: [
+        { href: '/credits', label: 'Credits', Icon: IconCredits },
+        { href: '/billing', label: 'Billing', Icon: IconBilling },
+        { href: '/leaderboard', label: 'Leaderboard', Icon: IconTrophy },
+      ],
+    },
   ];
-  if (isModerator) base.push({ href: '/mod', label: 'Moderation', Icon: IconShield });
-  if (isAdmin) base.push({ href: '/admin', label: 'Admin', Icon: IconShield });
-  return base;
+
+  const staff: Item[] = [];
+  if (isModerator) staff.push({ href: '/mod', label: 'Moderation', Icon: IconShield });
+  if (isAdmin) staff.push({ href: '/admin', label: 'Admin', Icon: IconShield });
+  if (staff.length) out.push({ label: 'Staff', items: staff });
+
+  return out;
 }
 
 function isActive(pathname: string, href: string) {
@@ -86,8 +115,9 @@ export function AppNav({
 }) {
   const pathname = usePathname() || '';
   const [sheet, setSheet] = React.useState(false);
-  const list = items(profile.isModerator, !!profile.isAdmin, counts);
-  const primary = list.slice(0, 4);
+  const sections = groups(profile.isModerator, !!profile.isAdmin, counts);
+  const [daily, ...rest] = sections;
+  const primary = daily.items;
 
   // Navigating closes the sheet. Reconciled during render: an effect here
   // would leave the overlay on screen for a frame after the route changed.
@@ -117,30 +147,39 @@ export function AppNav({
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-2">
-          <ul className="flex flex-col gap-0.5">
-            {list.map(({ href, label, Icon, badge }) => {
-              const active = isActive(pathname, href);
-              return (
-                <li key={href}>
-                  <Link
-                    href={href}
-                    aria-current={active ? 'page' : undefined}
-                    className={cx(
-                      'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                      active
-                        ? 'bg-[var(--color-surface-2)] text-[var(--color-ink)]'
-                        : 'text-[var(--color-dim)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]'
-                    )}
-                    style={active ? { boxShadow: 'inset 2px 0 0 var(--color-accent)' } : undefined}
-                  >
-                    <Icon size={17} />
-                    {label}
-                    <Badge value={badge} />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          {sections.map((group, i) => (
+            <div key={group.label ?? 'daily'} className={cx(i > 0 && 'mt-5')}>
+              {group.label && (
+                <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-mute)]">
+                  {group.label}
+                </div>
+              )}
+              <ul className="flex flex-col gap-0.5">
+                {group.items.map(({ href, label, Icon, badge }) => {
+                  const active = isActive(pathname, href);
+                  return (
+                    <li key={href}>
+                      <Link
+                        href={href}
+                        aria-current={active ? 'page' : undefined}
+                        className={cx(
+                          'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                          active
+                            ? 'bg-[var(--color-surface-2)] text-[var(--color-ink)]'
+                            : 'text-[var(--color-dim)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]'
+                        )}
+                        style={active ? { boxShadow: 'inset 2px 0 0 var(--color-accent)' } : undefined}
+                      >
+                        <Icon size={17} />
+                        {label}
+                        <Badge value={badge} />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
 
         <ProfileFooter profile={profile} />
@@ -197,15 +236,26 @@ export function AppNav({
             onClick={() => setSheet(false)}
           />
           <div className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-[var(--color-line)] bg-[var(--color-surface)] p-4 pb-24">
+            {rest.map((group) => (
+              <div key={group.label ?? 'more'} className="mb-2">
+                {group.label && (
+                  <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-mute)]">
+                    {group.label}
+                  </div>
+                )}
+                <ul className="flex flex-col gap-1">
+                  {group.items.map(({ href, label, Icon }) => (
+                    <li key={href}>
+                      <Link href={href} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-[var(--color-dim)]">
+                        <Icon size={18} />
+                        {label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
             <ul className="flex flex-col gap-1">
-              {list.slice(4).map(({ href, label, Icon }) => (
-                <li key={href}>
-                  <Link href={href} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-[var(--color-dim)]">
-                    <Icon size={18} />
-                    {label}
-                  </Link>
-                </li>
-              ))}
               <li>
                 <Link href={`/u/${profile.handle}`} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-[var(--color-dim)]">
                   <IconUser size={18} />

@@ -300,9 +300,11 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
   if (!input.app.name.trim()) {
     return fail('Your app needs a name.', 'bad_app');
   }
-  if (!input.app.optInUrl.trim() && !input.app.googleGroup.trim()) {
-    return fail('Add an opt-in URL or a Google Group. Testers cannot join a closed track without one.', 'bad_optin');
-  }
+  // No opt-in link required here, deliberately. The app is saved as a draft,
+  // and `app_needs_optin_to_queue` allows a draft without one; the link is
+  // demanded by `joinPod` below, at the point it first has to work. Requiring
+  // it at signup blocked every developer who has not created their closed
+  // track yet — which is most of the people this product exists for.
 
   const { error: profileError } = await supabase
     .from('profiles')
@@ -357,11 +359,74 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
   return { ok: true, data: { appId: app.id as string }, message: 'Your app is listed.' };
 }
 
+/* --------------------------------------------------------------- app edit */
+
+/**
+ * Saves the way testers reach a closed track, after the fact.
+ *
+ * Onboarding no longer demands this, so it has to be reachable later — from the
+ * join button on /pods and from the dashboard. Ownership is enforced by RLS on
+ * `apps`; the `eq('owner_id')` is belt and braces, and makes the zero-row case
+ * mean "not yours" rather than a silent no-op.
+ */
+export async function saveAppEntry(
+  appId: string,
+  input: { optInUrl: string; googleGroup: string }
+): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+
+  const optInUrl = input.optInUrl.trim();
+  const googleGroup = input.googleGroup.trim();
+
+  if (!optInUrl && !googleGroup) {
+    return fail('Add an opt-in link or a Google Group.', 'bad_optin');
+  }
+  if (optInUrl && !/^https?:\/\//i.test(optInUrl)) {
+    return fail('An opt-in link starts with https://.', 'bad_optin');
+  }
+
+  const { data, error } = await auth.supabase
+    .from('apps')
+    .update({
+      opt_in_url: optInUrl || null,
+      google_group: googleGroup || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', appId)
+    .eq('owner_id', auth.userId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) return fail(error.message, 'db_error');
+  if (!data) return fail('That app is not yours.', 'not_found');
+
+  revalidatePath('/dashboard');
+  revalidatePath('/pods');
+  return { ok: true, message: 'Saved. Testers can reach your track now.' };
+}
+
 /* ------------------------------------------------------------------ pods */
 
 export async function joinPod(appId: string): Promise<ActionResult> {
   const auth = await requireUser();
   if ('error' in auth) return fail(auth.error, 'no_session');
+
+  // `join_pod` moves the app to 'queued', which the `app_needs_optin_to_queue`
+  // constraint rejects without a way in. Caught here so the developer reads a
+  // sentence about their opt-in link rather than a raw constraint violation.
+  const { data: app } = await auth.supabase
+    .from('apps')
+    .select('opt_in_url, google_group')
+    .eq('id', appId)
+    .maybeSingle();
+
+  if (app && !app.opt_in_url && !app.google_group) {
+    return fail(
+      'Add your opt-in link first. It is how testers reach your closed track.',
+      'needs_optin'
+    );
+  }
 
   const { data, error } = await auth.supabase.rpc('join_pod', { p_app: appId });
   if (error) return fail(error.message, 'rpc_error');

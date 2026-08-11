@@ -67,8 +67,7 @@ export default async function TestsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My tests</h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
-            Every app you are testing. One open a day keeps someone else&apos;s launch alive, and a full
-            14 of 14 pays a bonus on top of the daily credits.
+            One open a day, each. A full 14 of 14 pays a bonus.
           </p>
         </div>
         <div className="flex items-center gap-2 text-sm text-[var(--color-dim)]">
@@ -79,7 +78,7 @@ export default async function TestsPage() {
       {active.length === 0 ? (
         <EmptyState
           title="You are not testing anything yet"
-          body="Join a pod with your own app and you are automatically seated as a tester for everyone else in it. That is the trade: fourteen days of your attention for fourteen days of theirs."
+          body="Join a pod with your own app and you are seated as a tester for everyone else in it. Fourteen days of your attention for fourteen days of theirs."
           action={<Link href="/pods" className="btn btn-primary">Browse forming pods <IconArrow size={15} /></Link>}
         />
       ) : (
@@ -178,7 +177,7 @@ function TestCard({
                 <IconUpload size={15} /> Verify your opt-in <span className="num">+{EARN.optInVerified}</span>
               </Link>
               <p className="text-xs text-[var(--color-mute)]">
-                Nothing counts until the developer can see you in their tester list.
+                Nothing counts until you appear in their tester list.
               </p>
             </div>
           ) : (
@@ -209,10 +208,10 @@ function TestCard({
           ) : (
             <>
               <Link href={`/tests/${test.id}/feedback`} className="btn btn-secondary">
-                <IconFeedback size={15} /> Submit your feedback report <span className="num">+{EARN.feedbackApproved}</span>
+                <IconFeedback size={15} /> Write your report <span className="num">+{EARN.feedbackApproved}</span>
               </Link>
               <p className="text-xs text-[var(--color-mute)]">
-                You are past day seven, so you have seen enough to write something the developer can act on.
+                Past day seven — you have seen enough to be useful.
               </p>
             </>
           )}

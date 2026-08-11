@@ -17,7 +17,7 @@
  */
 
 import * as React from 'react';
-import { Card, Pill, cx } from '@/components/ui';
+import { Card, Disclosure, Pill, cx } from '@/components/ui';
 import { Spinner, useAction } from '@/components/app/action-button';
 import { IconAlert, IconArrow, IconCheck } from '@/components/app/icons';
 import { lookupApp, type AppLookup } from '@/app/(app)/actions';
@@ -141,9 +141,8 @@ export function AppFinder({
           ))}
         </div>
 
-        <p className="text-xs leading-relaxed text-[var(--color-mute)]">
-          Pods are built around Google&apos;s rule of twelve testers for fourteen consecutive days, which
-          is why Android is the common case here.
+        <p className="text-xs text-[var(--color-mute)]">
+          Most people here are on Android — that is where Google&apos;s twelve-tester rule applies.
         </p>
       </div>
     );
@@ -204,11 +203,10 @@ export function AppFinder({
           </button>
         </div>
 
-        <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface-2)] p-4">
-          <h3 className="text-sm font-semibold">Where do I find the link</h3>
+        <Disclosure summary="Where do I find the link">
           {store === 'android' ? (
-            <ol className="mt-2 flex list-decimal flex-col gap-1 pl-4 text-sm text-[var(--color-dim)]">
-              <li>Play Console, then your app, then Testing and Closed testing.</li>
+            <ol className="flex list-decimal flex-col gap-1 pl-4 text-sm text-[var(--color-dim)]">
+              <li>Play Console, then your app, then Testing, then Closed testing.</li>
               <li>Copy the opt-in link on the Testers tab.</li>
               <li>
                 No link yet? Type the package name instead —{' '}
@@ -216,13 +214,12 @@ export function AppFinder({
               </li>
             </ol>
           ) : (
-            <ol className="mt-2 flex list-decimal flex-col gap-1 pl-4 text-sm text-[var(--color-dim)]">
+            <ol className="flex list-decimal flex-col gap-1 pl-4 text-sm text-[var(--color-dim)]">
               <li>Open your app&apos;s page on the App Store.</li>
-              <li>Tap the share button.</li>
-              <li>Choose Copy Link.</li>
+              <li>Tap the share button, then Copy Link.</li>
             </ol>
           )}
-        </div>
+        </Disclosure>
       </div>
     );
   }
@@ -238,9 +235,7 @@ export function AppFinder({
           {result.found ? 'Found it' : 'Got your package name'}
         </h2>
         <p className="mt-1 text-sm text-[var(--color-dim)]">
-          {result.found
-            ? 'Check this is right, then tell testers what to look at. Everything below is editable.'
-            : result.note}
+          {result.found ? 'Check it is right. Everything below is editable.' : result.note}
         </p>
       </div>
 
@@ -313,10 +308,9 @@ export function AppFinder({
       </Card>
 
       {!result.found && (
-        <p className="text-xs leading-relaxed text-[var(--color-mute)]">
-          Nothing is wrong. An app in closed testing has no public store page yet — that is the whole
-          reason you are here. The package name and opt-in link came straight from your link; fill in
-          the rest below.
+        <p className="text-xs text-[var(--color-mute)]">
+          Nothing is wrong. An app in closed testing has no public store page yet — that is the reason
+          you are here.
         </p>
       )}
     </div>

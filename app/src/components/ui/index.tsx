@@ -246,6 +246,40 @@ export function Avatar({
   );
 }
 
+/* ------------------------------------------------------------ disclosure */
+/**
+ * Optional detail, folded away until asked for. Native details/summary, so it
+ * works with no JavaScript and stays keyboard-operable for free.
+ *
+ * Anything a user can skip belongs in here rather than on the page: a form that
+ * shows eight fields at once reads as eight required fields.
+ */
+export function Disclosure({
+  summary, hint, children, open = false, className,
+}: {
+  summary: string;
+  hint?: string;
+  children: React.ReactNode;
+  open?: boolean;
+  className?: string;
+}) {
+  return (
+    <details className={cx('disclosure', className)} open={open}>
+      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg py-1 text-sm font-semibold text-[var(--color-dim)] transition-colors hover:text-[var(--color-ink)]">
+        <svg
+          className="disclosure-chevron shrink-0 transition-transform"
+          width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden
+        >
+          <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {summary}
+        {hint && <span className="font-normal text-[var(--color-mute)]">{hint}</span>}
+      </summary>
+      <div className="mt-4 flex flex-col gap-4">{children}</div>
+    </details>
+  );
+}
+
 /* --------------------------------------------------------------- section */
 export function EmptyState({
   icon, title, body, action,

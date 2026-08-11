@@ -27,10 +27,9 @@ export default async function OnboardingPage() {
   return (
     <div className="pb-8">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Three things, then you are in a pod</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Three steps, then you are in a pod</h1>
         <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
-          Google asks for 12 testers opted in for 14 consecutive days. TesterPool puts you in a group of
-          developers who all run that same clock together. Set up takes about two minutes.
+          About two minutes.
         </p>
       </header>
 

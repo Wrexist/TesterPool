@@ -59,9 +59,8 @@ export function FirstRun({ credits }: { credits: number }) {
               <span className="text-[var(--color-accent)]">So does everyone else here.</span>
             </h2>
             <p className="mt-3 max-w-md text-[15px] leading-relaxed text-[var(--color-dim)]">
-              Google will not let a new personal developer account publish until twelve testers have
-              been opted in for fourteen consecutive days. TesterPool seats you with about fifteen
-              other developers who all need the same thing, and you run the clock together.
+              We seat you with about fifteen developers who all need the same thing. You run the
+              fourteen days together.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -95,9 +94,8 @@ export function FirstRun({ credits }: { credits: number }) {
               ))}
             </div>
             <p className="mt-3 text-xs leading-relaxed text-[var(--color-dim)]">
-              <span className="text-[var(--color-accent)]">●</span> is you. Everyone tests everyone,
-              so a full pod gives every member fourteen testers — two more than Google asks for, on
-              purpose, so a couple of people can vanish without breaking your count.
+              <span className="text-[var(--color-accent)]">●</span> is you. Everyone tests everyone, so a
+              full pod gives you fourteen testers — two spare, on purpose.
             </p>
 
             <div className="mt-4 border-t border-[var(--color-line)] pt-4">
@@ -121,17 +119,17 @@ export function FirstRun({ credits }: { credits: number }) {
           {
             n: 1,
             title: 'List your app',
-            body: 'Paste the opt-in link from your Play Console closed track. We check it looks right before anyone relies on it.',
+            body: 'Paste a Play link or just the package name. We fill in the rest.',
           },
           {
             n: 2,
             title: 'Join a pod',
-            body: 'You are matched with developers who are ready to start. The clock begins the moment the last seat fills.',
+            body: 'The clock begins the moment the last seat fills.',
           },
           {
             n: 3,
             title: 'Test, and be tested',
-            body: 'Open each app once a day and file one honest report. About two minutes a day, for fourteen days.',
+            body: 'Open each app once a day, and file one honest report. About two minutes a day.',
           },
         ].map((s) => (
           <Card key={s.n} className="p-5">
@@ -150,10 +148,9 @@ export function FirstRun({ credits }: { credits: number }) {
           <div className="max-w-2xl">
             <h3 className="text-[15px] font-semibold">The part worth knowing before you start</h3>
             <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-dim)]">
-              This is a trade, not a service. You are getting fourteen real testers because you are
-              being one, fourteen times over. If you stop checking in halfway through, you do not
-              just lose your own streak — you reset the fourteen-day clock for someone who was
-              counting on you. That is why reliability is public here.
+              This is a trade, not a service. Stop checking in halfway through and you do not just lose
+              your own streak — you reset someone else&apos;s fourteen days. That is why reliability is
+              public here.
             </p>
           </div>
           <div className="shrink-0 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface-2)] px-4 py-3">
@@ -164,8 +161,7 @@ export function FirstRun({ credits }: { credits: number }) {
               <CreditChip amount={credits} size="lg" />
             </div>
             <div className="mt-1 text-xs text-[var(--color-dim)]">
-              Enough for one spare seat. A full cycle of testing earns about{' '}
-              <span className="num">{FULL_CYCLE_EARNINGS}</span> more.
+              One spare seat. A full cycle earns about <span className="num">{FULL_CYCLE_EARNINGS}</span> more.
             </div>
           </div>
         </div>
@@ -190,8 +186,8 @@ export function FirstRun({ credits }: { credits: number }) {
                 strokeLinejoin="round" />
         </svg>
         <span>
-          Everything here happens inside closed testing tracks. No public reviews, no ratings, no
-          production installs — nothing that could put your Play account at risk.
+          Everything happens inside closed testing tracks. No public reviews, no ratings, no production
+          installs — nothing that affects your store listing.
         </span>
       </div>
 
