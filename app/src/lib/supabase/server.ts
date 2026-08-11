@@ -16,7 +16,9 @@ export async function createClient() {
               cookieStore.set(name, value, options)
             );
           } catch {
-            // Called from a Server Component — middleware refreshes the session.
+            // Called from a Server Component, which cannot write cookies. The
+            // refreshed session is persisted by `src/middleware.ts` instead;
+            // delete that file and every user is signed out an hour later.
           }
         },
       },
