@@ -84,8 +84,8 @@ const FOOTER_COLS: Array<{ title: string; links: Array<{ label: string; href: st
     links: [
       { label: 'Log in', href: '/login' },
       { label: 'Start free', href: '/login' },
-      { label: 'Terms', href: '/#faq' },
-      { label: 'Privacy', href: '/#faq' },
+      { label: 'Terms', href: '/terms' },
+      { label: 'Privacy', href: '/privacy' },
     ],
   },
 ];
