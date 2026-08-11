@@ -7,6 +7,20 @@
 -- end or aborts on the first thing that is wrong.
 -- ===========================================================================
 
+-- Fixtures from a previous run, cleared so the file can be run twice against
+-- the same database. 02 and 03 build on the pod and the creator this file
+-- creates, so run them in order.
+delete from proofs;
+delete from feedback;
+delete from assignments;
+delete from apps;
+delete from pod_members;
+delete from pods;
+delete from entitlements;
+delete from notifications;
+delete from storage.objects where bucket_id = 'proofs';
+delete from auth.users where email like '%@test.dev';
+
 create or replace function assert_eq(p_got anyelement, p_want anyelement, p_what text)
 returns void language plpgsql as $$
 begin

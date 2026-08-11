@@ -85,3 +85,27 @@ create table cron.job_run_details (
   jobid bigint, runid bigserial primary key, status text,
   return_message text, start_time timestamptz, end_time timestamptz
 );
+
+-- Supabase's own path helper: every segment except the filename.
+create or replace function storage.foldername(name text) returns text[]
+language plpgsql immutable as $$
+declare _parts text[];
+begin
+  select string_to_array(name, '/') into _parts;
+  return _parts[1:array_length(_parts, 1) - 1];
+end $$;
+
+-- Vault: where the cron jobs keep the endpoint URLs and the shared bearer, so
+-- that cron.job — a readable table — never holds either in its command text.
+create schema if not exists vault;
+create table vault.secrets (
+  id uuid primary key default extensions.gen_random_uuid(),
+  name text unique, secret text, description text,
+  created_at timestamptz default now()
+);
+create view vault.decrypted_secrets as
+  select id, name, secret as decrypted_secret, description, created_at from vault.secrets;
+create or replace function vault.create_secret(p_secret text, p_name text, p_description text default '')
+returns uuid language sql as $$
+  insert into vault.secrets (secret, name, description)
+  values (p_secret, p_name, p_description) returning id $$;

@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/server';
 import type { ActionResult } from '@/lib/types';
 import { checkHandle, looksLikeEmail } from '@/lib/pods';
 import { CAPS } from '@/lib/economy';
+import { triageProof } from '@/lib/triage';
 import { normaliseCategory, parseAppLink, suggestFocusAreas } from '@/lib/store-links';
 import { isCountryCode } from '@/lib/countries';
 
@@ -545,64 +546,63 @@ export async function submitCheckin(assignmentId: string, note?: string): Promis
 
 /* --------------------------------------------------------------- opt-in */
 
-export async function recordOptInProof(
+/**
+ * Submits a screenshot as proof, and asks the vision model about it.
+ *
+ * There is no confidence argument, and there used to be. The browser scored the
+ * file with a stub that guessed from its size and name, passed the number here,
+ * and anything at or above 0.85 was stamped approved — which, since credits
+ * became a transfer, mints 10 credits and charges a stranger. A signed-in user
+ * could POST a 0.99 and pay themselves.
+ *
+ * Now the only thing a client can do is say "here is an object I uploaded,
+ * against this assignment". `submit_proof` checks both of those against the
+ * database and always writes status 'pending'. The verdict comes from
+ * `triage-proof`, which runs as the service role.
+ *
+ * Triage is fired inline so the common case is fast, but its failure is not
+ * this function's problem: a proof with no verdict is a proof in the human
+ * queue, and the sweep retries it. Nothing here can fail *open*.
+ */
+export async function recordProof(
   assignmentId: string,
   storagePath: string,
-  confidence: number
-): Promise<ActionResult<{ proofId: string }>> {
+  kind: 'opt_in' | 'daily_use' = 'opt_in'
+): Promise<ActionResult<{ proofId: string; status: string }>> {
   const auth = await requireUser();
   if ('error' in auth) return fail(auth.error, 'no_session');
-  const { supabase, userId } = auth;
 
-  const autoApproved = confidence >= 0.85;
+  const { data, error } = await auth.supabase.rpc('submit_proof', {
+    p_assignment: assignmentId,
+    p_kind: kind,
+    p_path: storagePath,
+  });
 
-  const { data: proof, error: proofError } = await supabase
-    .from('proofs')
-    .insert({
-      uploader_id: userId,
-      assignment_id: assignmentId,
-      kind: 'opt_in',
-      storage_path: storagePath,
-      ai_confidence: confidence,
-      ai_verdict: {
-        model: 'testerpool-vision-triage',
-        detected: ['closed testing banner', 'tester enrolment confirmation'],
-        note: autoApproved
-          ? 'Screenshot matches a confirmed closed-track enrolment.'
-          : 'Low confidence. Queued for a human moderator.',
-      },
-      status: autoApproved ? 'auto_approved' : 'pending',
-    })
-    .select('id')
-    .single();
+  if (error) return fail(error.message, 'db_error');
 
-  if (proofError) return fail(proofError.message, 'db_error');
-
-  if (autoApproved) {
-    const { error: assignError } = await supabase
-      .from('assignments')
-      .update({ opt_in_verified_at: new Date().toISOString(), status: 'active' })
-      .eq('id', assignmentId)
-      .eq('tester_id', userId);
-    if (assignError) {
-      const capped = capMessage(assignError.message);
-      // The proof row is already saved, so the work is not lost — it simply
-      // waits for tomorrow's allowance or a moderator, whichever comes first.
-      if (capped) return fail(capped, 'daily_cap');
-      return fail(assignError.message, 'db_error');
-    }
+  const row = (data ?? {}) as { ok?: boolean; error?: string; message?: string; proof_id?: string };
+  if (row.ok === false || !row.proof_id) {
+    return fail(row.message ?? 'That proof could not be recorded.', row.error ?? 'rejected');
   }
+
+  const triaged = await triageProof(row.proof_id);
 
   revalidatePath('/tests');
   revalidatePath('/dashboard');
 
   return {
     ok: true,
-    data: { proofId: proof.id as string },
-    message: autoApproved
-      ? 'Opt-in verified. Your daily check-ins start now.'
-      : 'Uploaded. A moderator will confirm this within a few hours.',
+    data: { proofId: row.proof_id, status: triaged.status },
+    message: triaged.message,
   };
+}
+
+/** Kept for the older call signature; the confidence argument is ignored. */
+export async function recordOptInProof(
+  assignmentId: string,
+  storagePath: string
+): Promise<ActionResult<{ proofId: string; status: string }>> {
+  return recordProof(assignmentId, storagePath, 'opt_in');
 }
 
 /* ------------------------------------------------------------- feedback */

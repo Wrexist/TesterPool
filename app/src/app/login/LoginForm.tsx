@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Card, Pill, CreditChip, cx } from '@/components/ui';
 import { LogoMark, Wordmark } from '@/components/Logo';
 import { EARN, RULES } from '@/lib/economy';
+import { Turnstile, useTurnstile } from '@/components/app/turnstile';
 
 type Status = 'idle' | 'sending' | 'sent' | 'error';
 
@@ -119,6 +120,7 @@ export default function LoginForm({
   const [error, setError] = React.useState<string | null>(
     initialError ? readableAuthError(initialError) : null
   );
+  const turnstile = useTurnstile();
 
   /**
    * `signInWithOAuth` does not ask Supabase whether the provider exists — it
@@ -158,6 +160,16 @@ export default function LoginForm({
   async function sendMagicLink(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (status === 'sending') return;
+
+    // Only gate on a token when a site key is actually configured. Supabase is
+    // the thing that enforces this — it rejects a signup with no token once
+    // Turnstile is switched on there — so this check exists to give a sentence
+    // instead of a raw GoTrue error, not to be the check itself.
+    if (turnstile.required && !turnstile.token) {
+      setError('Finish the bot check just below, then send the link.');
+      return;
+    }
+
     setStatus('sending');
     setError(null);
 
@@ -168,11 +180,14 @@ export default function LoginForm({
         options: {
           emailRedirectTo: callbackUrl(),
           data: ref ? { referral_code: ref } : undefined,
+          ...(turnstile.token ? { captchaToken: turnstile.token } : {}),
         },
       });
       if (err) throw err;
       setStatus('sent');
     } catch (err) {
+      // A Turnstile token is single-use, so a retry needs a fresh one.
+      turnstile.reset();
       setError(err instanceof Error ? err.message : 'Something went wrong. Try again.');
       setStatus('error');
     }
@@ -392,10 +407,24 @@ export default function LoginForm({
                   disabled={status === 'sending' || oauthBusy !== null}
                 />
 
+                {turnstile.required && (
+                  <div className="mt-3">
+                    <Turnstile state={turnstile} action="signin" />
+                    {turnstile.error && (
+                      <p className="mt-2 text-xs" style={{ color: 'var(--color-danger)' }}>
+                        {turnstile.error}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   disabled={
-                    status === 'sending' || oauthBusy !== null || email.trim().length < 4
+                    status === 'sending' ||
+                    oauthBusy !== null ||
+                    email.trim().length < 4 ||
+                    (turnstile.required && !turnstile.token)
                   }
                   className={cx('btn btn-primary mt-3 w-full')}
                 >

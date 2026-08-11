@@ -13,32 +13,25 @@ import { EARN } from '@/lib/economy';
 const STEPS = ['Confirm your account', 'Open the track', 'Upload the proof'];
 
 /**
- * Simulated vision triage. In production this is a model call on the uploaded
- * screenshot; here it scores the file the same way the model's cheap signals
- * would, so the UI contract (confidence in, auto-approve or queue out) is real
- * even though the model is not wired up yet.
+ * What the browser is allowed to check.
+ *
+ * Format and size, and nothing else. There used to be a `triage()` here that
+ * scored the file from its name and byte count and handed the number to the
+ * server, which approved anything above 0.85 — so the client decided whether it
+ * got paid. The real check is a vision model behind `submit_proof`, and its
+ * verdict arrives in the response to the upload.
+ *
+ * These limits mirror the storage bucket's own, so an oversized file is refused
+ * here with a sentence instead of by the API with a 413.
  */
-function triage(file: File): { confidence: number; findings: string[] } {
-  const findings: string[] = [];
-  let confidence = 0.5;
+const MAX_BYTES = 8 * 1024 * 1024;
+const ACCEPTED = ['image/png', 'image/jpeg', 'image/webp'];
 
-  if (file.type.startsWith('image/')) {
-    confidence += 0.25;
-    findings.push('Image file detected');
-  } else {
-    findings.push('Not an image file');
-  }
-  if (file.size > 60_000) {
-    confidence += 0.15;
-    findings.push('Full-resolution screenshot');
-  } else {
-    findings.push('Low resolution, hard to read');
-  }
-  if (/screenshot|play|test/i.test(file.name)) {
-    confidence += 0.12;
-    findings.push('Filename consistent with a Play Store capture');
-  }
-  return { confidence: Math.min(0.97, Number(confidence.toFixed(2))), findings };
+function fileProblem(file: File): string | null {
+  if (!ACCEPTED.includes(file.type)) return 'That needs to be a PNG, JPG or WebP.';
+  if (file.size > MAX_BYTES) return 'That image is over 8 MB. A normal screenshot is well under it.';
+  if (file.size < 5_000) return 'That file is too small to read. Send the full screenshot.';
+  return null;
 }
 
 export function OptInWizard({
@@ -64,47 +57,53 @@ export function OptInWizard({
   const [opened, setOpened] = React.useState(false);
   const [file, setFile] = React.useState<File | null>(null);
   const [preview, setPreview] = React.useState<string | null>(null);
-  const [result, setResult] = React.useState<{ confidence: number; findings: string[] } | null>(null);
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [done, setDone] = React.useState<string | null>(null);
+  const [verdict, setVerdict] = React.useState<string | null>(null);
 
   React.useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
   function pick(next: File | null) {
     setError(null);
     setDone(null);
-    setFile(next);
-    setResult(next ? triage(next) : null);
+    setVerdict(null);
+    const problem = next ? fileProblem(next) : null;
+    setFile(problem ? null : next);
+    if (problem) setError(problem);
     setPreview((old) => {
       if (old) URL.revokeObjectURL(old);
-      return next ? URL.createObjectURL(next) : null;
+      return next && !problem ? URL.createObjectURL(next) : null;
     });
   }
 
   async function upload() {
-    if (!file || !result) return;
+    if (!file) return;
     setPending(true);
     setError(null);
     try {
       const supabase = createClient();
       const ext = (file.name.split('.').pop() || 'png').toLowerCase().slice(0, 5);
+      // The `${userId}/` prefix is not decoration — the storage policy and
+      // submit_proof both require it, so an object written anywhere else can
+      // never be submitted as a proof.
       const path = `${userId}/${assignmentId}/opt-in-${Date.now()}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from('proofs')
-        .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || 'image/png' });
+        .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type });
 
       if (uploadError) {
         setError(`Upload failed: ${uploadError.message}`);
         return;
       }
 
-      const saved = await recordOptInProof(assignmentId, path, result.confidence);
+      const saved = await recordOptInProof(assignmentId, path);
       if (!saved.ok) {
         setError(saved.message ?? 'Could not record that proof.');
         return;
       }
+      setVerdict(saved.data?.status ?? 'pending');
       setDone(saved.message ?? 'Uploaded.');
       router.refresh();
     } catch (err) {
@@ -114,7 +113,7 @@ export function OptInWizard({
     }
   }
 
-  const autoApproved = (result?.confidence ?? 0) >= 0.85;
+  const autoApproved = verdict === 'auto_approved';
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -286,29 +285,26 @@ export function OptInWizard({
               )}
             </label>
 
-            {file && result && (
+            {file && !verdict && (
               <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface-2)] p-4">
-                <div className="flex items-center gap-2">
-                  <Pill tone={autoApproved ? 'green' : 'amber'}>
-                    {autoApproved ? 'Verified automatically' : 'Queued for a moderator'}
-                  </Pill>
-                  <span className="num text-xs text-[var(--color-mute)]">
-                    {Math.round(result.confidence * 100)}% confidence
-                  </span>
-                </div>
-                <ul className="mt-2 flex flex-col gap-1 text-xs text-[var(--color-dim)]">
-                  {result.findings.map((f) => (
-                    <li key={f} className="flex items-center gap-1.5">
-                      <span className="inline-block h-1 w-1 rounded-full bg-[var(--color-mute)]" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-2 text-xs text-[var(--color-mute)]">
-                  {autoApproved
-                    ? `Your daily check-ins unlock as soon as this is saved, and the opt-in pays ${EARN.optInVerified} credits.`
-                    : 'A human reads anything the model is unsure about. This usually takes a few hours.'}
+                <p className="text-xs leading-relaxed text-[var(--color-dim)]">
+                  When you send this, a vision model reads the screenshot and checks it is the Play
+                  opt-in confirmation for {appName}. Clear ones clear in seconds and pay{' '}
+                  <span className="num">{EARN.optInVerified}</span> credits. Anything it is unsure
+                  about goes to a person, which takes a few hours and pays exactly the same.
                 </p>
+              </div>
+            )}
+
+            {verdict && (
+              <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface-2)] p-4">
+                <Pill tone={autoApproved ? 'green' : verdict === 'escalated' ? 'red' : 'amber'}>
+                  {autoApproved
+                    ? 'Verified'
+                    : verdict === 'escalated'
+                      ? 'Held for review'
+                      : 'Queued for a moderator'}
+                </Pill>
               </div>
             )}
 

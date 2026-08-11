@@ -74,3 +74,35 @@ Conservation: every ledger sums to its balance, with no drift between
 
 And the throttle: ten reports land, the eleventh is refused, a draft is still
 allowed at the cap, the paid pass lifts it, and an expired pass does not.
+
+## What 03-proof-intake.sql asserts
+
+An approved opt-in proof moves credits, which makes the proof path a payment
+path. These are the assertions standing between it and a money printer.
+
+The hole this closed: `recordOptInProof` used to take a confidence score as an
+argument **from the browser** and auto-approve anything at or above 0.85. The
+score came from a stub in the wizard that guessed from the file's size and
+name — no model was ever involved. Any signed-in user could POST a 0.99 and
+stamp their own opt-in, which now mints 10 credits and charges a stranger.
+
+So the file proves, in order: a submitted proof is always `pending` and carries
+no confidence; a pre-approved row cannot be inserted even holding the owner
+role; you cannot submit against somebody else's assignment; you cannot claim an
+object under another member's storage prefix; you cannot claim a path with no
+object behind it; twenty-five uploads in an hour do not all land.
+
+Then the payment half: only an approved proof stamps the opt-in, the stamp is
+idempotent, and a tester who is already at their daily allowance is *deferred*
+rather than exploding — their proof stays approved and the next sweep pays them.
+
+## Adding a test
+
+Assertions go through `assert_eq(got, want, what)`, defined at the top of
+`01-economy.sql`. It raises on mismatch, so a failing file stops at the first
+problem and prints what it wanted. Balances start at the signup grant, so assert
+payments as a delta from a baseline rather than an absolute — see the `baseline`
+temp table in 03.
+
+Run the three files in order: 01 clears the fixtures and creates the pod and the
+creator that 02 and 03 build on.
