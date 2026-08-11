@@ -13,6 +13,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import type { ActionResult } from '@/lib/types';
 import { checkHandle, looksLikeEmail } from '@/lib/pods';
+import { normaliseCategory, parseAppLink, suggestFocusAreas } from '@/lib/store-links';
+import { isCountryCode } from '@/lib/countries';
 
 type Supa = Awaited<ReturnType<typeof createClient>>;
 
@@ -46,6 +48,219 @@ export async function readEconomyConfig(): Promise<Record<string, number>> {
   return out;
 }
 
+/* ------------------------------------------------------- store lookup */
+
+export interface AppLookup {
+  platform: 'android' | 'ios';
+  packageName: string | null;
+  storeUrl: string | null;
+  optInUrl: string | null;
+  /** True only when a public listing was actually read. */
+  found: boolean;
+  name: string;
+  developer: string | null;
+  tagline: string;
+  description: string;
+  category: string;
+  iconUrl: string | null;
+  rating: number | null;
+  /** Suggested tester focus areas, inferred from what the listing describes. */
+  focusAreas: string[];
+  /** What to tell the user. Always written for the case that occurred. */
+  note: string;
+}
+
+/** Cheap, forgiving HTML meta reader. Play changes its markup; og tags persist. */
+function metaContent(html: string, property: string): string | null {
+  const re = new RegExp(
+    `<meta[^>]+(?:property|name)=["']${property}["'][^>]*content=["']([^"']*)["']`,
+    'i'
+  );
+  const alt = new RegExp(
+    `<meta[^>]+content=["']([^"']*)["'][^>]*(?:property|name)=["']${property}["']`,
+    'i'
+  );
+  return html.match(re)?.[1] ?? html.match(alt)?.[1] ?? null;
+}
+
+function decodeEntities(value: string): string {
+  return value
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .trim();
+}
+
+/** Play embeds a SoftwareApplication block. It is far stabler than any selector. */
+function playJsonLd(html: string): Record<string, unknown> | null {
+  const blocks = html.matchAll(
+    /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
+  );
+  for (const block of blocks) {
+    try {
+      const parsed = JSON.parse(block[1].trim()) as Record<string, unknown>;
+      const type = parsed['@type'];
+      if (type === 'SoftwareApplication' || type === 'MobileApplication') return parsed;
+    } catch {
+      // Malformed block. Try the next one.
+    }
+  }
+  return null;
+}
+
+/**
+ * Reads what a public store listing says about an app.
+ *
+ * Every failure path returns `found: false` with the deterministic fields still
+ * populated, because a missing listing is the NORMAL case here, not an error: an
+ * app that has never reached production has no public Play page, and that is
+ * precisely the app this product exists to help. The copy must never imply the
+ * user did something wrong.
+ *
+ * The URL fetched is always rebuilt from a validated package name or numeric id,
+ * never from the string the user pasted, so this cannot be pointed at an
+ * arbitrary host.
+ */
+export async function lookupApp(rawLink: string): Promise<ActionResult<AppLookup>> {
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+
+  const parsed = parseAppLink(rawLink);
+  if (!parsed.ok) return fail(parsed.reason, 'bad_link');
+
+  const base: AppLookup = {
+    platform: parsed.platform!,
+    packageName: parsed.packageName,
+    storeUrl: parsed.storeUrl,
+    optInUrl: parsed.optInUrl,
+    found: false,
+    name: '', developer: null, tagline: '', description: '',
+    category: '', iconUrl: null, rating: null, focusAreas: [],
+    note: '',
+  };
+
+  try {
+    if (parsed.platform === 'ios' && parsed.appleId) {
+      // Apple publishes a real JSON API for this. No scraping needed.
+      const res = await fetch(
+        `https://itunes.apple.com/lookup?id=${encodeURIComponent(parsed.appleId)}`,
+        { signal: AbortSignal.timeout(7000), headers: { accept: 'application/json' } }
+      );
+      if (res.ok) {
+        const body = (await res.json()) as { resultCount?: number; results?: Record<string, unknown>[] };
+        const row = body.results?.[0];
+        if (body.resultCount && row) {
+          const description = String(row.description ?? '');
+          return {
+            ok: true,
+            data: {
+              ...base,
+              packageName: (row.bundleId as string) ?? base.packageName,
+              storeUrl: (row.trackViewUrl as string) ?? base.storeUrl,
+              found: true,
+              name: String(row.trackName ?? ''),
+              developer: (row.artistName as string) ?? null,
+              tagline: description.split('\n')[0].slice(0, 140),
+              description,
+              category: normaliseCategory(row.primaryGenreName as string),
+              iconUrl: (row.artworkUrl512 as string) ?? (row.artworkUrl100 as string) ?? null,
+              rating: typeof row.averageUserRating === 'number'
+                ? Math.round(row.averageUserRating * 10) / 10
+                : null,
+              focusAreas: suggestFocusAreas(
+                normaliseCategory(row.primaryGenreName as string),
+                description
+              ),
+              note: 'Found on the App Store.',
+            },
+          };
+        }
+      }
+      return {
+        ok: true,
+        data: { ...base, note: 'That app is not on the App Store yet. Fill in the details below.' },
+      };
+    }
+
+    /* ------------------------------------------------------------- Play */
+
+    const res = await fetch(
+      `https://play.google.com/store/apps/details?id=${encodeURIComponent(parsed.packageName!)}&hl=en&gl=US`,
+      {
+        signal: AbortSignal.timeout(7000),
+        headers: {
+          // Play serves a stub to clients it does not recognise.
+          'user-agent': 'Mozilla/5.0 (compatible; TesterPool/1.0; +https://testerpool.dev)',
+          'accept-language': 'en-US,en;q=0.9',
+        },
+      }
+    );
+
+    if (!res.ok) {
+      return {
+        ok: true,
+        data: {
+          ...base,
+          note:
+            'No public Play listing yet, which is expected for an app still in closed testing. Fill in the details below.',
+        },
+      };
+    }
+
+    const html = await res.text();
+    const ld = playJsonLd(html);
+
+    const ogTitle = metaContent(html, 'og:title');
+    const name = decodeEntities(
+      String(ld?.name ?? ogTitle ?? '').replace(/\s*[-–]\s*Apps on Google Play\s*$/i, '')
+    );
+
+    if (!name) {
+      return {
+        ok: true,
+        data: {
+          ...base,
+          note: 'That Play page did not return app details. Fill in the details below.',
+        },
+      };
+    }
+
+    const author = ld?.author as { name?: string } | undefined;
+    const aggregate = ld?.aggregateRating as { ratingValue?: number | string } | undefined;
+    const description = decodeEntities(
+      String(ld?.description ?? metaContent(html, 'og:description') ?? '')
+    );
+    const rating = aggregate?.ratingValue != null ? Number(aggregate.ratingValue) : null;
+
+    return {
+      ok: true,
+      data: {
+        ...base,
+        found: true,
+        name,
+        developer: author?.name ? decodeEntities(author.name) : null,
+        tagline: description.split('\n')[0].slice(0, 140),
+        description,
+        category: normaliseCategory(String(ld?.applicationCategory ?? '')),
+        iconUrl: (ld?.image as string) ?? metaContent(html, 'og:image'),
+        rating: rating != null && Number.isFinite(rating) ? Math.round(rating * 10) / 10 : null,
+        focusAreas: suggestFocusAreas(
+          normaliseCategory(String(ld?.applicationCategory ?? '')),
+          description
+        ),
+        note: 'Found on Google Play.',
+      },
+    };
+  } catch {
+    // Timeout, DNS, or the store refusing us. None of this is the user's problem
+    // and none of it should stop them listing an app.
+    return {
+      ok: true,
+      data: { ...base, note: 'Could not reach the store just now. Fill in the details below.' },
+    };
+  }
+}
+
 /* ------------------------------------------------------------ onboarding */
 
 export interface OnboardingInput {
@@ -55,6 +270,7 @@ export interface OnboardingInput {
   testerEmail: string;
   app: {
     name: string;
+    platform?: 'android' | 'ios';
     packageName: string;
     optInUrl: string;
     googleGroup: string;
@@ -62,6 +278,10 @@ export interface OnboardingInput {
     category: string;
     focusAreas: string[];
     testerInstructions: string;
+    /** Populated by `lookupApp` when a public listing existed. */
+    storeUrl?: string | null;
+    iconUrl?: string | null;
+    description?: string | null;
   };
 }
 
@@ -89,7 +309,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
     .update({
       handle,
       display_name: input.displayName.trim() || handle,
-      country_code: input.countryCode ? input.countryCode.toUpperCase().slice(0, 2) : null,
+      country_code: isCountryCode(input.countryCode) ? input.countryCode.toUpperCase() : null,
       tester_email: input.testerEmail.trim().toLowerCase(),
       updated_at: new Date().toISOString(),
     })
@@ -108,12 +328,15 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
     .insert({
       owner_id: userId,
       name: input.app.name.trim(),
-      platform: 'android',
+      platform: input.app.platform === 'ios' ? 'ios' : 'android',
       package_name: input.app.packageName.trim() || null,
       opt_in_url: input.app.optInUrl.trim() || null,
       google_group: input.app.googleGroup.trim() || null,
       tagline: input.app.tagline.trim() || null,
       category: input.app.category.trim() || null,
+      store_url: input.app.storeUrl?.trim() || null,
+      icon_url: input.app.iconUrl?.trim() || null,
+      description: input.app.description?.trim() || null,
       focus_areas: input.app.focusAreas.filter(Boolean),
       tester_instructions: input.app.testerInstructions.trim() || null,
       status: 'draft',

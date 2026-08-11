@@ -6,7 +6,9 @@ import { Card, Pill, cx } from '@/components/ui';
 import { Note, Spinner, useAction } from '@/components/app/action-button';
 import { IconArrow, IconAlert, IconCheck } from '@/components/app/icons';
 import { checkHandle, checkOptInUrl, checkPackageName, isGoogleAccountEmail, looksLikeEmail } from '@/lib/pods';
-import { completeOnboarding } from '@/app/(app)/actions';
+import { completeOnboarding, type AppLookup } from '@/app/(app)/actions';
+import { COUNTRIES, guessCountryCode } from '@/lib/countries';
+import { AppFinder } from './app-finder';
 
 const CATEGORIES = [
   'Productivity', 'Finance', 'Health & Fitness', 'Education', 'Games',
@@ -44,13 +46,60 @@ export function OnboardingForm({
   const [focusAreas, setFocusAreas] = React.useState<string[]>([]);
   const [testerInstructions, setTesterInstructions] = React.useState('');
 
+  /** Set by the finder. Null until the user has identified an app. */
+  const [lookup, setLookup] = React.useState<AppLookup | null>(null);
+
+  /**
+   * A country guess from the device time zone, applied once and only into an
+   * empty field, so it can never overwrite something the user chose or a value
+   * already on their profile.
+   */
+  React.useEffect(() => {
+    if (countryCode) return;
+    const guess = guessCountryCode();
+    if (!guess) return;
+
+    // An effect rather than a lazy initialiser, deliberately. The time zone exists
+    // only in the browser, so guessing during render would have the server emit an
+    // empty select and the client emit a filled one — a hydration mismatch on the
+    // first screen of signup. Setting it after mount costs one extra render, once,
+    // and is the hydration-safe shape.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCountryCode(guess);
+    // Runs once: a later empty country means the user cleared it deliberately.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Everything the finder learned, poured into the fields behind it. */
+  function applyLookup(found: AppLookup) {
+    setLookup(found);
+    if (found.name) setName(found.name);
+    if (found.packageName) setPackageName(found.packageName);
+    if (found.optInUrl) setOptInUrl(found.optInUrl);
+    if (found.tagline) setTagline(found.tagline);
+    if (found.category) setCategory(found.category);
+    if (found.focusAreas.length) setFocusAreas(found.focusAreas);
+  }
+
+  /** "Change" on the result card: clear what the lookup filled, keep nothing stale. */
+  function resetLookup() {
+    setLookup(null);
+    setName('');
+    setPackageName('');
+    setOptInUrl('');
+    setTagline('');
+    setCategory('');
+    setFocusAreas([]);
+  }
+
   const handleOk = checkHandle(handle);
   const emailOk = looksLikeEmail(testerEmail);
   const googleOk = emailOk && isGoogleAccountEmail(testerEmail);
   const packageOk = !packageName.trim() || checkPackageName(packageName);
   const urlCheck = optInUrl.trim() ? checkOptInUrl(optInUrl) : null;
   const hasEntry = !!optInUrl.trim() || !!googleGroup.trim();
-  const appOk = !!name.trim() && hasEntry;
+  // The finder has to have produced something before the fields below exist.
+  const appOk = !!lookup && !!name.trim() && hasEntry;
 
   const stepOk = step === 0 ? handleOk : step === 1 ? emailOk : appOk;
 
@@ -65,6 +114,10 @@ export function OnboardingForm({
           app: {
             name, packageName, optInUrl, googleGroup, tagline, category,
             focusAreas, testerInstructions,
+            platform: lookup?.platform ?? 'android',
+            storeUrl: lookup?.found ? lookup.storeUrl : null,
+            iconUrl: lookup?.iconUrl ?? null,
+            description: lookup?.description || null,
           },
         }),
       { refresh: false }
@@ -140,13 +193,21 @@ export function OnboardingForm({
             </div>
             <div>
               <label className="label" htmlFor="country">Country</label>
-              <input
-                id="country" className="input" value={countryCode} maxLength={2}
-                onChange={(e) => setCountryCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
-                placeholder="SE"
-              />
+              <select
+                id="country"
+                className="input"
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value)}
+              >
+                <option value="">Choose your country</option>
+                {COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.code}>{c.name}</option>
+                ))}
+              </select>
               <p className="mt-1.5 text-xs text-[var(--color-mute)]">
-                Two-letter code. Used to spread pods across time zones so daily check-ins land in different hours.
+                Preselected from your device&apos;s time zone where we can tell — change it if that is
+                wrong. Countries spread a pod across time zones, so daily check-ins land in different
+                hours rather than all at once.
               </p>
             </div>
           </div>
@@ -195,10 +256,15 @@ export function OnboardingForm({
 
         {step === 2 && (
           <div className="flex flex-col gap-4">
-            <div>
-              <h2 className="text-lg font-semibold">List your first app</h2>
+            <AppFinder result={lookup} onFound={applyLookup} onReset={resetLookup} />
+
+            {lookup && (
+              <>
+            <div className="border-t border-[var(--color-line)] pt-4">
+              <h3 className="text-sm font-semibold">What testers see</h3>
               <p className="mt-1 text-sm text-[var(--color-dim)]">
-                Everything here is shown to the testers matched to you. Precise instructions get precise reports.
+                Prefilled where we could. Correct anything that is wrong — precise instructions get
+                precise reports.
               </p>
             </div>
 
@@ -299,6 +365,8 @@ export function OnboardingForm({
                 Testers read this every day for two weeks. Two or three concrete asks beat a paragraph of context.
               </p>
             </div>
+              </>
+            )}
           </div>
         )}
 
