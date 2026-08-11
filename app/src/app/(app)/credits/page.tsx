@@ -169,6 +169,13 @@ export default async function CreditsPage() {
                   <p className="mt-1 text-[11px] text-[var(--color-mute)]">{row.note}</p>
                 </div>
               ))}
+              <p className="border-t border-[var(--color-line)] pt-3 text-[11px] text-[var(--color-mute)]">
+                Short of credits and out of time?{' '}
+                <a href="/billing" className="underline decoration-[var(--color-line-hi)] underline-offset-2">
+                  Buy a credit pack or a paid pod
+                </a>
+                . Testing earns the same credits for free; the money only buys the fourteen days back.
+              </p>
             </Card>
           </section>
         </div>

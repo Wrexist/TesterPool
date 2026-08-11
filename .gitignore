@@ -1,0 +1,37 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# build output
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# environment — never commit these
+.env
+.env.local
+.env*.local
+.env.production
+
+# supabase local
+.branches
+.temp
+supabase/.temp/
+
+# editors / os
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# deploy
+.vercel
+
+# full-resolution captures; the optimised set lives in screenshots/
+shots/
+*.zip

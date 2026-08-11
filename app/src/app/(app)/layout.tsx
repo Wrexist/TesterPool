@@ -46,6 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     reliability: n(profile.reliability, 0),
     credits: n(profile.credits, 0),
     isModerator: !!profile.is_moderator,
+    isAdmin: (profile as Profile & { role?: string }).role === 'admin',
   };
 
   const [{ data: membershipRows }, { data: assignmentRows }, { count: inboxCount }] = await Promise.all([
@@ -110,6 +111,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         )}
 
         <div className="ml-auto flex items-center gap-2">
+          {nav.isAdmin && (
+            <Link href="/admin" className="btn btn-ghost hidden sm:inline-flex">Admin</Link>
+          )}
           {todoToday > 0 && (
             <Link href="/tests" className="btn btn-primary hidden sm:inline-flex">
               <span className="num">{todoToday}</span> waiting on you today

@@ -9,6 +9,17 @@ import { EARN, RULES } from '@/lib/economy';
 
 type Status = 'idle' | 'sending' | 'sent' | 'error';
 
+/** The OAuth providers this screen can offer. Order is meaningful. */
+type Provider = 'google' | 'github' | 'apple';
+
+const PROVIDER_LABEL: Record<Provider, string> = {
+  google: 'Google',
+  github: 'GitHub',
+  // Apple's Human Interface Guidelines permit only "Sign in with Apple",
+  // "Sign up with Apple" or "Continue with Apple" as the button title.
+  apple: 'Apple',
+};
+
 function GoogleIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden>
@@ -32,6 +43,32 @@ function GoogleIcon() {
   );
 }
 
+/**
+ * The Octocat mark. Drawn in `currentColor` so it inherits the button's ink,
+ * which is how GitHub's own logo guidance expects a monochrome placement.
+ */
+function GitHubIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23a11.5 11.5 0 0 1 3-.405c1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+    </svg>
+  );
+}
+
+/**
+ * The Apple mark. Apple's guidelines require the logo and title inside the
+ * button to be either black or white and never a custom colour, so this is
+ * drawn in `currentColor` and inherits `--color-ink` — effectively the white
+ * treatment, which is the variant Apple specifies for dark backgrounds.
+ */
+function AppleIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" />
+    </svg>
+  );
+}
+
 function MailIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -48,15 +85,21 @@ function MailIcon() {
 export default function LoginForm({
   referral,
   initialError = null,
+  appleEnabled = false,
+  githubEnabled = false,
+  signupsOpen = true,
 }: {
   referral: string | null;
   initialError?: string | null;
+  appleEnabled?: boolean;
+  githubEnabled?: boolean;
+  signupsOpen?: boolean;
 }) {
   const ref = referral;
 
   const [email, setEmail] = React.useState('');
   const [status, setStatus] = React.useState<Status>('idle');
-  const [oauthBusy, setOauthBusy] = React.useState(false);
+  const [oauthBusy, setOauthBusy] = React.useState<Provider | null>(null);
   const [error, setError] = React.useState<string | null>(initialError);
 
   const callbackUrl = React.useCallback(() => {
@@ -88,23 +131,27 @@ export default function LoginForm({
     }
   }
 
-  async function signInWithGoogle() {
-    if (oauthBusy) return;
-    setOauthBusy(true);
+  async function signInWithProvider(provider: Provider) {
+    if (oauthBusy || status === 'sending') return;
+    setOauthBusy(provider);
     setError(null);
     try {
       const supabase = createClient();
       const { error: err } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider,
         // The referral code rides along in the callback URL rather than in
-        // user metadata: Google is the one filling in the profile here.
+        // user metadata: the provider is the one filling in the profile here.
         options: { redirectTo: callbackUrl() },
       });
       if (err) throw err;
       // On success the browser is navigating away; leave the button busy.
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Google sign-in is unavailable right now.');
-      setOauthBusy(false);
+      setError(
+        err instanceof Error
+          ? err.message
+          : `${PROVIDER_LABEL[provider]} sign-in is unavailable right now. Use the email link below.`
+      );
+      setOauthBusy(null);
     }
   }
 
@@ -174,22 +221,90 @@ export default function LoginForm({
           ) : (
             <>
               <h1 className="text-xl font-semibold tracking-tight">
-                Get your {RULES.requiredTesters} testers
+                {signupsOpen ? `Get your ${RULES.requiredTesters} testers` : 'Welcome back'}
               </h1>
               <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-dim)]">
-                Sign in or create an account. No password to remember, and{' '}
-                {EARN.signupGrant} credits waiting.
+                {signupsOpen ? (
+                  <>
+                    Sign in or create an account. No password to remember, and{' '}
+                    {EARN.signupGrant} credits waiting.
+                  </>
+                ) : (
+                  <>Sign in to your account. No password to remember.</>
+                )}
               </p>
 
-              <button
-                type="button"
-                onClick={signInWithGoogle}
-                disabled={oauthBusy}
-                className="btn btn-secondary mt-6 w-full"
-              >
-                <GoogleIcon />
-                {oauthBusy ? 'Opening Google…' : 'Continue with Google'}
-              </button>
+              {!signupsOpen && (
+                <div
+                  className="mt-4 rounded-xl border px-4 py-3 text-xs leading-relaxed"
+                  style={{
+                    borderColor: 'color-mix(in oklab, var(--color-credit) 30%, transparent)',
+                    background: 'color-mix(in oklab, var(--color-credit) 8%, transparent)',
+                    color: 'var(--color-dim)',
+                  }}
+                >
+                  <span className="font-semibold text-[var(--color-credit)]">
+                    New signups are paused
+                  </span>{' '}
+                  while the current pods finish their 14 days. Existing accounts sign in
+                  as usual. Check back shortly — we open the next intake when seats free
+                  up.
+                </div>
+              )}
+
+              {/*
+                Three peers, not one primary and two afterthoughts: identical
+                surface, identical height, identical type. That also satisfies
+                Apple's rule that its button be no smaller or less prominent
+                than any other sign-in option on the screen.
+              */}
+              <div className="mt-6 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => signInWithProvider('google')}
+                  disabled={oauthBusy !== null}
+                  className="btn btn-secondary w-full"
+                >
+                  <GoogleIcon />
+                  {oauthBusy === 'google' ? 'Opening Google…' : 'Continue with Google'}
+                </button>
+
+                {githubEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => signInWithProvider('github')}
+                    disabled={oauthBusy !== null}
+                    className="btn btn-secondary w-full"
+                  >
+                    <GitHubIcon />
+                    {oauthBusy === 'github' ? 'Opening GitHub…' : 'Continue with GitHub'}
+                  </button>
+                )}
+
+                {appleEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => signInWithProvider('apple')}
+                    disabled={oauthBusy !== null}
+                    // Apple permits only its three approved titles, so the busy
+                    // state moves to aria-busy rather than rewriting the label.
+                    aria-busy={oauthBusy === 'apple'}
+                    className="btn btn-secondary w-full"
+                  >
+                    <AppleIcon />
+                    Sign in with Apple
+                  </button>
+                )}
+              </div>
+
+              {oauthBusy === 'apple' && (
+                <p
+                  role="status"
+                  className="mt-2 text-center text-xs text-[var(--color-dim)]"
+                >
+                  Opening Apple…
+                </p>
+              )}
 
               <div className="my-5 flex items-center gap-3">
                 <span className="h-px flex-1 bg-[var(--color-line)]" />
@@ -214,12 +329,14 @@ export default function LoginForm({
                   className="input"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  disabled={status === 'sending'}
+                  disabled={status === 'sending' || oauthBusy !== null}
                 />
 
                 <button
                   type="submit"
-                  disabled={status === 'sending' || email.trim().length < 4}
+                  disabled={
+                    status === 'sending' || oauthBusy !== null || email.trim().length < 4
+                  }
                   className={cx('btn btn-primary mt-3 w-full')}
                 >
                   {status === 'sending' ? 'Sending link…' : 'Email me a sign-in link'}

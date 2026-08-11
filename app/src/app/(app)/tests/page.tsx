@@ -141,7 +141,9 @@ function TestCard({
   const feedbackSent = !!feedback && feedback.status !== 'draft';
 
   return (
-    <Card className="p-5">
+    // The id is the anchor that check-in reminder emails deep-link to:
+    // /tests#test-<assignment_id> lands the reader on their own card.
+    <Card id={`test-${test.id}`} className="p-5 scroll-mt-24">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">

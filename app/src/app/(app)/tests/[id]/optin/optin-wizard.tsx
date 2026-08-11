@@ -163,6 +163,22 @@ export function OptInWizard({
                   You have not set a tester email. Add it on your profile before opting in.
                 </p>
               )}
+              {/* An Apple private-relay alias is not a Google account and can
+                  never accept a Play opt-in. Catch it here rather than letting
+                  the tester burn fourteen days discovering it. */}
+              {testerEmail.toLowerCase().endsWith('@privaterelay.appleid.com') && (
+                <p className="mt-2 text-xs" style={{ color: 'var(--color-danger)' }}>
+                  This is an Apple private-relay address, not a Google account. Play cannot add it
+                  as a tester. Change it to your Gmail or Google Workspace address on your profile.
+                </p>
+              )}
+              {testerEmail && !/@(gmail\.com|googlemail\.com)$/i.test(testerEmail) &&
+                !testerEmail.toLowerCase().endsWith('@privaterelay.appleid.com') && (
+                <p className="mt-2 text-xs" style={{ color: 'var(--color-credit)' }}>
+                  This is not a gmail.com address. That is fine if it is a Google Workspace account
+                  you can sign into on the Play Store, but not if it is only an email address.
+                </p>
+              )}
             </div>
             <label className="flex cursor-pointer items-start gap-2.5 text-sm">
               <input

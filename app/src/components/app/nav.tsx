@@ -29,20 +29,32 @@ export interface NavProfile {
   reliability: number;
   credits: number;
   isModerator: boolean;
+  isAdmin?: boolean;
 }
 
 type Item = { href: string; label: string; Icon: (p: { size?: number; className?: string }) => React.ReactElement; badge?: number };
 
-function items(isModerator: boolean, counts: { tests?: number; feedback?: number }): Item[] {
+/** Local to the rail: billing is the only surface that needs a card glyph. */
+const IconBilling = ({ size = 18, className }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+    <rect x="2.75" y="5.25" width="18.5" height="13.5" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
+    <path d="M2.75 9.75h18.5" stroke="currentColor" strokeWidth="1.7" />
+    <path d="M6.5 14.75h3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+  </svg>
+);
+
+function items(isModerator: boolean, isAdmin: boolean, counts: { tests?: number; feedback?: number }): Item[] {
   const base: Item[] = [
     { href: '/dashboard', label: 'Dashboard', Icon: IconDashboard },
     { href: '/tests', label: 'My Tests', Icon: IconTests, badge: counts.tests },
     { href: '/pods', label: 'Pods', Icon: IconPods },
     { href: '/feedback', label: 'Feedback', Icon: IconFeedback, badge: counts.feedback },
     { href: '/credits', label: 'Credits', Icon: IconCredits },
+    { href: '/billing', label: 'Billing', Icon: IconBilling },
     { href: '/leaderboard', label: 'Leaderboard', Icon: IconTrophy },
   ];
   if (isModerator) base.push({ href: '/mod', label: 'Moderation', Icon: IconShield });
+  if (isAdmin) base.push({ href: '/admin', label: 'Admin', Icon: IconShield });
   return base;
 }
 
@@ -74,7 +86,7 @@ export function AppNav({
 }) {
   const pathname = usePathname() || '';
   const [sheet, setSheet] = React.useState(false);
-  const list = items(profile.isModerator, counts);
+  const list = items(profile.isModerator, !!profile.isAdmin, counts);
   const primary = list.slice(0, 4);
 
   // Navigating closes the sheet. Reconciled during render: an effect here

@@ -70,7 +70,13 @@ export default async function OptInPage({ params }: { params: Promise<{ id: stri
       <OptInWizard
         assignmentId={assignment.id}
         userId={user.id}
-        testerEmail={profile?.tester_email ?? user.email ?? ''}
+        // Never fall back to the login email. The tester email must be the
+        // Google account that will be added to the closed-testing track, and a
+        // login address can be a GitHub email or an Apple private-relay alias
+        // (@privaterelay.appleid.com), neither of which can accept a Play
+        // opt-in. Silently prefilling one of those is the single most common
+        // cause of a failed closed test.
+        testerEmail={profile?.tester_email ?? ''}
         appName={app?.name ?? 'this app'}
         optInUrl={app?.opt_in_url ?? null}
         googleGroup={app?.google_group ?? null}

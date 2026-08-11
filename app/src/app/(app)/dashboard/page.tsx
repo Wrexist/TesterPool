@@ -6,9 +6,10 @@ import {
   Card, Pill, Stat, Avatar, TierBadge, StreakStrip, ProgressRing, EmptyState, CreditChip, cx,
 } from '@/components/ui';
 import { EvidencePack } from '@/components/app/evidence-pack';
+import { FirstRun } from '@/components/app/first-run';
 import { RescueButton } from '@/components/app/rescue-button';
 import { InvitePanel } from '@/components/app/invite-panel';
-import { IconArrow, IconPlus, IconExternal, IconAlert } from '@/components/app/icons';
+import { IconArrow, IconExternal, IconAlert } from '@/components/app/icons';
 import { RULES, COST } from '@/lib/economy';
 import { buildEvidenceAnswers, evidenceAsText } from '@/lib/evidence';
 import {
@@ -56,18 +57,10 @@ export default async function DashboardPage({
     return (
       <div>
         <PageHeading
-          title="Your dashboard"
-          sub="Once your app is listed and seated in a pod, this page becomes the only place you need to watch for 14 days."
+          title="Welcome to TesterPool"
+          sub="Here is the whole idea, and what it will ask of you. Two minutes to read, then you are set up."
         />
-        <EmptyState
-          title="List your app to get started"
-          body="TesterPool matches you with about fifteen developers who all test each other for the same fourteen days. It takes two minutes to list an app and join the queue."
-          action={
-            <Link href="/onboarding" className="btn btn-primary">
-              <IconPlus size={15} /> List your app
-            </Link>
-          }
-        />
+        <FirstRun credits={balance} />
       </div>
     );
   }
