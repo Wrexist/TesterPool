@@ -33,6 +33,16 @@ update public.feature_flags set enabled = true, updated_at = now() where key = '
 update public.feature_flags set enabled = true, updated_at = now() where key = 'apple_login';
 ```
 
+**The seed ships both flags enabled.** So on a seeded project the buttons are already on
+screen before any provider has been registered, and all three dead-end — Google has no flag
+at all and is always offered. Turn them off until you have finished the section for each,
+then turn them back on one at a time:
+
+```sql
+update public.feature_flags set enabled = false, updated_at = now()
+ where key in ('github_login', 'apple_login');
+```
+
 ## Supabase URL configuration
 
 Do this first. It applies to every provider, and a missing entry here is the single most
@@ -85,8 +95,12 @@ Free. No developer program, no annual fee, no review for a basic sign-in scope s
      non-sensitive and do not require Google verification.
 3. Go to **Clients** (https://console.cloud.google.com/auth/clients) and create a new
    OAuth client ID with application type **Web application**.
-4. Under **Authorised JavaScript origins**, add the origins the app is served from:
-   `http://localhost:3000` and `https://testerpool.dev`.
+4. Under **Authorised JavaScript origins**, add every origin the app is served from:
+   `http://localhost:3000`, the Vercel production origin
+   (`https://<your-project>.vercel.app`), and `https://testerpool.dev` once the custom
+   domain exists. Google does not accept wildcards here, so a preview deployment on a
+   branch hostname cannot be listed — test Google sign-in on the production origin, or
+   put a stable domain in front of it.
 5. Under **Authorised redirect URIs**, add exactly one value:
 
    ```
