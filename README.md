@@ -42,6 +42,8 @@ docs/BUILD-PLAN.md    Stack, services, costs, phased roadmap, metrics
 docs/AUTH-SETUP.md    Google, GitHub and Apple sign-in — step by step
 docs/OPERATIONS.md    The scheduled jobs, health checks, secrets, cost profile
 docs/PAYMENTS.md      Stripe setup, webhooks, idempotent fulfilment, payment methods
+docs/DEPLOY.md        Vercel setup and the manual deploy workflow
+docs/HEALTH-CHECK.md  Last full verification pass and what it found
 design/               Standalone design system + 11 screen mockups (open in a browser)
 app/                  Next.js 16 + Supabase application
 shots/                Screenshots of the running app
