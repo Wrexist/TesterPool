@@ -25,6 +25,7 @@ const ENTITLEMENT_LABEL: Record<string, string> = {
   fast_pod: 'Fast Pod',
   pro: 'Pro',
   rescue: 'Rescue',
+  unlimited: 'Unlimited',
 };
 
 function IconCheck({ size = 13 }: { size?: number }) {
@@ -73,6 +74,8 @@ export default async function BillingPage({
         .eq('user_id', user.id)
         .is('consumed_at', null)
         .is('revoked_at', null)
+        // An expired pass is not an entitlement. Matches has_unlimited_testing.
+        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
         .order('created_at', { ascending: false }),
       supabase.from('profiles').select('credits').eq('id', user.id).maybeSingle<{ credits: number }>(),
     ]);
@@ -297,8 +300,9 @@ export default async function BillingPage({
           Credits pay your testers: <span className="num">{CHARGE.install}</span> per confirmed install
           and <span className="num">{CHARGE.review}</span> per confirmed report, so a full pod costs{' '}
           <span className="num">{FULL_POD_COST}</span>. Testing a pod&apos;s worth of apps back earns
-          exactly that, which is why doing your share is free. Buying credits skips the fourteen days;
-          it does not buy anything a tester could not earn.
+          exactly that, which is why doing your share is free. Buying credits skips the reciprocal
+          testing — it does not shorten the fourteen-day closed test, and it does not buy anything
+          a tester could not earn.
         </p>
       </section>
 

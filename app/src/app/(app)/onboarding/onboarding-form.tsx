@@ -107,7 +107,12 @@ export function OnboardingForm({
    * The link is genuinely needed — but at the moment a pod is joined, not at
    * signup, so that is where it is asked for now.
    */
-  const appOk = !!lookup && !!name.trim();
+  // Deferring the opt-in link is deliberate. Saving a malformed one is not, and
+  // nor is a malformed package name — the field above already tells the user it
+  // is wrong, and the package name is the identity key behind the duplicate
+  // constraint. Leaving the button live while showing an error is the form
+  // disagreeing with itself.
+  const appOk = !!lookup && !!name.trim() && packageOk && (urlCheck?.ok ?? true);
 
   const stepOk = step === 0 ? handleOk : step === 1 ? emailOk : appOk;
 

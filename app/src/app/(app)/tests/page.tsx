@@ -69,7 +69,7 @@ export default async function TestsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My tests</h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
-            One open a day, each. A full 14 of 14 pays a bonus.
+            One open a day, each. A full 14 of 14 is what protects your reliability.
           </p>
         </div>
         <div className="flex items-center gap-2 text-sm text-[var(--color-dim)]">
@@ -258,10 +258,11 @@ function TestCard({
           ) : (
             <>
               <Link href={`/tests/${test.id}/feedback`} className="btn btn-secondary">
-                <IconFeedback size={15} /> Write your report <span className="num">+{EARN.feedbackApproved}</span>
+                <IconFeedback size={15} /> Write your report{' '}
+                <span className="num">+{EARN.feedbackApproved} if approved</span>
               </Link>
               <p className="text-xs text-[var(--color-mute)]">
-                Past day seven — you have seen enough to be useful.
+                Day seven onward — you have seen enough to be useful.
               </p>
             </>
           )}

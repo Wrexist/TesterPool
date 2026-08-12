@@ -40,12 +40,20 @@ export function JoinPodButton({ apps, disabled }: { apps: JoinableApp[]; disable
   const selected = apps.find((a) => a.id === appId) ?? apps[0];
   const needsLink = !!selected && !selected.reachable;
 
+  // `selected` falls back to apps[0] when appId matches nothing, which happens
+  // when the server prop changes under client state — exactly what the refresh
+  // after a save or a join does. Writing to `appId` while showing `selected`
+  // would save the typed opt-in link onto an app the developer is not looking at.
   async function join() {
+    if (!selected) return;
     if (needsLink) {
-      const saved = await run(() => saveAppEntry(appId, { optInUrl, googleGroup: '' }), { refresh: false });
+      const saved = await run(
+        () => saveAppEntry(selected.id, { optInUrl, googleGroup: '' }),
+        { refresh: false }
+      );
       if (!saved.ok) return;
     }
-    const result = await run(() => joinPod(appId));
+    const result = await run(() => joinPod(selected.id));
     if (result.ok) setJoined(true);
   }
 
@@ -67,7 +75,11 @@ export function JoinPodButton({ apps, disabled }: { apps: JoinableApp[]; disable
           }}
         >
           {selected.name} is out of credits. Test someone else&apos;s app to earn some, or buy a pack —
-          it can join again the moment your balance is positive.
+          it can join again the moment your balance is positive.{' '}
+          <Link href="/billing" className="underline decoration-current/40 underline-offset-2">
+            Top up
+          </Link>
+          .
         </p>
       )}
 
@@ -97,8 +109,8 @@ export function JoinPodButton({ apps, disabled }: { apps: JoinableApp[]; disable
         type="button"
         className="btn btn-primary w-full"
         disabled={
-          pending || joined || disabled || !appId ||
-          !!selected?.creditsPaused ||
+          pending || joined || disabled || !selected ||
+          selected.creditsPaused ||
           (needsLink && !optInUrl.trim())
         }
         onClick={() => void join()}

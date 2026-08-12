@@ -65,7 +65,10 @@ export async function triageProof(proofId: string): Promise<TriageOutcome> {
       cache: 'no-store',
     });
 
-    if (!res.ok) return QUEUED;
+    if (!res.ok) {
+      console.error(`triage-proof ${res.status} for proof ${proofId}`);
+      return QUEUED;
+    }
 
     const body = (await res.json()) as {
       ok?: boolean;
@@ -102,8 +105,11 @@ export async function triageProof(proofId: string): Promise<TriageOutcome> {
             : QUEUED.message,
         };
     }
-  } catch {
-    // Timeout, DNS, a cold function, a bad deploy. All the same answer.
+  } catch (err) {
+    // Timeout, DNS, a cold function, a bad deploy. All the same answer to the
+    // user; not the same thing to whoever has to work out why it is slow.
+    const name = err instanceof Error ? err.name : 'unknown';
+    console.error(`triage-proof ${name} for proof ${proofId}`);
     return QUEUED;
   } finally {
     clearTimeout(timer);

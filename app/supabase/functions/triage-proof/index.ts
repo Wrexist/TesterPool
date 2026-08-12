@@ -78,7 +78,7 @@ type Verdict = {
  */
 function clean(value: string): string {
   return (value ?? '')
-    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]+/g, ' ')
     .replace(/["'`{}[\]<>\\]/g, '')
     .replace(/\s{2,}/g, ' ')
     .trim()

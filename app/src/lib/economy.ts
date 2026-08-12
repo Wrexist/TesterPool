@@ -134,7 +134,7 @@ export const PLANS = [
       `No daily limit — free members bank ${CAPS.dailyInstalls} installs and ${CAPS.dailyReviews} reports a day`,
       'Clear a whole pod in an afternoon instead of two days',
       'Earn credits faster than you spend them',
-      'Cancel any time; the pass runs 30 days',
+      'A 30-day pass, bought once — no auto-renewal to cancel',
       'Everything in Free',
     ],
     cta: 'Remove the limit',

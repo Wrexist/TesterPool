@@ -74,6 +74,27 @@ begin
   raise notice 'PASS a pre-approved proof cannot be inserted, even by the owner role';
 end $$;
 
+-- 2b. The same insert as `authenticated`, which is what a PostgREST client is.
+-- The block above runs as the table owner, and grants do not apply to an owner,
+-- so only the trigger could have failed it. This one exercises the revoke.
+do $$
+declare v_blocked boolean := false;
+begin
+  begin
+    set local role authenticated;
+    insert into proofs (uploader_id, assignment_id, kind, storage_path, status)
+    values ('55555555-5555-5555-5555-555555555555',
+            'ffffffff-0000-0000-0000-000000000001', 'opt_in', 'x/y.png', 'pending');
+  exception when insufficient_privilege then
+    v_blocked := true;
+  end;
+  reset role;
+  if not v_blocked then
+    raise exception 'FAIL the authenticated role can insert into proofs directly';
+  end if;
+  raise notice 'PASS the authenticated role has no insert grant on proofs';
+end $$;
+
 -- ========================== 3. you cannot prove somebody else's assignment
 select set_config('request.jwt.claim.sub', '66666666-6666-6666-6666-666666666666', false);
 select assert_eq(
@@ -143,6 +164,44 @@ select assert_eq((stamp_approved_optins() ->> 'stamped')::int, 0,
 select assert_eq(
   (select credits from profiles where handle = 'honest') - (select before from baseline),
   10, 'no second payment');
+
+-- ================== 7b. approving the same proof twice pays once
+-- admin_review_proof is the other route that stamps an opt-in and moves credit.
+-- A double-clicked approve button must not bill the app owner twice.
+insert into auth.users (id, email) values
+  ('77777777-7777-7777-7777-777777777777', 'mod@test.dev');
+-- admin_review_proof gates on _require_admin(), which reads profiles.role — a
+-- stricter bar than is_moderator. Both are set so the fixture matches a real
+-- admin rather than only a moderator.
+insert into profiles (id, handle, display_name, is_moderator, role) values
+  ('77777777-7777-7777-7777-777777777777', 'themod', 'The Mod', true, 'admin')
+on conflict (id) do update set is_moderator = true, role = 'admin';
+
+select set_config('request.jwt.claim.sub', '77777777-7777-7777-7777-777777777777', false);
+
+create temp table baseline2 as
+  select (select credits from profiles where handle = 'honest') as tester,
+         (select credits from profiles where handle = 'creator') as owner;
+
+do $$
+declare v_p uuid;
+begin
+  select id into v_p from proofs
+   where assignment_id = 'ffffffff-0000-0000-0000-000000000001'
+     and storage_path like '%opt-in-1.png';
+  perform admin_review_proof(v_p, true, null);
+  perform admin_review_proof(v_p, true, null);
+  raise notice 'PASS approving twice does not raise';
+end $$;
+
+select assert_eq(
+  (select credits from profiles where handle = 'honest') - (select tester from baseline2),
+  0, 're-approving an already-verified opt-in pays the tester nothing more');
+select assert_eq(
+  (select credits from profiles where handle = 'creator') - (select owner from baseline2),
+  0, 'and charges the app owner nothing more');
+
+select set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', false);
 
 -- ============================ 8. an over-cap tester is deferred, not exploded
 -- Take honest to their allowance, then approve one more proof for them.

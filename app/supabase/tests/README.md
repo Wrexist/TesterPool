@@ -12,6 +12,7 @@ gets tests.
 Needs `postgresql-16` (or newer) on the box — `initdb`, `pg_ctl`, `psql`.
 
 ```bash
+set -euo pipefail
 SP=$(mktemp -d) && chmod 777 "$SP"
 su postgres -c "initdb -D $SP/pgdata -U postgres --auth=trust"
 su postgres -c "pg_ctl -D $SP/pgdata -o '-p 5433 -k $SP' -l $SP/pg.log start"
@@ -24,11 +25,16 @@ psql -h "$SP" -p 5433 -U postgres \
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/00-supabase-stub.sql
 psql -h "$SP" -p 5433 -U postgres -d tp \
      -c "drop extension citext cascade; create extension citext with schema public"
+# No `|| break` — a migration that fails must stop the run, not leave the tests
+# asserting against half a schema.
 for f in supabase/migrations/*.sql; do
-  psql -h "$SP" -p 5433 -U postgres -d tp -v ON_ERROR_STOP=1 -q -f "$f" || break
+  psql -h "$SP" -p 5433 -U postgres -d tp -v ON_ERROR_STOP=1 -q -f "$f"
 done
+
+# In order: 01 clears the fixtures and creates what 02 and 03 build on.
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/01-economy.sql
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/02-install-cap.sql
+psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/03-proof-intake.sql
 ```
 
 Both test files abort on the first failed assertion and print `ALL ... PASSED`

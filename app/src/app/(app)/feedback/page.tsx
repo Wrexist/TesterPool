@@ -46,7 +46,8 @@ export default async function FeedbackInboxPage() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Feedback inbox</h1>
         <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
-          Private reports on your apps. Nothing here is public, and nothing here can become a store review.
+          Private reports on your apps. All of it happens inside closed testing tracks, which do not
+          affect store rankings, ratings, or public install counts.
         </p>
       </header>
 

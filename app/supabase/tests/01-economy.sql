@@ -10,6 +10,10 @@
 -- Fixtures from a previous run, cleared so the file can be run twice against
 -- the same database. 02 and 03 build on the pod and the creator this file
 -- creates, so run them in order.
+-- admin_actions holds an FK to profiles, written by _audit whenever a moderator
+-- acts. Without clearing it first the auth.users delete below fails and the
+-- whole reset silently half-runs.
+delete from admin_actions;
 delete from proofs;
 delete from feedback;
 delete from assignments;

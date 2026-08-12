@@ -84,7 +84,8 @@ insert into economy_config (key, value, note) values
   ('install_charge',      10, 'Charged to the app owner when a tester''s closed-track opt-in is confirmed. Mirrors opt_in_verified exactly.'),
   ('review_charge',       30, 'Charged to the app owner when a report is approved. FLAT across severities, on purpose.'),
   ('daily_install_cap',   10, 'Confirmed installs a free member may bank per day. Unlimited on the paid pass.'),
-  ('daily_review_cap',    10, 'Reports a free member may submit per day. Unlimited on the paid pass.')
+  ('daily_review_cap',    10, 'Reports a free member may submit per day. Unlimited on the paid pass.'),
+  ('default_pod_seats',   15, 'Seats in a free pod. 12 required by Google, so three can drop out and it still clears.')
 on conflict (key) do update set value = excluded.value, note = excluded.note;
 
 -- A developer whose balance ran dry mid-pod. Their testers were still paid;
@@ -182,7 +183,19 @@ begin
   if new.status = 'draft' then return new; end if;
   if tg_op = 'UPDATE' and old.status <> 'draft' then return new; end if;
 
+  -- The counter keys off submitted_at, so a row that leaves 'draft' without one
+  -- is invisible to every later count — and a REST client can post exactly that.
+  -- Stamping it here rather than trusting the caller is what makes the cap a
+  -- cap rather than a suggestion.
+  if new.submitted_at is null then new.submitted_at := now(); end if;
+
   if has_unlimited_testing(new.tester_id) then return new; end if;
+
+  -- Serialise per tester before counting. Two requests that both read "9 so
+  -- far" would both be allowed through, and on the install side that is two
+  -- credit transfers past the limit. The lock is released at commit and is
+  -- taken on the tester's own id, so it never blocks anybody else.
+  perform pg_advisory_xact_lock(hashtext('review_cap:' || new.tester_id::text));
 
   if _reviews_today(new.tester_id) >= cfg('daily_review_cap') then
     raise exception 'daily_review_cap'
@@ -205,6 +218,10 @@ begin
   if tg_op = 'UPDATE' and old.opt_in_verified_at is not null then return new; end if;
 
   if has_unlimited_testing(new.tester_id) then return new; end if;
+
+  -- Same race, same fix as the report cap. Here it matters more: every install
+  -- past the limit is 10 credits out of an app owner's balance.
+  perform pg_advisory_xact_lock(hashtext('install_cap:' || new.tester_id::text));
 
   if _installs_today(new.tester_id) >= cfg('daily_install_cap') then
     raise exception 'daily_install_cap'
@@ -308,14 +325,29 @@ create trigger trg_optin_confirmed
 -- not reject the report, and it does not save the developer the charge.
 create or replace function review_feedback(p_feedback uuid, p_verdict text, p_note text default null)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
-declare v_owner uuid; v_tester uuid; v_app uuid; v_sev int; v_pay int; v_bounty int := 0;
+declare
+  v_owner uuid; v_tester uuid; v_app uuid; v_sev int; v_pay int; v_bounty int := 0;
+  v_status feedback_status;
 begin
-  select a.owner_id, f.tester_id, f.app_id, f.severity
-    into v_owner, v_tester, v_app, v_sev
-    from feedback f join apps a on a.id = f.app_id where f.id = p_feedback;
+  -- `for update of f` locks the report for the length of this transaction.
+  -- Without it a repeated call — a double-clicked button, a retried request —
+  -- runs the whole transfer again. Credits stay conserved each time, so no
+  -- balance inflates and no alarm fires; the app owner is simply charged twice
+  -- for one report. The lock plus the terminal-status check below is what makes
+  -- a second call a no-op instead of a second bill.
+  select a.owner_id, f.tester_id, f.app_id, f.severity, f.status
+    into v_owner, v_tester, v_app, v_sev, v_status
+    from feedback f join apps a on a.id = f.app_id
+   where f.id = p_feedback
+     for update of f;
   if v_owner is null then raise exception 'unknown feedback'; end if;
   if v_owner <> auth.uid() and not exists (select 1 from profiles where id = auth.uid() and is_moderator) then
     raise exception 'not your app';
+  end if;
+
+  if v_status <> 'submitted' then
+    return jsonb_build_object('ok', false, 'error', 'already_reviewed',
+      'message', 'That report has already been dealt with.');
   end if;
 
   if p_verdict = 'useful' then
@@ -352,13 +384,25 @@ grant  execute on function review_feedback(uuid,text,text) to authenticated;
 -- have cost — otherwise disputing is a free option and everyone takes it.
 create or replace function arbitrate_dispute(p_dispute uuid, p_uphold boolean, p_resolution text)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
-declare v_fb uuid; v_tester uuid; v_app uuid; v_pay int;
+declare v_fb uuid; v_tester uuid; v_app uuid; v_pay int; v_dstatus dispute_status;
 begin
   if not exists (select 1 from profiles where id = auth.uid() and is_moderator) then
     raise exception 'moderators only';
   end if;
-  select d.feedback_id, f.tester_id, f.app_id into v_fb, v_tester, v_app
-    from disputes d join feedback f on f.id = d.feedback_id where d.id = p_dispute;
+
+  -- Same reasoning as review_feedback: arbitrating twice would charge the app
+  -- owner twice for one report.
+  select d.feedback_id, f.tester_id, f.app_id, d.status
+    into v_fb, v_tester, v_app, v_dstatus
+    from disputes d join feedback f on f.id = d.feedback_id
+   where d.id = p_dispute
+     for update of d;
+
+  if v_fb is null then raise exception 'unknown dispute'; end if;
+  if v_dstatus <> 'open' then
+    return jsonb_build_object('ok', false, 'error', 'already_resolved',
+      'message', 'That dispute has already been resolved.');
+  end if;
 
   if p_uphold then
     update feedback set status = 'rejected' where id = v_fb;
@@ -422,7 +466,12 @@ begin
   elsif v_kind = 'fast_pod' then
     v_seats := 18; v_priority := true;
   else
-    v_seats := (select core_seats from pods limit 0);
+    -- 15 seats: Google needs 12 testers, and three can drop out without the
+    -- pod failing. Carried forward from the previous definition as
+    -- `select core_seats from pods limit 0`, which returns no rows and left
+    -- v_seats null for every free member — so the seat filter below stopped
+    -- filtering and a free app could be matched into an 18 or 20-seat paid pod.
+    v_seats := cfg('default_pod_seats');
   end if;
 
   -- What this pod will cost the developer: every seat but their own tests their

@@ -43,12 +43,21 @@ begin
     return;
   end if;
 
-  -- Any pod left short by this is a seeded pod, and it goes too rather than
-  -- being left half-empty for a real developer to wander into.
-  delete from pods
-   where id in (
-     select distinct m.pod_id from pod_members m where m.user_id = any(v_ids)
-   );
+  -- A pod goes only when EVERY member of it is seed data. A seeded pod that a
+  -- real developer has since joined is their pod now: deleting it would take
+  -- their app, their assignments, their feedback and their ledger rows with it,
+  -- which is a far worse outcome than a pod that is briefly short a few seats.
+  delete from pods p
+   where exists (select 1 from pod_members m where m.pod_id = p.id)
+     and not exists (
+       select 1 from pod_members m
+        where m.pod_id = p.id and not (m.user_id = any(v_ids))
+     );
+
+  -- Mixed pods keep their real members and lose only the seeded seats. The
+  -- cascade from auth.users would remove these rows anyway; doing it here makes
+  -- the ordering explicit and the intent readable.
+  delete from pod_members where user_id = any(v_ids);
 
   delete from auth.identities where user_id = any(v_ids);
   delete from auth.users      where id      = any(v_ids);
@@ -59,6 +68,11 @@ end $$;
 -- A demo address must never come back. The check is on profiles rather than
 -- auth.users because that is the table this schema owns; a signup carrying one
 -- of these addresses fails at profile creation, which fails the signup.
+-- NOT VALID: adding a CHECK the normal way takes a lock and scans the table.
+-- The constraint still applies to every future insert and update, which is the
+-- whole point of it — it just does not re-read history it was created to
+-- outlive. The delete above already cleared the only rows that could fail.
 alter table profiles drop constraint if exists no_demo_accounts;
 alter table profiles add constraint no_demo_accounts
-  check (tester_email is null or tester_email::text not ilike '%@demo.testerpool.dev');
+  check (tester_email is null or tester_email::text not ilike '%@demo.testerpool.dev')
+  not valid;

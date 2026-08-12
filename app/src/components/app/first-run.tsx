@@ -129,7 +129,7 @@ export function FirstRun({ credits }: { credits: number }) {
           {
             n: 3,
             title: 'Test, and be tested',
-            body: 'Open each app once a day, and file one honest report. About two minutes a day.',
+            body: 'Open each app once a day. From day seven, write one honest report. About two minutes a day.',
           },
         ].map((s) => (
           <Card key={s.n} className="p-5">
@@ -186,8 +186,8 @@ export function FirstRun({ credits }: { credits: number }) {
                 strokeLinejoin="round" />
         </svg>
         <span>
-          Everything happens inside closed testing tracks. No public reviews, no ratings, no production
-          installs — nothing that affects your store listing.
+          Everything happens inside closed testing tracks, which do not affect store rankings,
+          ratings, or public install counts.
         </span>
       </div>
 

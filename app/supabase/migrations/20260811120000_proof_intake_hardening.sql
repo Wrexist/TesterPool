@@ -212,15 +212,20 @@ declare
   r record;
   v_stamped int := 0;
   v_deferred int := 0;
+  v_rows int;
 begin
+  -- Grouped by assignment: an assignment with two approved opt-in proofs would
+  -- otherwise appear twice, and the second pass would update nothing while
+  -- still counting itself as work done.
   for r in
-    select a.id
+    select a.id, min(p.created_at) as first_proof
       from proofs p
       join assignments a on a.id = p.assignment_id
      where p.kind = 'opt_in'
        and p.status in ('auto_approved', 'approved')
        and a.opt_in_verified_at is null
-     order by p.created_at
+     group by a.id
+     order by first_proof
      limit greatest(1, least(p_limit, 1000))
   loop
     begin
@@ -228,9 +233,13 @@ begin
          set opt_in_verified_at = now(),
              status = case when status = 'opt_in_pending' then 'active' else status end
        where id = r.id and opt_in_verified_at is null;
-      v_stamped := v_stamped + 1;
+      get diagnostics v_rows = row_count;
+      v_stamped := v_stamped + v_rows;
     exception when others then
-      -- The daily cap, almost always. Left for the next run.
+      -- Nearly always the daily cap, and that one is genuinely fine to defer.
+      -- Anything else is a bug wearing the same clothes, so the sqlstate goes
+      -- into the log rather than being counted as normal operation.
+      raise warning 'stamp deferred for assignment % (%): %', r.id, sqlstate, sqlerrm;
       v_deferred := v_deferred + 1;
     end;
   end loop;
@@ -252,15 +261,27 @@ begin
   select assignment_id, kind into v_assignment, v_kind from proofs where id = p_proof;
   if not found then raise exception 'no such proof'; end if;
 
-  update proofs set status = case when p_approve then 'approved' else 'rejected' end,
+  -- The cast is load-bearing. A two-branch CASE over bare literals resolves to
+  -- text, and text does not assign to a proof_status column — so the previous
+  -- definition raised for every moderator who tried to approve anything. It was
+  -- never caught because plpgsql does not check a function body until it runs,
+  -- and nothing called this one.
+  update proofs
+     set status = (case when p_approve then 'approved' else 'rejected' end)::proof_status,
          reviewed_by = auth.uid(), reviewed_at = now(),
          reject_reason = case when p_approve then null else p_reason end
    where id = p_proof;
 
   if p_approve and v_kind = 'opt_in' and v_assignment is not null then
     begin
-      update assignments set opt_in_verified_at = coalesce(opt_in_verified_at, now()),
-             status = 'active' where id = v_assignment;
+      -- Only an unverified assignment, and only 'opt_in_pending' becomes
+      -- 'active'. The previous form set status unconditionally, so re-approving
+      -- a proof belonging to someone who had since dropped out or graduated
+      -- pulled them back into an active seat.
+      update assignments
+         set opt_in_verified_at = now(),
+             status = case when status = 'opt_in_pending' then 'active' else status end
+       where id = v_assignment and opt_in_verified_at is null;
     exception when others then
       v_deferred := true;
     end;

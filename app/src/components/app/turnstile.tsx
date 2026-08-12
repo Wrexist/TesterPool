@@ -70,6 +70,13 @@ export interface TurnstileState {
   reset: () => void;
   setToken: (t: string | null) => void;
   setError: (e: string | null) => void;
+  /**
+   * How the rendered widget hands back its own reset. Clearing `token` alone is
+   * not enough: Cloudflare has already spent the challenge, so without asking
+   * the widget for a fresh one the submit button stays disabled forever after a
+   * single failed sign-in.
+   */
+  registerWidgetReset: (fn: () => void) => void;
 }
 
 export function useTurnstile(): TurnstileState {
@@ -77,12 +84,17 @@ export function useTurnstile(): TurnstileState {
   const [error, setError] = React.useState<string | null>(null);
   const resetRef = React.useRef<() => void>(() => {});
 
+  const registerWidgetReset = React.useCallback((fn: () => void) => {
+    resetRef.current = fn;
+  }, []);
+
   return {
     required: !!SITE_KEY,
     token,
     error,
     setToken,
     setError,
+    registerWidgetReset,
     reset: React.useCallback(() => {
       setToken(null);
       resetRef.current();
@@ -100,7 +112,7 @@ export function Turnstile({
 }) {
   const box = React.useRef<HTMLDivElement | null>(null);
   const widget = React.useRef<string | null>(null);
-  const { setToken, setError } = state;
+  const { setToken, setError, registerWidgetReset } = state;
 
   React.useEffect(() => {
     if (!SITE_KEY || !box.current) return;
@@ -123,6 +135,10 @@ export function Turnstile({
             setError('The bot check could not run. Reload and try again.');
           },
         });
+
+        registerWidgetReset(() => {
+          if (widget.current && window.turnstile) window.turnstile.reset(widget.current);
+        });
       })
       .catch(() => {
         if (!cancelled) setError('The bot check could not load. Reload and try again.');
@@ -130,12 +146,13 @@ export function Turnstile({
 
     return () => {
       cancelled = true;
+      registerWidgetReset(() => {});
       if (widget.current && window.turnstile) {
         window.turnstile.remove(widget.current);
         widget.current = null;
       }
     };
-  }, [action, setToken, setError]);
+  }, [action, setToken, setError, registerWidgetReset]);
 
   if (!SITE_KEY) return null;
   return <div ref={box} className="flex justify-center" />;

@@ -40,10 +40,10 @@ function fail<T = unknown>(message: string, code = 'error'): ActionResult<T> {
 function capMessage(raw: string | undefined): string | null {
   if (!raw) return null;
   if (raw.includes('daily_review_cap')) {
-    return `That is your ${CAPS.dailyReviews}th report today. The limit resets at midnight UTC, or Unlimited removes it.`;
+    return `You have sent your ${CAPS.dailyReviews} reports for today. The limit resets at midnight UTC, or Unlimited removes it.`;
   }
   if (raw.includes('daily_install_cap')) {
-    return `That is your ${CAPS.dailyInstalls}th install today. The limit resets at midnight UTC, or Unlimited removes it.`;
+    return `You have banked your ${CAPS.dailyInstalls} installs for today. The limit resets at midnight UTC, or Unlimited removes it.`;
   }
   return null;
 }
@@ -62,7 +62,12 @@ export async function readTestingQuota(): Promise<TestingQuota | null> {
   if ('error' in auth) return null;
 
   const { data, error } = await auth.supabase.rpc('testing_quota');
-  if (error || !data) return null;
+  if (error || !data) {
+    // The strip renders nothing either way, so without this the reason a member
+    // sees no allowance never surfaces anywhere.
+    if (error) console.error('testing_quota failed:', error.message);
+    return null;
+  }
 
   const row = data as {
     unlimited?: boolean;
@@ -433,7 +438,7 @@ export async function saveAppEntry(
   if (!optInUrl && !googleGroup) {
     return fail('Add an opt-in link or a Google Group.', 'bad_optin');
   }
-  if (optInUrl && !/^https?:\/\//i.test(optInUrl)) {
+  if (optInUrl && !/^https:\/\//i.test(optInUrl)) {
     return fail('An opt-in link starts with https://.', 'bad_optin');
   }
 
