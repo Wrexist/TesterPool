@@ -250,6 +250,41 @@ begin
   raise notice 'PASS a draft is still allowed at the cap';
 end $$;
 
+-- ====================== 6b. the cap triggers serialise per tester
+-- Counting before writing is a read-then-write race: two concurrent requests
+-- can both read "9 so far" and both be let through, and on the install side
+-- that is credits leaving an owner's balance past the limit. The fix is a
+-- per-tester advisory lock taken BEFORE the count.
+--
+-- This asserts the lock exists and is taken before the count. A true two-session
+-- race needs concurrent connections, which this single-session harness cannot
+-- drive; the regression actually worth guarding against is somebody deleting
+-- the lock line, and that is what this catches.
+do $$
+declare
+  fn text;
+  body text;
+  counter text;
+  lock_at int;
+  count_at int;
+begin
+  foreach fn in array array['guard_daily_review_cap', 'guard_daily_install_cap'] loop
+    body := pg_get_functiondef(fn::regproc);
+    counter := case when fn like '%review%' then '_reviews_today' else '_installs_today' end;
+
+    if position('pg_advisory_xact_lock' in body) = 0 then
+      raise exception 'FAIL % does not serialise per tester', fn;
+    end if;
+
+    lock_at  := position('pg_advisory_xact_lock' in body);
+    count_at := position(counter in body);
+    if lock_at > count_at then
+      raise exception 'FAIL % counts before it locks, which is the race itself', fn;
+    end if;
+    raise notice 'PASS % takes the tester lock before counting', fn;
+  end loop;
+end $$;
+
 -- ============================================ 7. the paid pass lifts the cap
 insert into entitlements (user_id, kind, expires_at)
 values ('22222222-2222-2222-2222-222222222222', 'unlimited', now() + interval '30 days');
