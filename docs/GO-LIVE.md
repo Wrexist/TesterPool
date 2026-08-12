@@ -166,6 +166,29 @@ Check it deployed:
 supabase functions list --project-ref yudcncvarndslyyajflr
 ```
 
+### One gotcha: two callers, two kinds of credential
+
+`triage-proof` is invoked from two places, and they authenticate differently:
+
+- the Next server, inline after an upload, with the **service-role key** (a JWT);
+- pg_cron, on the sweep, with the **`cron_secret`** (an opaque random string).
+
+The function itself accepts both — `authorised()` checks the service key, then
+`CRON_SECRET`, then the Vault copy. What can still refuse the cron call is the
+Supabase **gateway**, which verifies a JWT before the function ever runs and will
+reject an opaque string with a 401 you never see in the function's logs.
+
+`send-notifications` is already invoked the same way, so if that one delivers,
+this one will too. If the sweep silently dispatches and nothing happens, that is
+the first thing to check:
+
+```bash
+supabase functions deploy triage-proof --no-verify-jwt --project-ref yudcncvarndslyyajflr
+```
+
+The function is not left unprotected by that flag — it does its own constant-time
+check on both credentials and returns 401 without one.
+
 ---
 
 ## 3. Two Vault secrets, so cron can reach the function

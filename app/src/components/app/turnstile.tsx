@@ -79,6 +79,10 @@ export interface TurnstileState {
   registerWidgetReset: (fn: () => void) => void;
 }
 
+/**
+ * Holds the challenge token for a form. `required` is false when no site key is
+ * configured, which is how development stays ungated.
+ */
 export function useTurnstile(): TurnstileState {
   const [token, setToken] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -102,6 +106,7 @@ export function useTurnstile(): TurnstileState {
   };
 }
 
+/** Renders the widget, or nothing at all when no site key is configured. */
 export function Turnstile({
   state,
   action,

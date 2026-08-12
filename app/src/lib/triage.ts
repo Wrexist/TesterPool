@@ -47,6 +47,12 @@ const QUEUED: TriageOutcome = {
   message: 'Uploaded. A moderator confirms this within a few hours, and your fourteen days start from the moment they do.',
 };
 
+/**
+ * Asks the vision model about one proof and reports what it decided.
+ *
+ * Never throws and never approves: every failure returns {@link QUEUED}, which
+ * leaves the proof pending for a human.
+ */
 export async function triageProof(proofId: string): Promise<TriageOutcome> {
   if (!FUNCTIONS_URL || !SERVICE_KEY) return QUEUED;
 
