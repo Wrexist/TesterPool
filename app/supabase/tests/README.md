@@ -112,3 +112,22 @@ temp table in 03.
 
 Run the three files in order: 01 clears the fixtures and creates the pod and the
 creator that 02 and 03 build on.
+
+## Known gap: concurrency
+
+The daily caps count rows and then write, so two simultaneous requests could
+both pass the same boundary. The fix is a per-tester `pg_advisory_xact_lock`
+taken before the count, in both `guard_daily_review_cap` and
+`guard_daily_install_cap`.
+
+`01-economy.sql` asserts that lock exists and comes before the count, by reading
+the trigger bodies out of `pg_get_functiondef`. It does **not** prove the lock
+works under real contention: that needs two connections held open against each
+other, and this harness is one `psql` session running files in order. Driving it
+properly means a shell orchestrator with background processes and sleeps, which
+would make the suite flaky exactly where it most needs to be trustworthy.
+
+So the structural assertion is the guard against the regression that is actually
+likely — somebody removing the lock line in a later refactor — and true
+concurrent behaviour is unverified here. If you add a second harness that can
+hold two sessions, this is the first thing to point it at.
