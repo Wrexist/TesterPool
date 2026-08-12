@@ -83,9 +83,9 @@ npx tsc --noEmit     # must be clean
 npm run lint
 ```
 
-Visit `/demo` to sign in as any seeded developer (guarded by
-`NEXT_PUBLIC_ENABLE_DEMO_LOGIN`). They are all in a pod at day 9 of 14, so every screen is
-populated. Password for all seeded accounts: `testerpool-demo-1234`.
+`src/app/demo/` has been removed and the `@demo.testerpool.dev` seed accounts deleted from the
+live project ahead of launch — see `docs/GO-LIVE.md`. Do not reintroduce a passwordless demo
+sign-in route against the production database.
 
 ## Database
 
@@ -150,7 +150,5 @@ user with no pod must see a page that guides them, never a blank screen.
 
 ## Before launch
 
-See `docs/BUILD-PLAN.md` Phase 0. Short version: delete `src/app/demo/`, remove the
-`@demo.testerpool.dev` accounts, rotate the anon key, enable Supabase leaked-password
-protection, move `citext` out of `public`, add Turnstile to signup, and write Terms that do
-not contradict the product.
+See `docs/GO-LIVE.md` for the current status of the Phase 0 checklist from
+`docs/BUILD-PLAN.md`.

@@ -5,7 +5,10 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Card, Pill, CreditChip, cx } from '@/components/ui';
 import { LogoMark, Wordmark } from '@/components/Logo';
+import { Turnstile } from '@/components/Turnstile';
 import { EARN, RULES } from '@/lib/economy';
+
+const TURNSTILE_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
 type Status = 'idle' | 'sending' | 'sent' | 'error';
 
@@ -119,6 +122,7 @@ export default function LoginForm({
   const [error, setError] = React.useState<string | null>(
     initialError ? readableAuthError(initialError) : null
   );
+  const [turnstileToken, setTurnstileToken] = React.useState<string | null>(null);
 
   /**
    * `signInWithOAuth` does not ask Supabase whether the provider exists — it
@@ -158,10 +162,28 @@ export default function LoginForm({
   async function sendMagicLink(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (status === 'sending') return;
+    if (TURNSTILE_CONFIGURED && !turnstileToken) {
+      setError('Complete the verification challenge above first.');
+      return;
+    }
     setStatus('sending');
     setError(null);
 
     try {
+      if (TURNSTILE_CONFIGURED) {
+        const verifyRes = await fetch('/api/turnstile/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: turnstileToken }),
+        });
+        const verifyJson = (await verifyRes.json()) as { ok: boolean; error?: string };
+        if (!verifyJson.ok) {
+          setError(verifyJson.error ?? 'Verification failed. Refresh and try again.');
+          setStatus('error');
+          return;
+        }
+      }
+
       const supabase = createClient();
       const { error: err } = await supabase.auth.signInWithOtp({
         email: email.trim(),
@@ -392,10 +414,18 @@ export default function LoginForm({
                   disabled={status === 'sending' || oauthBusy !== null}
                 />
 
+                <Turnstile
+                  onVerify={setTurnstileToken}
+                  onExpire={() => setTurnstileToken(null)}
+                />
+
                 <button
                   type="submit"
                   disabled={
-                    status === 'sending' || oauthBusy !== null || email.trim().length < 4
+                    status === 'sending' ||
+                    oauthBusy !== null ||
+                    email.trim().length < 4 ||
+                    (TURNSTILE_CONFIGURED && !turnstileToken)
                   }
                   className={cx('btn btn-primary mt-3 w-full')}
                 >
