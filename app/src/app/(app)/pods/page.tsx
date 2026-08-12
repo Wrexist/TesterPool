@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Card, Pill, Avatar, EmptyState, ProgressRing } from '@/components/ui';
-import { JoinPodButton, StartPodButton } from './pod-actions';
+import { JoinPodButton, StartPodButton, type JoinableApp } from './pod-actions';
 import { IconArrow, IconPlus } from '@/components/app/icons';
 import { RULES } from '@/lib/economy';
 import { estimateStart, fmtDate, n, podDay, POD_STATUS_COPY } from '@/lib/pods';
@@ -53,7 +53,13 @@ export default async function PodsPage() {
 
   const joinable = apps
     .filter((a) => a.status === 'draft' || a.status === 'queued')
-    .map((a) => ({ id: a.id, name: a.name, status: a.status }));
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      status: a.status,
+      reachable: !!a.opt_in_url || !!a.google_group,
+      creditsPaused: !!a.credits_paused,
+    }));
 
   return (
     <div className="flex flex-col gap-8">
@@ -61,8 +67,8 @@ export default async function PodsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Pods</h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
-            A pod is {RULES.podSeats} developers who test each other for the same {RULES.requiredDays} days.
-            Google needs {RULES.requiredTesters}, so three people can vanish and your clock still holds.
+            {RULES.podSeats} developers testing each other for {RULES.requiredDays} days. Google needs{' '}
+            {RULES.requiredTesters}, so three can drop out and your clock still holds.
           </p>
         </div>
         {apps.length === 0 && (
@@ -92,7 +98,7 @@ export default async function PodsPage() {
               Forming pods
             </h2>
             <p className="mt-1 text-sm text-[var(--color-dim)]">
-              Join the fullest pod you can. A pod that is nearly full starts sooner.
+              Join the fullest one. It starts sooner.
             </p>
           </div>
         </div>
@@ -100,7 +106,7 @@ export default async function PodsPage() {
         {forming.length === 0 ? (
           <EmptyState
             title="No pods are forming right now"
-            body="Join anyway and we open a new pod for you. It fills as other developers arrive, usually within a few days, and you are told the moment the clock starts."
+            body="Join anyway and we open one for you. It fills as other developers arrive, usually within a few days."
             action={
               joinable.length > 0
                 ? <div className="w-56"><JoinPodButton apps={joinable} /></div>
@@ -165,7 +171,7 @@ function FormingPodCard({
 }: {
   pod: PodHealthRow;
   members: MemberRow[];
-  joinable: { id: string; name: string; status: string }[];
+  joinable: JoinableApp[];
   alreadyIn: boolean;
 }) {
   const filled = n(pod.members);
@@ -182,7 +188,7 @@ function FormingPodCard({
             <Pill tone={POD_STATUS_COPY[pod.status].tone}>{POD_STATUS_COPY[pod.status].label}</Pill>
           </div>
           <p className="mt-1 text-xs text-[var(--color-mute)]">
-            Code <span className="num">{pod.code}</span> · needs <span className="num">{n(pod.required_testers, RULES.requiredTesters)}</span> testers to clear
+            Code <span className="num">{pod.code}</span>
           </p>
         </div>
         <div className="text-right">

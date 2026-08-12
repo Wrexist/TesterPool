@@ -6,13 +6,15 @@ import { StreakStrip, cx, type DayState } from '@/components/ui';
 import { Spinner } from '@/components/app/action-button';
 import { IconCheck } from '@/components/app/icons';
 import { submitCheckin } from '@/app/(app)/actions';
-import { EARN } from '@/lib/economy';
 
 /**
  * The single most repeated interaction in the product: fourteen presses over
- * fourteen days. It commits optimistically — the strip fills and the credits
- * land the instant you press — and rolls back with a specific reason if the
- * server disagrees.
+ * fourteen days. It commits optimistically — the strip fills the instant you
+ * press — and rolls back with a specific reason if the server disagrees.
+ *
+ * No credit figure on the button. A check-in pays nothing directly; it protects
+ * the reliability score that decides whether you can join a pod at all, which
+ * is a far bigger number than five credits ever was.
  */
 export function CheckInButton({
   assignmentId,
@@ -83,7 +85,7 @@ export function CheckInButton({
               <IconCheck size={15} /> Checked in today
             </>
           ) : (
-            <>Check in today <span className="num">+{EARN.dailyCheckin}</span></>
+            <>Check in today</>
           )}
         </button>
         {done && !error && (

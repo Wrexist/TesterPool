@@ -5,6 +5,7 @@ import { Card, Pill, EmptyState, CreditChip, StreakStrip } from '@/components/ui
 import { CheckInButton } from './checkin-button';
 import { IconArrow, IconUpload, IconFeedback, IconCheck } from '@/components/app/icons';
 import { EARN, RULES } from '@/lib/economy';
+import { readTestingQuota, type TestingQuota } from '@/app/(app)/actions';
 import {
   podDay, stripFor, checkedInToday, daysRemaining, n, fmtDate, missedDays,
 } from '@/lib/pods';
@@ -57,6 +58,7 @@ export default async function TestsPage() {
     earnedByAssignment.set(entry.ref_id, (earnedByAssignment.get(entry.ref_id) ?? 0) + n(entry.delta));
   }
 
+  const quota = await readTestingQuota();
   const active = tests.filter((t) => t.status !== 'dropped' && t.status !== 'removed');
   const finished = tests.filter((t) => t.status === 'dropped' || t.status === 'removed');
   const totalEarned = [...earnedByAssignment.values()].reduce((a, b) => a + b, 0);
@@ -67,8 +69,7 @@ export default async function TestsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My tests</h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
-            Every app you are testing. One open a day keeps someone else&apos;s launch alive, and a full
-            14 of 14 pays a bonus on top of the daily credits.
+            One open a day, each. A full 14 of 14 is what protects your reliability.
           </p>
         </div>
         <div className="flex items-center gap-2 text-sm text-[var(--color-dim)]">
@@ -76,10 +77,12 @@ export default async function TestsPage() {
         </div>
       </header>
 
+      <QuotaStrip quota={quota} />
+
       {active.length === 0 ? (
         <EmptyState
           title="You are not testing anything yet"
-          body="Join a pod with your own app and you are automatically seated as a tester for everyone else in it. That is the trade: fourteen days of your attention for fourteen days of theirs."
+          body="Join a pod with your own app and you are seated as a tester for everyone else in it. Fourteen days of your attention for fourteen days of theirs."
           action={<Link href="/pods" className="btn btn-primary">Browse forming pods <IconArrow size={15} /></Link>}
         />
       ) : (
@@ -117,6 +120,52 @@ export default async function TestsPage() {
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * Today's allowance, stated before it bites.
+ *
+ * A cap a tester only meets at the moment it stops them is a cap they
+ * experience as a bug. Shown here, above the work, it reads as a budget.
+ */
+function QuotaStrip({ quota }: { quota: TestingQuota | null }) {
+  if (!quota || quota.unlimited) return null;
+
+  const rows = [
+    { label: 'Installs', used: quota.installsToday, cap: quota.installCap },
+    { label: 'Reports', used: quota.reviewsToday, cap: quota.reviewCap },
+  ].filter((r): r is { label: string; used: number; cap: number } => r.cap != null);
+
+  if (rows.length === 0) return null;
+  const anyFull = rows.some((r) => r.used >= r.cap);
+
+  return (
+    <Card className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3.5">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-mute)]">
+        Today
+      </span>
+      {rows.map(({ label, used, cap }) => {
+        const full = used >= cap;
+        return (
+          <span key={label} className="flex items-center gap-2 text-sm">
+            <span className="text-[var(--color-dim)]">{label}</span>
+            <span
+              className="num font-semibold"
+              style={{ color: full ? 'var(--color-credit)' : 'var(--color-ink)' }}
+            >
+              {used} of {cap}
+            </span>
+          </span>
+        );
+      })}
+      <span className="ml-auto text-xs text-[var(--color-mute)]">
+        {anyFull ? 'Resets at midnight UTC. ' : ''}
+        <Link href="/billing" className="underline decoration-[var(--color-line-hi)] underline-offset-2">
+          {anyFull ? 'Remove the limit' : 'Unlimited removes the limit'}
+        </Link>
+      </span>
+    </Card>
   );
 }
 
@@ -178,7 +227,7 @@ function TestCard({
                 <IconUpload size={15} /> Verify your opt-in <span className="num">+{EARN.optInVerified}</span>
               </Link>
               <p className="text-xs text-[var(--color-mute)]">
-                Nothing counts until the developer can see you in their tester list.
+                Nothing counts until you appear in their tester list.
               </p>
             </div>
           ) : (
@@ -209,10 +258,11 @@ function TestCard({
           ) : (
             <>
               <Link href={`/tests/${test.id}/feedback`} className="btn btn-secondary">
-                <IconFeedback size={15} /> Submit your feedback report <span className="num">+{EARN.feedbackApproved}</span>
+                <IconFeedback size={15} /> Write your report{' '}
+                <span className="num">+{EARN.feedbackApproved} if approved</span>
               </Link>
               <p className="text-xs text-[var(--color-mute)]">
-                You are past day seven, so you have seen enough to write something the developer can act on.
+                Day seven onward — you have seen enough to be useful.
               </p>
             </>
           )}

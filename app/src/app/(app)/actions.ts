@@ -13,6 +13,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import type { ActionResult } from '@/lib/types';
 import { checkHandle, looksLikeEmail } from '@/lib/pods';
+import { CAPS } from '@/lib/economy';
+import { triageProof } from '@/lib/triage';
 import { normaliseCategory, parseAppLink, suggestFocusAreas } from '@/lib/store-links';
 import { isCountryCode } from '@/lib/countries';
 
@@ -27,6 +29,60 @@ async function requireUser(): Promise<{ supabase: Supa; userId: string } | { err
 
 function fail<T = unknown>(message: string, code = 'error'): ActionResult<T> {
   return { ok: false, error: code, message };
+}
+
+/**
+ * The daily cap is enforced by a database trigger, not here — Supabase exposes
+ * every table over REST, so a check that lives only in a Server Action is one a
+ * determined farmer can POST around. The trigger raises a bare code; this turns
+ * it into a sentence, with the hint Postgres carried along.
+ */
+function capMessage(raw: string | undefined): string | null {
+  if (!raw) return null;
+  if (raw.includes('daily_review_cap')) {
+    return `You have sent your ${CAPS.dailyReviews} reports for today. The limit resets at midnight UTC, or Unlimited removes it.`;
+  }
+  if (raw.includes('daily_install_cap')) {
+    return `You have banked your ${CAPS.dailyInstalls} installs for today. The limit resets at midnight UTC, or Unlimited removes it.`;
+  }
+  return null;
+}
+
+export interface TestingQuota {
+  unlimited: boolean;
+  installsToday: number;
+  reviewsToday: number;
+  installCap: number | null;
+  reviewCap: number | null;
+}
+
+/** Today's testing allowance for the signed-in member. Null if unreadable. */
+export async function readTestingQuota(): Promise<TestingQuota | null> {
+  const auth = await requireUser();
+  if ('error' in auth) return null;
+
+  const { data, error } = await auth.supabase.rpc('testing_quota');
+  if (error || !data) {
+    // The strip renders nothing either way, so without this the reason a member
+    // sees no allowance never surfaces anywhere.
+    if (error) console.error('testing_quota failed:', error.message);
+    return null;
+  }
+
+  const row = data as {
+    unlimited?: boolean;
+    installs_today?: number;
+    reviews_today?: number;
+    install_cap?: number | null;
+    review_cap?: number | null;
+  };
+  return {
+    unlimited: !!row.unlimited,
+    installsToday: row.installs_today ?? 0,
+    reviewsToday: row.reviews_today ?? 0,
+    installCap: row.install_cap ?? null,
+    reviewCap: row.review_cap ?? null,
+  };
 }
 
 /** RPCs return jsonb; normalise the two shapes we get back. */
@@ -300,9 +356,11 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
   if (!input.app.name.trim()) {
     return fail('Your app needs a name.', 'bad_app');
   }
-  if (!input.app.optInUrl.trim() && !input.app.googleGroup.trim()) {
-    return fail('Add an opt-in URL or a Google Group. Testers cannot join a closed track without one.', 'bad_optin');
-  }
+  // No opt-in link required here, deliberately. The app is saved as a draft,
+  // and `app_needs_optin_to_queue` allows a draft without one; the link is
+  // demanded by `joinPod` below, at the point it first has to work. Requiring
+  // it at signup blocked every developer who has not created their closed
+  // track yet — which is most of the people this product exists for.
 
   const { error: profileError } = await supabase
     .from('profiles')
@@ -357,11 +415,74 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
   return { ok: true, data: { appId: app.id as string }, message: 'Your app is listed.' };
 }
 
+/* --------------------------------------------------------------- app edit */
+
+/**
+ * Saves the way testers reach a closed track, after the fact.
+ *
+ * Onboarding no longer demands this, so it has to be reachable later — from the
+ * join button on /pods and from the dashboard. Ownership is enforced by RLS on
+ * `apps`; the `eq('owner_id')` is belt and braces, and makes the zero-row case
+ * mean "not yours" rather than a silent no-op.
+ */
+export async function saveAppEntry(
+  appId: string,
+  input: { optInUrl: string; googleGroup: string }
+): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+
+  const optInUrl = input.optInUrl.trim();
+  const googleGroup = input.googleGroup.trim();
+
+  if (!optInUrl && !googleGroup) {
+    return fail('Add an opt-in link or a Google Group.', 'bad_optin');
+  }
+  if (optInUrl && !/^https:\/\//i.test(optInUrl)) {
+    return fail('An opt-in link starts with https://.', 'bad_optin');
+  }
+
+  const { data, error } = await auth.supabase
+    .from('apps')
+    .update({
+      opt_in_url: optInUrl || null,
+      google_group: googleGroup || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', appId)
+    .eq('owner_id', auth.userId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) return fail(error.message, 'db_error');
+  if (!data) return fail('That app is not yours.', 'not_found');
+
+  revalidatePath('/dashboard');
+  revalidatePath('/pods');
+  return { ok: true, message: 'Saved. Testers can reach your track now.' };
+}
+
 /* ------------------------------------------------------------------ pods */
 
 export async function joinPod(appId: string): Promise<ActionResult> {
   const auth = await requireUser();
   if ('error' in auth) return fail(auth.error, 'no_session');
+
+  // `join_pod` moves the app to 'queued', which the `app_needs_optin_to_queue`
+  // constraint rejects without a way in. Caught here so the developer reads a
+  // sentence about their opt-in link rather than a raw constraint violation.
+  const { data: app } = await auth.supabase
+    .from('apps')
+    .select('opt_in_url, google_group')
+    .eq('id', appId)
+    .maybeSingle();
+
+  if (app && !app.opt_in_url && !app.google_group) {
+    return fail(
+      'Add your opt-in link first. It is how testers reach your closed track.',
+      'needs_optin'
+    );
+  }
 
   const { data, error } = await auth.supabase.rpc('join_pod', { p_app: appId });
   if (error) return fail(error.message, 'rpc_error');
@@ -430,58 +551,63 @@ export async function submitCheckin(assignmentId: string, note?: string): Promis
 
 /* --------------------------------------------------------------- opt-in */
 
-export async function recordOptInProof(
+/**
+ * Submits a screenshot as proof, and asks the vision model about it.
+ *
+ * There is no confidence argument, and there used to be. The browser scored the
+ * file with a stub that guessed from its size and name, passed the number here,
+ * and anything at or above 0.85 was stamped approved — which, since credits
+ * became a transfer, mints 10 credits and charges a stranger. A signed-in user
+ * could POST a 0.99 and pay themselves.
+ *
+ * Now the only thing a client can do is say "here is an object I uploaded,
+ * against this assignment". `submit_proof` checks both of those against the
+ * database and always writes status 'pending'. The verdict comes from
+ * `triage-proof`, which runs as the service role.
+ *
+ * Triage is fired inline so the common case is fast, but its failure is not
+ * this function's problem: a proof with no verdict is a proof in the human
+ * queue, and the sweep retries it. Nothing here can fail *open*.
+ */
+export async function recordProof(
   assignmentId: string,
   storagePath: string,
-  confidence: number
-): Promise<ActionResult<{ proofId: string }>> {
+  kind: 'opt_in' | 'daily_use' = 'opt_in'
+): Promise<ActionResult<{ proofId: string; status: string }>> {
   const auth = await requireUser();
   if ('error' in auth) return fail(auth.error, 'no_session');
-  const { supabase, userId } = auth;
 
-  const autoApproved = confidence >= 0.85;
+  const { data, error } = await auth.supabase.rpc('submit_proof', {
+    p_assignment: assignmentId,
+    p_kind: kind,
+    p_path: storagePath,
+  });
 
-  const { data: proof, error: proofError } = await supabase
-    .from('proofs')
-    .insert({
-      uploader_id: userId,
-      assignment_id: assignmentId,
-      kind: 'opt_in',
-      storage_path: storagePath,
-      ai_confidence: confidence,
-      ai_verdict: {
-        model: 'testerpool-vision-triage',
-        detected: ['closed testing banner', 'tester enrolment confirmation'],
-        note: autoApproved
-          ? 'Screenshot matches a confirmed closed-track enrolment.'
-          : 'Low confidence. Queued for a human moderator.',
-      },
-      status: autoApproved ? 'auto_approved' : 'pending',
-    })
-    .select('id')
-    .single();
+  if (error) return fail(error.message, 'db_error');
 
-  if (proofError) return fail(proofError.message, 'db_error');
-
-  if (autoApproved) {
-    const { error: assignError } = await supabase
-      .from('assignments')
-      .update({ opt_in_verified_at: new Date().toISOString(), status: 'active' })
-      .eq('id', assignmentId)
-      .eq('tester_id', userId);
-    if (assignError) return fail(assignError.message, 'db_error');
+  const row = (data ?? {}) as { ok?: boolean; error?: string; message?: string; proof_id?: string };
+  if (row.ok === false || !row.proof_id) {
+    return fail(row.message ?? 'That proof could not be recorded.', row.error ?? 'rejected');
   }
+
+  const triaged = await triageProof(row.proof_id);
 
   revalidatePath('/tests');
   revalidatePath('/dashboard');
 
   return {
     ok: true,
-    data: { proofId: proof.id as string },
-    message: autoApproved
-      ? 'Opt-in verified. Your daily check-ins start now.'
-      : 'Uploaded. A moderator will confirm this within a few hours.',
+    data: { proofId: row.proof_id, status: triaged.status },
+    message: triaged.message,
   };
+}
+
+/** Kept for the older call signature; the confidence argument is ignored. */
+export async function recordOptInProof(
+  assignmentId: string,
+  storagePath: string
+): Promise<ActionResult<{ proofId: string; status: string }>> {
+  return recordProof(assignmentId, storagePath, 'opt_in');
 }
 
 /* ------------------------------------------------------------- feedback */
@@ -537,7 +663,11 @@ export async function submitFeedback(input: FeedbackInput): Promise<ActionResult
     .from('feedback')
     .upsert(payload, { onConflict: 'assignment_id' });
 
-  if (error) return fail(error.message, 'db_error');
+  if (error) {
+    const capped = capMessage(error.message);
+    if (capped) return fail(capped, 'daily_cap');
+    return fail(error.message, 'db_error');
+  }
 
   revalidatePath('/tests');
   revalidatePath('/feedback');

@@ -115,6 +115,11 @@
 
   .label { display:block; font-size: .75rem; font-weight: 600; color: var(--color-dim); margin-bottom: .375rem; }
 
+  /* Optional detail, folded away. The marker is our own chevron, not the UA's. */
+  .disclosure > summary::-webkit-details-marker { display: none; }
+  .disclosure > summary::marker { content: ''; }
+  .disclosure[open] > summary .disclosure-chevron { transform: rotate(90deg); }
+
   .dotgrid {
     background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.045) 1px, transparent 0);
     background-size: 22px 22px;

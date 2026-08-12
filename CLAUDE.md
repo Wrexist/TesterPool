@@ -26,6 +26,13 @@ public store review, a public rating, or a production install. If a feature requ
 one, the answer is no. Never add: review text fields, star ratings destined for a store,
 install-count rewards, review-prompt tooling, or AI-drafted review copy.
 
+**1a. Credits move, they are never minted, and the client never decides a payment.**
+A confirmed install transfers 10 from the app owner to the tester; a confirmed report
+transfers 30. A full pod costs 560 and pays 560, so doing your share breaks even and the
+supply cannot inflate. Nothing that pays out may be triggered by a value the browser
+supplied — `submit_proof` exists because `recordOptInProof` once took a confidence score
+from the client and approved on it, which was a money printer.
+
 **2. A creator can never silently withhold payment for critical feedback.**
 `review_feedback(id, 'low_effort')` opens a moderator dispute — it does not reject the
 report. Specific critical feedback is paid at the same rate as praise. Remove that
@@ -83,9 +90,12 @@ npx tsc --noEmit     # must be clean
 npm run lint
 ```
 
-Visit `/demo` to sign in as any seeded developer (guarded by
-`NEXT_PUBLIC_ENABLE_DEMO_LOGIN`). They are all in a pod at day 9 of 14, so every screen is
-populated. Password for all seeded accounts: `testerpool-demo-1234`.
+`/demo` and the `@demo.testerpool.dev` accounts are gone — they were real logins with a
+password written down in this file, and once credits became a transfer each one was a way to
+drain a stranger's balance. Sign in with a magic link like everyone else.
+
+`supabase/tests/` replays the whole migration history against a throwaway Postgres and asserts
+the economy and the proof pipeline. Run it before touching either.
 
 ## Database
 

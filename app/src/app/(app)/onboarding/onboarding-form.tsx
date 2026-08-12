@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, Pill, cx } from '@/components/ui';
+import { Card, Disclosure, Pill, cx } from '@/components/ui';
 import { Note, Spinner, useAction } from '@/components/app/action-button';
 import { IconArrow, IconAlert, IconCheck } from '@/components/app/icons';
 import { checkHandle, checkOptInUrl, checkPackageName, isGoogleAccountEmail, looksLikeEmail } from '@/lib/pods';
@@ -21,7 +21,7 @@ const FOCUS_AREAS = [
   'Notifications', 'Offline behaviour', 'Accessibility', 'Dark mode',
 ];
 
-const STEPS = ['Who you are', 'Your test account', 'Your first app'];
+const STEPS = ['You', 'Test account', 'Your app'];
 
 export function OnboardingForm({
   initial,
@@ -97,9 +97,22 @@ export function OnboardingForm({
   const googleOk = emailOk && isGoogleAccountEmail(testerEmail);
   const packageOk = !packageName.trim() || checkPackageName(packageName);
   const urlCheck = optInUrl.trim() ? checkOptInUrl(optInUrl) : null;
-  const hasEntry = !!optInUrl.trim() || !!googleGroup.trim();
-  // The finder has to have produced something before the fields below exist.
-  const appOk = !!lookup && !!name.trim() && hasEntry;
+  /**
+   * Setup finishes on a linked app and a name. Nothing else.
+   *
+   * The opt-in link used to be required here, which stranded the common case: a
+   * developer whose closed track does not exist yet, who came to TesterPool
+   * precisely because they have not got that far. They reached the last step,
+   * found "Finish setup" greyed out, and had nothing they could type to fix it.
+   * The link is genuinely needed — but at the moment a pod is joined, not at
+   * signup, so that is where it is asked for now.
+   */
+  // Deferring the opt-in link is deliberate. Saving a malformed one is not, and
+  // nor is a malformed package name — the field above already tells the user it
+  // is wrong, and the package name is the identity key behind the duplicate
+  // constraint. Leaving the button live while showing an error is the form
+  // disagreeing with itself.
+  const appOk = !!lookup && !!name.trim() && packageOk && (urlCheck?.ok ?? true);
 
   const stepOk = step === 0 ? handleOk : step === 1 ? emailOk : appOk;
 
@@ -165,7 +178,7 @@ export function OnboardingForm({
             <div>
               <h2 className="text-lg font-semibold">Pick a handle</h2>
               <p className="mt-1 text-sm text-[var(--color-dim)]">
-                Other developers see this on your seat in their pod and on the leaderboard.
+                Your pod sees this. Nothing else here is public.
               </p>
             </div>
             <div>
@@ -205,9 +218,8 @@ export function OnboardingForm({
                 ))}
               </select>
               <p className="mt-1.5 text-xs text-[var(--color-mute)]">
-                Preselected from your device&apos;s time zone where we can tell — change it if that is
-                wrong. Countries spread a pod across time zones, so daily check-ins land in different
-                hours rather than all at once.
+                Guessed from your time zone. We spread a pod across zones so check-ins do not all land
+                at once.
               </p>
             </div>
           </div>
@@ -218,10 +230,8 @@ export function OnboardingForm({
             <div>
               <h2 className="text-lg font-semibold">The Google account you will test with</h2>
               <p className="mt-1 text-sm text-[var(--color-dim)]">
-                Closed testing tracks are keyed to a Google account, not to a person. A developer adds this
-                exact address to their tester list. If the address you give here is not the one signed in to
-                the Play Store on your device, the opt-in link returns an error and the test never starts.
-                This is the single most common reason a closed test fails.
+                It has to be the account signed in to the Play Store on your device. If it is not, every
+                opt-in link you open returns an error.
               </p>
             </div>
             <div>
@@ -237,20 +247,19 @@ export function OnboardingForm({
                 <p className="mt-1.5 flex items-start gap-1.5 text-xs text-[var(--color-credit)]">
                   <IconAlert size={13} className="mt-px shrink-0" />
                   <span>
-                    That is not a gmail.com address. Workspace accounts do work, but only if this is the account
-                    signed in to the Play Store on the device you will test with. Check before you continue.
+                    Not a gmail.com address. Workspace accounts work, but only if this one is signed in to
+                    the Play Store on your device.
                   </span>
                 </p>
               )}
             </div>
-            <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface-2)] p-4">
-              <h3 className="text-sm font-semibold">How to check in 20 seconds</h3>
-              <ol className="mt-2 flex list-decimal flex-col gap-1 pl-4 text-sm text-[var(--color-dim)]">
-                <li>Open the Play Store on the device you will test on.</li>
-                <li>Tap your avatar, top right. The address shown there is the one that matters.</li>
-                <li>Paste that exact address above.</li>
+            <Disclosure summary="How to check, in 20 seconds">
+              <ol className="flex list-decimal flex-col gap-1 pl-4 text-sm text-[var(--color-dim)]">
+                <li>Open the Play Store on your test device.</li>
+                <li>Tap your avatar, top right.</li>
+                <li>Paste the address shown there.</li>
               </ol>
-            </div>
+            </Disclosure>
           </div>
         )}
 
@@ -260,111 +269,107 @@ export function OnboardingForm({
 
             {lookup && (
               <>
-            <div className="border-t border-[var(--color-line)] pt-4">
-              <h3 className="text-sm font-semibold">What testers see</h3>
-              <p className="mt-1 text-sm text-[var(--color-dim)]">
-                Prefilled where we could. Correct anything that is wrong — precise instructions get
-                precise reports.
-              </p>
-            </div>
+                <div className="grid gap-4 border-t border-[var(--color-line)] pt-4 sm:grid-cols-2">
+                  <div>
+                    <label className="label" htmlFor="appName">App name</label>
+                    <input id="appName" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ledgerly" />
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="pkg">Package name</label>
+                    <input id="pkg" className="input" value={packageName} onChange={(e) => setPackageName(e.target.value)} placeholder="com.ledgerly.app" />
+                    {!packageOk && (
+                      <p className="mt-1.5 text-xs text-[var(--color-credit)]">
+                        Package names look like com.company.app.
+                      </p>
+                    )}
+                  </div>
+                </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="label" htmlFor="appName">App name</label>
-                <input id="appName" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ledgerly" />
-              </div>
-              <div>
-                <label className="label" htmlFor="pkg">Package name</label>
-                <input id="pkg" className="input" value={packageName} onChange={(e) => setPackageName(e.target.value)} placeholder="com.ledgerly.app" />
-                {!packageOk && (
-                  <p className="mt-1.5 text-xs text-[var(--color-credit)]">
-                    Package names look like com.company.app.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label className="label" htmlFor="optin">Play opt-in URL</label>
-              <input
-                id="optin" className="input" value={optInUrl}
-                onChange={(e) => setOptInUrl(e.target.value)}
-                placeholder="https://play.google.com/apps/testing/com.ledgerly.app"
-              />
-              {urlCheck && (
-                <p
-                  className="mt-1.5 flex items-start gap-1.5 text-xs"
-                  style={{ color: urlCheck.ok ? 'var(--color-accent)' : 'var(--color-credit)' }}
-                >
-                  {urlCheck.ok ? <IconCheck size={13} className="mt-px shrink-0" /> : <IconAlert size={13} className="mt-px shrink-0" />}
-                  <span>{urlCheck.reason}</span>
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="label" htmlFor="group">Google Group (if your track uses one)</label>
-              <input
-                id="group" className="input" value={googleGroup}
-                onChange={(e) => setGoogleGroup(e.target.value)}
-                placeholder="ledgerly-testers@googlegroups.com"
-              />
-              {!hasEntry && (
-                <p className="mt-1.5 text-xs text-[var(--color-dim)]">
-                  One of these two is required. Without it, nobody can reach your closed track.
-                </p>
-              )}
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="label" htmlFor="tagline">Tagline</label>
-                <input id="tagline" className="input" value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="Expense tracking that takes four seconds" />
-              </div>
-              <div>
-                <label className="label" htmlFor="category">Category</label>
-                <select id="category" className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
-                  <option value="">Choose one</option>
-                  {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <span className="label">What should testers focus on</span>
-              <div className="flex flex-wrap gap-2">
-                {FOCUS_AREAS.map((area) => {
-                  const on = focusAreas.includes(area);
-                  return (
-                    <button
-                      key={area}
-                      type="button"
-                      className="pill"
-                      onClick={() => setFocusAreas((prev) => on ? prev.filter((a) => a !== area) : [...prev, area])}
-                      style={
-                        on
-                          ? { color: 'var(--color-accent)', borderColor: 'color-mix(in oklab, var(--color-accent) 32%, transparent)', background: 'color-mix(in oklab, var(--color-accent) 10%, transparent)' }
-                          : { color: 'var(--color-dim)', borderColor: 'var(--color-line)', background: 'var(--color-surface-2)' }
-                      }
+                <div>
+                  <label className="label" htmlFor="optin">
+                    Play opt-in URL <span className="font-normal text-[var(--color-mute)]">optional for now</span>
+                  </label>
+                  <input
+                    id="optin" className="input" value={optInUrl}
+                    onChange={(e) => setOptInUrl(e.target.value)}
+                    placeholder="https://play.google.com/apps/testing/com.ledgerly.app"
+                  />
+                  {urlCheck ? (
+                    <p
+                      className="mt-1.5 flex items-start gap-1.5 text-xs"
+                      style={{ color: urlCheck.ok ? 'var(--color-accent)' : 'var(--color-credit)' }}
                     >
-                      {area}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+                      {urlCheck.ok ? <IconCheck size={13} className="mt-px shrink-0" /> : <IconAlert size={13} className="mt-px shrink-0" />}
+                      <span>{urlCheck.reason}</span>
+                    </p>
+                  ) : (
+                    <p className="mt-1.5 text-xs text-[var(--color-mute)]">
+                      No closed track yet? Finish setup without it. We ask again when you join a pod.
+                    </p>
+                  )}
+                </div>
 
-            <div>
-              <label className="label" htmlFor="instructions">Tester instructions</label>
-              <textarea
-                id="instructions" className="input" rows={4} value={testerInstructions}
-                onChange={(e) => setTesterInstructions(e.target.value)}
-                placeholder="Open the app once a day. Add at least one expense on the first run. If the sync banner appears, tell me what it said."
-              />
-              <p className="mt-1.5 text-xs text-[var(--color-mute)]">
-                Testers read this every day for two weeks. Two or three concrete asks beat a paragraph of context.
-              </p>
-            </div>
+                <Disclosure summary="Tell testers what to look at" hint="optional">
+                  <div>
+                    <label className="label" htmlFor="group">Google Group, if your track uses one</label>
+                    <input
+                      id="group" className="input" value={googleGroup}
+                      onChange={(e) => setGoogleGroup(e.target.value)}
+                      placeholder="ledgerly-testers@googlegroups.com"
+                    />
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="label" htmlFor="tagline">Tagline</label>
+                      <input id="tagline" className="input" value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="Expense tracking that takes four seconds" />
+                    </div>
+                    <div>
+                      <label className="label" htmlFor="category">Category</label>
+                      <select id="category" className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+                        <option value="">Choose one</option>
+                        {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="label">Focus areas</span>
+                    <div className="flex flex-wrap gap-2">
+                      {FOCUS_AREAS.map((area) => {
+                        const on = focusAreas.includes(area);
+                        return (
+                          <button
+                            key={area}
+                            type="button"
+                            className="pill"
+                            aria-pressed={on}
+                            onClick={() => setFocusAreas((prev) => on ? prev.filter((a) => a !== area) : [...prev, area])}
+                            style={
+                              on
+                                ? { color: 'var(--color-accent)', borderColor: 'color-mix(in oklab, var(--color-accent) 32%, transparent)', background: 'color-mix(in oklab, var(--color-accent) 10%, transparent)' }
+                                : { color: 'var(--color-dim)', borderColor: 'var(--color-line)', background: 'var(--color-surface-2)' }
+                            }
+                          >
+                            {area}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="label" htmlFor="instructions">Tester instructions</label>
+                    <textarea
+                      id="instructions" className="input" rows={3} value={testerInstructions}
+                      onChange={(e) => setTesterInstructions(e.target.value)}
+                      placeholder="Open the app once a day. Add at least one expense on the first run. If the sync banner appears, tell me what it said."
+                    />
+                    <p className="mt-1.5 text-xs text-[var(--color-mute)]">
+                      Two or three concrete asks beat a paragraph of context.
+                    </p>
+                  </div>
+                </Disclosure>
               </>
             )}
           </div>

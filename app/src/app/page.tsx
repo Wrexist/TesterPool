@@ -15,11 +15,19 @@ import {
   type DayState,
 } from '@/components/ui';
 import { SiteNav, SiteFooter } from '@/components/SiteChrome';
-import { EARN, COST, RULES, PENALTY, PLANS, FULL_CYCLE_EARNINGS } from '@/lib/economy';
+import {
+  EARN, COST, CHARGE, RULES, PENALTY, PLANS,
+  PER_APP_EARNINGS, FULL_CYCLE_EARNINGS, FULL_POD_COST,
+} from '@/lib/economy';
 
 export const metadata: Metadata = {
   alternates: { canonical: '/' },
 };
+
+/** By key, never by index — the plan list gains and loses entries. */
+function planPrice(key: (typeof PLANS)[number]['key']): number {
+  return PLANS.find((p) => p.key === key)?.price ?? 0;
+}
 
 const POLICY_URL =
   'https://support.google.com/googleplay/android-developer/answer/9898684';
@@ -425,10 +433,8 @@ function ComparisonTable() {
 /* --------------------------------------------------------------- economy */
 
 const LEDGER: Array<{ label: string; detail: string; amount: number }> = [
-  { label: 'Opt-in verified', detail: 'once per app you test', amount: EARN.optInVerified },
-  { label: 'Daily check-in', detail: `× ${RULES.requiredDays} days`, amount: EARN.dailyCheckin * RULES.requiredDays },
-  { label: 'Feedback report approved', detail: 'on-rubric, arbitrated', amount: EARN.feedbackApproved },
-  { label: 'Perfect streak bonus', detail: 'all 14 days, no gaps', amount: EARN.streakBonusFull },
+  { label: 'Confirmed install', detail: 'your closed-track opt-in, verified', amount: EARN.optInVerified },
+  { label: 'Confirmed report', detail: 'on-rubric, arbitrated', amount: EARN.feedbackApproved },
 ];
 
 /* ---------------------------------------------------------- testimonials */
@@ -526,9 +532,10 @@ const FAQ: Array<{ q: string; a: React.ReactNode }> = [
       <p>
         On the free tier, yes — that is the trade, and it is what makes the
         network honest. Testing one app costs roughly five minutes a day: open
-        it, do the thing, tap check-in. One full cycle earns{' '}
-        {FULL_CYCLE_EARNINGS} credits. If you would rather not, Fast Pod at $
-        {PLANS[1].price} buys you a seat without reciprocating.
+        it, do the thing, tap check-in. Testing every app in a full pod earns{' '}
+        {FULL_CYCLE_EARNINGS} credits — exactly what your own pod costs you, so
+        doing your share breaks even. If you would rather not, Fast Pod at $
+        {planPrice('fast')} buys you a seat without reciprocating.
       </p>
     ),
   },
@@ -875,8 +882,8 @@ export default function LandingPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               {[
-                { t: 'Check in every day', s: `+${EARN.dailyCheckin} credits a day, and your score climbs`, tone: 'up' },
-                { t: 'Finish a perfect streak', s: `+${EARN.streakBonusFull} bonus and a Perfect 14 badge`, tone: 'up' },
+                { t: 'Check in every day', s: 'Your score climbs, and your seat stays clean', tone: 'up' },
+                { t: 'Finish a perfect streak', s: 'A Perfect 14 badge and your best score bump', tone: 'up' },
                 { t: 'Rescue someone mid-pod', s: `+${EARN.rescueBonus} credits and a lasting score bump`, tone: 'up' },
                 { t: 'Drop out mid-pod', s: `−${PENALTY.dropout} credits, a score collapse, and a lockout from pods`, tone: 'down' },
               ].map((r) => (
@@ -957,12 +964,12 @@ export default function LandingPage() {
           id="economy"
           eyebrow="The economy"
           title="Credits price the edges, never the core"
-          lede="The pod itself is barter and costs nothing. Credits exist only for the things that need rationing — extra buffer seats, rescues, priority matching, expert testers."
+          lede="Credits move between developers, they are never minted. What a tester earns comes out of the balance of the developer whose app they tested — so doing your share costs nothing, and skipping it costs exactly what it should."
         >
           <div className="mt-12 grid gap-4 lg:grid-cols-[1fr_1fr]">
             <Card className="p-6">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-mute)]">
-                One full cycle of tester work
+                One app you test, start to finish
               </div>
               <ul className="mt-4 divide-y divide-[var(--color-line)]">
                 {LEDGER.map((l) => (
@@ -977,13 +984,18 @@ export default function LandingPage() {
               </ul>
               <div className="mt-4 flex items-center justify-between rounded-xl border border-[var(--color-line)] bg-[var(--color-bg)] px-4 py-3">
                 <span className="text-sm font-semibold">You earn</span>
-                <CreditChip amount={FULL_CYCLE_EARNINGS} size="lg" />
+                <CreditChip amount={PER_APP_EARNINGS} size="lg" />
+              </div>
+              <div className="mt-2 flex items-center justify-between rounded-xl border border-[var(--color-line)] bg-[var(--color-bg)] px-4 py-3">
+                <span className="text-sm font-semibold">Its developer pays</span>
+                <CreditChip amount={-(CHARGE.install + CHARGE.review)} size="lg" signed />
               </div>
               <p className="mt-4 text-sm leading-relaxed text-[var(--color-dim)]">
-                That is one buffer seat ({COST.bufferSeat} credits) for one honest
-                fortnight of testing somebody else&rsquo;s app. The exchange rate
-                is deliberately close to 1:1 — the currency cannot inflate, because
-                nobody can earn credits without doing the work a real tester does.
+                The same number, because it is the same number. Credits move between
+                developers; nothing here mints them. A full pod earns you{' '}
+                {FULL_CYCLE_EARNINGS} and costs you {FULL_POD_COST}, so doing your
+                share breaks exactly even — and the currency cannot inflate, because
+                every credit anyone earns came out of somebody&rsquo;s balance.
               </p>
             </Card>
 

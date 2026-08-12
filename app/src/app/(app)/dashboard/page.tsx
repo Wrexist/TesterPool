@@ -58,7 +58,7 @@ export default async function DashboardPage({
       <div>
         <PageHeading
           title="Welcome to TesterPool"
-          sub="Here is the whole idea, and what it will ask of you. Two minutes to read, then you are set up."
+          sub="The whole idea, and what it asks of you."
         />
         <FirstRun credits={balance} />
       </div>
@@ -208,8 +208,8 @@ export default async function DashboardPage({
               <IconAlert size={15} className="mt-0.5 shrink-0" />
               <p>
                 <span className="num">{atRisk}</span> seat{atRisk === 1 ? '' : 's'} at risk
-                {dropped > 0 && <> and <span className="num">{dropped}</span> dropped</>}. Every seat below
-                twelve on the final day resets your clock. Rescue testers are matched within hours.
+                {dropped > 0 && <> and <span className="num">{dropped}</span> dropped</>}. Below twelve on the
+                final day resets your clock.
               </p>
             </div>
           )}
@@ -228,7 +228,7 @@ export default async function DashboardPage({
           <div>
             <h2 className="text-base font-semibold">Your seats</h2>
             <p className="text-sm text-[var(--color-dim)]">
-              Every tester matched to {app.name}, and exactly where their clock is.
+              Every tester on {app.name}, and where their clock is.
             </p>
           </div>
           <span className="text-xs text-[var(--color-mute)]">
@@ -239,7 +239,7 @@ export default async function DashboardPage({
         {seats.length === 0 ? (
           <EmptyState
             title="No testers seated yet"
-            body="Seats appear the moment your pod locks. Until then the pod is still filling, and you can speed that up by inviting another developer."
+            body="Seats appear the moment your pod locks. Inviting another developer fills it faster."
             action={<Link href="/pods" className="btn btn-secondary">Browse forming pods <IconArrow size={15} /></Link>}
           />
         ) : (
@@ -405,8 +405,8 @@ async function FormingHero({
           <div className="max-w-lg">
             <h2 className="text-lg font-semibold">{app.name} is not in a pod yet</h2>
             <p className="mt-1 text-sm text-[var(--color-dim)]">
-              A pod is about fifteen developers who all test each other for the same fourteen days. Join one
-              and your clock starts the moment the last seat fills.
+              Join one and your clock starts the moment the last seat fills.
+              {!app.opt_in_url && !app.google_group && ' We ask for your opt-in link there.'}
             </p>
           </div>
           <Link href="/pods" className="btn btn-primary">
@@ -427,8 +427,7 @@ async function FormingHero({
         <div>
           <h2 className="text-lg font-semibold">Your pod is filling</h2>
           <p className="mt-1 max-w-lg text-sm text-[var(--color-dim)]">
-            {estimateStart(members, seats)}. The 14-day clock does not start until every seat is taken, so a
-            full pod is worth more to you than an early one.
+            {estimateStart(members, seats)}. The clock starts when the last seat is taken.
           </p>
         </div>
         <div className="text-right">

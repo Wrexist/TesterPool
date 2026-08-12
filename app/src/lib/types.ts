@@ -23,6 +23,7 @@ export type LedgerReason =
   | 'signup_grant' | 'referral_bonus' | 'referral_tithe'
   | 'opt_in_verified' | 'daily_checkin' | 'streak_bonus'
   | 'feedback_approved' | 'bug_bounty' | 'rescue_bonus' | 'arbitration_award'
+  | 'install_charge' | 'review_charge'
   | 'pod_seat_spend' | 'buffer_seat_spend' | 'rescue_seat_spend' | 'priority_spend'
   | 'expert_seat_spend' | 'extra_app_spend'
   | 'purchase' | 'refund' | 'admin_adjust' | 'penalty_dropout' | 'penalty_fraud';
@@ -64,6 +65,8 @@ export interface AppRow {
   category: string | null;
   description: string | null;
   opt_in_url: string | null;
+  /** Set when the owner's balance ran out mid-pod. Cleared the moment it is positive again. */
+  credits_paused: boolean;
   google_group: string | null;
   tester_instructions: string | null;
   focus_areas: string[] | null;
