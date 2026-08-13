@@ -3,20 +3,19 @@
 /**
  * TESTERPOOL — the marketplace filter bar.
  *
- * Two rows, in the order a developer actually thinks:
+ * One row of chips for WHY you are here, one row of controls to narrow it, and
+ * no explanatory prose at all. An earlier draft printed a sentence under the
+ * bar for whichever filter was active; six of those sentences, one at a time,
+ * is a paragraph the eye has to re-read on every click. The chips say what they
+ * do.
  *
- *   1. WHY am I here — all apps, what I'm testing, what I owe a report on,
- *      my own listings, my saved list. These are links, so they are
- *      right-clickable, shareable, and survive the back button.
- *   2. NARROW it — search, platform, stage, category, order.
+ * The platform control is drawn as the two store logos. It is the filter people
+ * reach for first and the one that needs no reading.
  *
- * Every control writes to the URL and lets the server re-query. Nothing here
- * holds a copy of the list, so there is no way for the chips and the grid to
- * disagree about what is on screen.
- *
- * The search box is debounced rather than submit-on-enter: a developer typing
- * "puzzle" wants the grid to answer while they type, and 300ms is long enough
- * that it is one query, not six.
+ * Every control writes to the URL and lets the server re-query, so the chips
+ * and the grid cannot disagree about what is on screen. Search is debounced
+ * rather than submit-on-enter: typing "puzzle" should answer as you type, and
+ * 300ms makes it one query rather than six.
  */
 
 import * as React from 'react';
@@ -85,23 +84,22 @@ function Select({
   children: React.ReactNode;
 }) {
   return (
-    <label className="flex items-center gap-2 text-xs text-[var(--color-mute)]">
-      <span className="hidden sm:inline">{label}</span>
-      <select
-        className="input h-9 w-auto min-w-[9.5rem] py-0 text-[13px] font-medium text-[var(--color-ink)]"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        {children}
-      </select>
-    </label>
+    <select
+      aria-label={label}
+      className="input h-9 w-auto py-0 text-[13px] font-medium text-[var(--color-ink)]"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      {children}
+    </select>
   );
 }
 
+// Logos at a size you can actually identify, not 13px decorations beside a word.
 const PLATFORM_MARK: Record<PlatformFilter, React.ReactNode> = {
   all: null,
-  android: <IconAndroid size={13} />,
-  ios: <IconApple size={13} />,
+  android: <IconAndroid size={17} />,
+  ios: <IconApple size={17} />,
 };
 
 export function FilterBar({
@@ -140,7 +138,6 @@ export function FilterBar({
   }, [term, query.q, go]);
 
   const active = isFiltered(query);
-  const scopeHint = SCOPES.find((s) => s.value === query.scope)?.hint;
   const platformHint = PLATFORMS.find((p) => p.value === query.platform)?.hint;
 
   return (
@@ -186,20 +183,21 @@ export function FilterBar({
                 type="button"
                 onClick={() => go({ platform: p.value })}
                 aria-pressed={on}
+                aria-label={p.label}
+                title={p.label}
                 className={cx(
-                  'inline-flex items-center gap-1.5 rounded-[7px] px-2.5 py-1.5 text-[13px] font-semibold transition-colors',
+                  'inline-flex h-8 items-center gap-1.5 rounded-[7px] px-3 text-[13px] font-semibold transition-colors',
                   on ? 'text-[var(--color-ink)]' : 'text-[var(--color-mute)] hover:text-[var(--color-dim)]'
                 )}
                 style={on ? { background: 'var(--color-surface-2)' } : undefined}
               >
-                {PLATFORM_MARK[p.value]}
-                {p.label}
+                {PLATFORM_MARK[p.value] ?? p.label}
               </button>
             );
           })}
         </div>
 
-        <Select label="Stage" value={query.status} onChange={(v) => go({ status: v as MarketQuery['status'] })}>
+        <Select label="Status" value={query.status} onChange={(v) => go({ status: v as MarketQuery['status'] })}>
           {STATUSES.map((s) => (
             <option key={s.value} value={s.value}>{s.label}</option>
           ))}
@@ -224,22 +222,20 @@ export function FilterBar({
 
       </div>
 
-      {/* ------------------------------------------------------ what this is */}
-      <div className="flex flex-col gap-1 text-xs text-[var(--color-mute)]">
-        <div className="flex items-baseline gap-3">
-          <span aria-live="polite">
-            {pending ? 'Updating…' : <><span className="num font-semibold text-[var(--color-dim)]">{total}</span> {total === 1 ? 'app' : 'apps'}</>}
-          </span>
-          {active && (
-            <Link href="/market" className="font-semibold text-[var(--color-dim)] underline decoration-[var(--color-line-hi)] underline-offset-2 hover:text-[var(--color-ink)]">
-              Clear filters
-            </Link>
-          )}
-        </div>
-        {/* One hint per line. Two of them side by side ran the width of the
-            page and stopped reading as help. */}
-        {scopeHint && <p>{scopeHint}</p>}
-        {platformHint && <p>{platformHint}</p>}
+      {/* --------------------------------------------------- what you are seeing */}
+      <div className="flex items-baseline gap-3 text-xs text-[var(--color-mute)]">
+        <span aria-live="polite">
+          {pending ? 'Updating…' : <><span className="num font-semibold text-[var(--color-dim)]">{total}</span> {total === 1 ? 'app' : 'apps'}</>}
+        </span>
+        {/* The only surviving hint. It is a policy, not a description of a
+            filter, and a developer who picks iOS deserves to know why the pod
+            machinery is absent. */}
+        {platformHint && <span>{platformHint}</span>}
+        {active && (
+          <Link href="/market" className="ml-auto font-semibold text-[var(--color-dim)] underline decoration-[var(--color-line-hi)] underline-offset-2 hover:text-[var(--color-ink)]">
+            Clear
+          </Link>
+        )}
       </div>
     </div>
   );

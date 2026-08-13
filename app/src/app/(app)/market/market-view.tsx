@@ -32,9 +32,14 @@ export function MarketView({
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Marketplace</h1>
-          <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
-            Every app in the pool. Find one worth your fourteen days, keep track of the ones
-            you are testing, and see how your own is doing beside them.
+          {/* One line. The two features are named and separated here, so a
+              developer knows which screen owns the 14-day clock. */}
+          <p className="mt-1 text-sm text-[var(--color-dim)]">
+            Every app in the pool.{' '}
+            <Link href="/pods" className="underline decoration-[var(--color-line-hi)] underline-offset-2 hover:text-[var(--color-ink)]">
+              Pods
+            </Link>{' '}
+            handle the 14-day clock.
           </p>
         </div>
         <Link href="/onboarding" className="btn btn-secondary shrink-0">

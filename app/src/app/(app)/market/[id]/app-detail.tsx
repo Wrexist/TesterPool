@@ -12,7 +12,7 @@ import { Card, Pill, Stat, Avatar, TierBadge, StreakStrip, streakFromCount } fro
 import { AppIcon } from '@/components/app/app-card';
 import { SaveButton } from '../save-button';
 import {
-  IconAndroid, IconApple, IconArrow, IconExternal, IconFeedback, IconAlert, IconUpload,
+  IconArrow, IconExternal, IconFeedback, IconAlert, IconUpload,
 } from '@/components/app/icons';
 import { EARN, RULES } from '@/lib/economy';
 import { marketHref, stageOf, isListingOnly, type MarketAppDetail } from '@/lib/market';
@@ -21,7 +21,6 @@ import { fmtDate, n, tierOf } from '@/lib/pods';
 export function AppDetail({ app }: { app: MarketAppDetail }) {
 
   const stage = stageOf(app);
-  const listingOnly = isListingOnly(app);
   const focus = app.focus_areas ?? [];
 
   return (
@@ -36,10 +35,7 @@ export function AppDetail({ app }: { app: MarketAppDetail }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">{app.name}</h1>
-            <span className="text-[var(--color-mute)]" title={listingOnly ? 'iOS' : 'Android'}>
-              {listingOnly ? <IconApple size={16} /> : <IconAndroid size={16} />}
-            </span>
-            <Pill tone={stage.tone}>{stage.label}</Pill>
+            {stage && <Pill tone={stage.tone}>{stage.label}</Pill>}
             {app.category && <Pill tone="neutral">{app.category}</Pill>}
           </div>
           {app.tagline && (
@@ -121,9 +117,9 @@ export function AppDetail({ app }: { app: MarketAppDetail }) {
           )}
 
           <p className="text-xs leading-relaxed text-[var(--color-mute)]">
-            Testing on TesterPool happens inside closed testing tracks, which do not affect store
-            rankings, ratings, or public install counts. Reports go to the developer privately and
-            are paid at the same rate whether they praise the app or take it apart.
+            All testing happens inside closed testing tracks, which do not affect store rankings,
+            ratings or install counts. Reports are private, and paid the same whether they praise
+            the app or take it apart.
           </p>
         </div>
 

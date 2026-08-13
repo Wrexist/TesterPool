@@ -1,13 +1,16 @@
 /**
  * TESTERPOOL — the marketplace: shapes, filters, and the copy each state uses.
  *
- * The directory of apps in the pool. A developer arrives here for one of three
- * reasons and the filters are named after those reasons rather than after the
- * columns underneath them:
+ * Two features, kept apart on purpose:
  *
- *   "what can I test"      → Needs testers
- *   "what am I mid-way through, what do I owe" → Testing now, Report due
- *   "how is mine doing"    → My apps
+ *   MARKETPLACE (here)  the apps. Find one, open it, install it, report on it.
+ *   PODS (/pods)        the 14-day clock. Seats, days, dropouts, escrow.
+ *
+ * A card in here therefore says nothing about pod mechanics — no seat counts,
+ * no "day 6 of 14", no forming/locked. Those are the pod's business and they
+ * live on the pod's screen. What a browsing developer needs here is: what is
+ * this, which store is it for, is it open to testers, and where do I already
+ * stand with it. Four things, so a card shows four things.
  *
  * Everything is a URL parameter. That makes a filtered view linkable, keeps the
  * back button honest, and leaves the reading and sorting in the database where
@@ -89,25 +92,28 @@ export type StatusFilter = 'all' | 'needs_testers' | 'in_testing' | 'graduated';
 export type Sort = 'newest' | 'testers' | 'reports' | 'graduated' | 'name';
 
 export const SCOPES: FilterOption<Scope>[] = [
-  { value: 'all',     label: 'All apps' },
-  { value: 'testing', label: 'Testing now', hint: 'Apps you hold a live seat on.' },
-  { value: 'due',     label: 'Report due',  hint: 'You have passed day seven and not written your report yet. Each one pays 30.' },
-  { value: 'tested',  label: 'Tested',      hint: 'Everything you have ever been seated on.' },
-  { value: 'mine',    label: 'My apps',     hint: 'Your listings, drafts included. Only you see the drafts.' },
-  { value: 'saved',   label: 'Saved',       hint: 'Apps you saved to come back to. Saving is private and pays nothing.' },
+  { value: 'all',     label: 'All' },
+  { value: 'testing', label: 'Testing' },
+  { value: 'due',     label: 'Report due' },
+  { value: 'tested',  label: 'Tested' },
+  { value: 'mine',    label: 'Mine' },
+  { value: 'saved',   label: 'Saved' },
 ];
 
+// The platform control is the loudest thing in the bar and it is drawn as two
+// logos, because a developer recognises the robot and the apple faster than
+// they read either word.
 export const PLATFORMS: FilterOption<PlatformFilter>[] = [
   { value: 'all',     label: 'All' },
   { value: 'android', label: 'Android' },
-  { value: 'ios',     label: 'iOS', hint: 'iOS is a listing feature on its own: discovery and visibility, separate from pods and credits, and never connected to App Store reviews or ratings.' },
+  { value: 'ios',     label: 'iOS', hint: 'iOS apps are listings. Pods are Android only.' },
 ];
 
 export const STATUSES: FilterOption<StatusFilter>[] = [
-  { value: 'all',           label: 'Any stage' },
-  { value: 'needs_testers', label: 'Needs testers' },
-  { value: 'in_testing',    label: 'In testing' },
-  { value: 'graduated',     label: 'Graduated' },
+  { value: 'all',           label: 'Any status' },
+  { value: 'needs_testers', label: 'Open to testers' },
+  { value: 'in_testing',    label: 'Testing now' },
+  { value: 'graduated',     label: 'Shipped' },
 ];
 
 export const SORTS: FilterOption<Sort>[] = [
@@ -181,47 +187,47 @@ export function isFiltered(query: MarketQuery): boolean {
 /* ------------------------------------------------------------ presentation */
 
 /**
- * What stage the app is at, said the way a browsing developer would say it.
- * `apps.status` alone is not enough: 'in_pod' means "still filling" or "day 6
- * of 14" depending on the pod, and those are different things to a reader.
+ * Where the app is in its life, in store language rather than pod language.
+ *
+ * Deliberately three words at most, and deliberately silent about seats, days
+ * and pod status: that is the other feature. A developer browsing for something
+ * to test needs one bit — can I get in — and the rest belongs on /pods.
  */
 export function stageOf(
-  app: Pick<MarketApp, 'status' | 'pod_status' | 'pod_day' | 'pod_seats_left' | 'platform'>
+  app: Pick<MarketApp, 'status' | 'pod_status' | 'platform'>
 ): { label: string; tone: Tone } {
-  // An iOS app has no pod to be looking for, so it never borrows pod language.
-  if (app.platform === 'ios') {
-    return app.status === 'graduated'
-      ? { label: 'Published', tone: 'green' }
-      : { label: 'Listed', tone: 'neutral' };
-  }
-  if (app.status === 'graduated') return { label: 'Graduated', tone: 'green' };
-  if (app.status === 'draft')     return { label: 'Draft', tone: 'neutral' };
+  if (app.status === 'graduated') return { label: 'Shipped', tone: 'green' };
   if (app.status === 'paused')    return { label: 'Paused', tone: 'amber' };
-  if (app.status === 'rejected')  return { label: 'Rejected', tone: 'red' };
-  if (app.status === 'queued')    return { label: 'Looking for a pod', tone: 'amber' };
+  if (app.status === 'rejected')  return { label: 'Removed', tone: 'red' };
+  if (app.status === 'draft')     return { label: 'Draft', tone: 'neutral' };
 
-  // in_pod
-  if (!app.pod_status || app.pod_status === 'forming') {
-    const left = app.pod_seats_left;
-    return {
-      label: left && left > 0 ? `${left} seats left` : 'Pod filling',
-      tone: 'amber',
-    };
+  // iOS is a listing: there is no pod for it to be open to, but it still gets a
+  // chip, because a card with an empty chip row reads as a card missing data.
+  if (app.platform === 'ios') return { label: 'Listed', tone: 'neutral' };
+
+  if (app.status === 'queued') return { label: 'Open to testers', tone: 'green' };
+  if (app.status === 'in_pod' && coalescePodStatus(app.pod_status) === 'forming') {
+    return { label: 'Open to testers', tone: 'green' };
   }
-  if (app.pod_status === 'active' && app.pod_day) {
-    return { label: `Day ${app.pod_day} of 14`, tone: 'violet' };
-  }
-  if (app.pod_status === 'completed') return { label: 'Pod finished', tone: 'neutral' };
-  if (app.pod_status === 'failed')    return { label: 'Pod failed', tone: 'red' };
-  return { label: 'In a pod', tone: 'violet' };
+  // Neutral, and worded differently from the tester's own "You're testing":
+  // colour carries who a chip is about, and two violet chips a word apart made
+  // the app's state and the reader's state look like the same fact.
+  return { label: 'In testing', tone: 'neutral' };
 }
 
-/** The viewer's own standing with an app, when it is worth saying at all. */
+function coalescePodStatus(status: string | null): string {
+  return status ?? 'forming';
+}
+
+/**
+ * The viewer's own standing, when there is one worth a chip.
+ *
+ * Short, because it sits next to the status and two long chips wrap the row.
+ */
 export function relationCopy(app: Pick<MarketApp, 'relation' | 'report_due'>): { label: string; tone: Tone } | null {
   if (app.relation === 'owner') return { label: 'Yours', tone: 'green' };
   if (app.report_due) return { label: 'Report due', tone: 'amber' };
-  if (app.relation === 'testing') return { label: 'You are testing this', tone: 'violet' };
-  if (app.relation === 'tested') return { label: 'You tested this', tone: 'neutral' };
+  if (app.relation === 'testing') return { label: "You're testing", tone: 'violet' };
   return null;
 }
 
@@ -239,4 +245,17 @@ export function relationCopy(app: Pick<MarketApp, 'relation' | 'report_due'>): {
  */
 export function isListingOnly(app: Pick<MarketApp, 'platform'>): boolean {
   return app.platform === 'ios';
+}
+
+/**
+ * The one chip a card shows.
+ *
+ * Where you stand beats what the app is doing: "Report due" is worth more to
+ * you than "Testing now", and printing both produced rows reading
+ * "TESTING NOW · TESTING", which is noise wearing two colours.
+ */
+export function cardChip(
+  app: Pick<MarketApp, 'status' | 'pod_status' | 'platform' | 'relation' | 'report_due'>
+): { label: string; tone: Tone } {
+  return relationCopy(app) ?? stageOf(app);
 }
