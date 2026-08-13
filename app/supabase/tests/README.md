@@ -35,9 +35,14 @@ done
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/01-economy.sql
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/02-install-cap.sql
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/03-proof-intake.sql
+psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/04-marketplace.sql
 ```
 
-Both test files abort on the first failed assertion and print `ALL ... PASSED`
+`04` asserts the marketplace projection: what is listed to whom, and that a member
+browsing the directory cannot read the opt-in link or package name of an app they hold
+no assignment on.
+
+All four files abort on the first failed assertion and print `ALL ... PASSED`
 at the end if nothing is wrong.
 
 ## What the stub provides

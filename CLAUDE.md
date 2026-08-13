@@ -48,6 +48,10 @@ ratings, or public install counts.*
 ```
 app/
   src/app/                routes — (app)/ is authenticated, everything else public
+    (app)/market/         the marketplace: every app in the pool, filtered by
+                          scope (testing / report due / mine / saved), platform,
+                          stage and category. Reads through market_apps(), never
+                          through the apps table
     (app)/admin/          admin dashboard: overview, users, pods, economy,
                           moderation, fraud, flags, audit, system health
     (app)/billing/        plans, credit packs, purchase history
@@ -56,6 +60,7 @@ app/
   src/components/app/     authenticated-surface components (incl. first-run)
   src/components/admin/   admin-only components
   src/lib/economy.ts      earn/spend rates, tiers, plans (mirrors economy_config)
+  src/lib/market.ts       marketplace filters, URL parsing, stage/relation copy
   src/lib/pods.ts         pod-day maths, seat health, formatting
   src/lib/evidence.ts     drafts Google's three production-access answers
   src/lib/flags.ts        feature flags, read server-side, fail-safe defaults
@@ -104,15 +109,25 @@ Supabase project `cohort` (ref `yudcncvarndslyyajflr`, eu-north-1). The project 
 says cohort; the schema and data are TesterPool.
 
 Core tables: `profiles, apps, pods, pod_members, assignments, proofs, checkins, feedback,
-disputes, credit_ledger, greenlights, badges, user_badges, referrals, economy_config`.
+disputes, credit_ledger, greenlights, badges, user_badges, referrals, economy_config,
+app_watchlist`.
 Views: `leaderboard, pod_health, production_evidence`.
+
+**The marketplace reads through `market_apps` / `market_app` / `market_counts` /
+`market_categories`, never through `apps`.** Those four are `SECURITY DEFINER` and are the
+projection that decides what a browsing member may see. They withhold `opt_in_url`,
+`google_group`, `package_name` and `tester_instructions` from anyone who neither owns the
+app nor holds an assignment on it — for an app in closed testing the package name *is* the
+way into the track, and the way in is granted by a pod, not by a directory. They also
+surface no scores and no averages, for the reason in invariant 1. Add a column to the
+listing only after deciding which of those two rules it lands under.
 
 **Never mutate `profiles.credits` directly.** Go through `award_credits` / `spend_credits`,
 which write the append-only `credit_ledger` in the same statement. The ledger is the source
 of truth; `profiles.credits` is a cached projection.
 
 RPCs callable by `authenticated`: `join_pod, start_pod, submit_checkin, review_feedback,
-arbitrate_dispute`. Each authorises against `auth.uid()` itself.
+arbitrate_dispute, market_apps, market_app, market_counts, market_categories`. Each authorises against `auth.uid()` itself.
 
 ## Four traps this codebase has already fallen into
 

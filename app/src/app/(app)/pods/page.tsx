@@ -68,7 +68,11 @@ export default async function PodsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Pods</h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
             {RULES.podSeats} developers testing each other for {RULES.requiredDays} days. Google needs{' '}
-            {RULES.requiredTesters}, so three can drop out and your clock still holds.
+            {RULES.requiredTesters}, so three can drop out and your clock still holds.{' '}
+            <Link href="/market?status=needs_testers" className="underline decoration-[var(--color-line-hi)] underline-offset-2 hover:text-[var(--color-ink)]">
+              Browse the apps waiting for a pod
+            </Link>
+            .
           </p>
         </div>
         {apps.length === 0 && (

@@ -19,27 +19,11 @@
 import * as React from 'react';
 import { Card, Disclosure, Pill, cx } from '@/components/ui';
 import { Spinner, useAction } from '@/components/app/action-button';
-import { IconAlert, IconArrow, IconCheck } from '@/components/app/icons';
+import { IconAlert, IconArrow, IconCheck, IconAndroid, IconApple } from '@/components/app/icons';
 import { lookupApp, type AppLookup } from '@/app/(app)/actions';
 
 type Store = 'android' | 'ios';
 type Screen = 'store' | 'link' | 'result';
-
-function AndroidMark({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M17.6 9.48l1.84-3.18a.4.4 0 0 0-.7-.4l-1.86 3.23a11.4 11.4 0 0 0-9.76 0L5.26 5.9a.4.4 0 1 0-.7.4L6.4 9.48A10.8 10.8 0 0 0 1 18h22a10.8 10.8 0 0 0-5.4-8.52M7 15.25a1 1 0 1 1 1-1 1 1 0 0 1-1 1m10 0a1 1 0 1 1 1-1 1 1 0 0 1-1 1" />
-    </svg>
-  );
-}
-
-function AppleMark({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" />
-    </svg>
-  );
-}
 
 function StarMark({ size = 12 }: { size?: number }) {
   return (
@@ -128,7 +112,7 @@ export function AppFinder({
                   color: 'var(--color-accent)',
                 }}
               >
-                {key === 'android' ? <AndroidMark /> : <AppleMark />}
+                {key === 'android' ? <IconAndroid size={20} /> : <IconApple size={20} />}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold">{STORE_COPY[key].label}</span>
@@ -276,7 +260,7 @@ export function AppFinder({
               className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-[var(--color-line)] text-[var(--color-mute)]"
               style={{ background: 'var(--color-surface-2)' }}
             >
-              {result.platform === 'ios' ? <AppleMark size={22} /> : <AndroidMark size={22} />}
+              {result.platform === 'ios' ? <IconApple size={22} /> : <IconAndroid size={22} />}
             </span>
           )}
 
