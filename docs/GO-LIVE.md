@@ -16,6 +16,26 @@ Constants used throughout:
 the migrations and the merge is the one thing in here that can take the live app
 down, and it is not the order you would guess.
 
+## Status, as of this pass
+
+- **Step 0 is already done, safely.** The `@demo.testerpool.dev` accounts were
+  removed directly against the live database before this branch was merged in —
+  confirmed down to zero rows outside the one real profile. Migration
+  `20260811130000_remove_demo_accounts.sql` is still worth applying: it is
+  idempotent (finds nothing, logs a notice, moves on) and it adds the permanent
+  `no_demo_accounts` CHECK constraint, which is new protection this database
+  did not have yet.
+- **A real bug, found and fixed separately:** the original admin-grant migration
+  targeted `handle = 'isacm'`, but the live account is `isacmolin` — that update
+  matched zero rows, so nobody had admin access. Fixed directly on the live
+  profile; `isacmolin` is admin now. Worth knowing if you ever replay that
+  migration against a fresh database — the bug is still in the file.
+- **Sentry and PostHog are now wired in, code-complete.** `instrumentation.ts`,
+  `instrumentation-client.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`,
+  and a `PostHogProvider` in the root layout — all inert until
+  `NEXT_PUBLIC_SENTRY_DSN` / `NEXT_PUBLIC_POSTHOG_KEY` are set. Supersedes the
+  "Still open" note below.
+
 ---
 
 ## 0. Back up first
@@ -354,7 +374,9 @@ one-off Checkout. Real recurring billing needs `mode: 'subscription'` and an
 `invoice.paid` handler. The billing page calls it a pass, so the copy is honest
 in the meantime.
 
-**Sentry and PostHog.** Not integrated.
+**Sentry and PostHog.** Code-complete (see "Status" at the top) — still need
+`NEXT_PUBLIC_SENTRY_DSN` and `NEXT_PUBLIC_POSTHOG_KEY` from an actual project on
+each service before either does anything.
 
 **Two numbers that are guesses.** The vision auto-approve bar is `0.85`
 (`AUTO_APPROVE_MIN_CONFIDENCE` in `supabase/functions/triage-proof/index.ts`) and

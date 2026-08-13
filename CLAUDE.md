@@ -92,7 +92,8 @@ npm run lint
 
 `/demo` and the `@demo.testerpool.dev` accounts are gone — they were real logins with a
 password written down in this file, and once credits became a transfer each one was a way to
-drain a stranger's balance. Sign in with a magic link like everyone else.
+drain a stranger's balance. Sign in with a magic link like everyone else. Do not reintroduce a
+passwordless demo sign-in route against the production database.
 
 `supabase/tests/` replays the whole migration history against a throwaway Postgres and asserts
 the economy and the proof pipeline. Run it before touching either.
@@ -160,7 +161,5 @@ user with no pod must see a page that guides them, never a blank screen.
 
 ## Before launch
 
-See `docs/BUILD-PLAN.md` Phase 0. Short version: delete `src/app/demo/`, remove the
-`@demo.testerpool.dev` accounts, rotate the anon key, enable Supabase leaked-password
-protection, move `citext` out of `public`, add Turnstile to signup, and write Terms that do
-not contradict the product.
+See `docs/GO-LIVE.md` for the current status of the Phase 0 checklist from
+`docs/BUILD-PLAN.md`.

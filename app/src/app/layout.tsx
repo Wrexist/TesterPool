@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { PostHogProvider } from '@/components/PostHogProvider';
 import './globals.css';
 
 const inter = Inter({
@@ -58,7 +59,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         } as React.CSSProperties
       }
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <PostHogProvider>{children}</PostHogProvider>
+      </body>
     </html>
   );
 }
