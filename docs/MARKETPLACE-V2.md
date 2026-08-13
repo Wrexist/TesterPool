@@ -6,7 +6,7 @@ because a phone browser is where nearly every developer will meet this product.
 
 It is written to be handed to a coding session. Every screen names the files it
 touches, every schema change names the migration it needs, and the decisions
-that are yours rather than mine are collected at the end.
+that were yours are recorded in §3, already answered.
 
 ---
 
@@ -73,15 +73,15 @@ options:
 1. **Activities are the product now. Pods become "Upcoming".** The marketplace
    is the thing that ships; the 14-day cohort moves behind a coming-soon state
    until activities have supply to feed it.
-2. **The pay is rebalanced** — §6a. The headline change is the signup grant, not
+2. **The pay is rebalanced** — §8. The headline change is the signup grant, not
    the activity rate.
 3. **`activity_target` defaults to 5.**
-4. **Chat waits.** Recommendation taken: §5.5 becomes a v2 item, with a cheaper
+4. **Chat waits.** Recommendation taken: §6.5 becomes a v2 item, with a cheaper
    stand-in shipping instead (a reply on a report, which needs no new surface
    and no new moderation policy).
 5. **Home replaces Dashboard as the landing screen.**
 
-## 4. The split this plan is built on
+## 4. Two products, one economy
 
 You said it twice: *"app store for review and install apps should be a different
 tab than pods — make these two separate features."* This plan takes that
@@ -114,11 +114,11 @@ to actually *do*.
 This does not weaken compliance: an activity install is still a closed-track
 opt-in, and an activity report is still private. It does mean the marketplace
 can seat someone without a pod, which is a real economic change — the guards for
-it are in §6.
+it are in §7 and §9.
 
 ---
 
-## 4. Information architecture
+## 5. Information architecture
 
 ### Bottom tab bar (phone) — four tabs, matching the reference
 
@@ -146,9 +146,9 @@ supports this split via the `mobile` flag added earlier.
 
 ---
 
-## 5. Screen by screen
+## 6. Screen by screen
 
-### 5.1 Home — `/market`
+### 6.1 Home — `/market`
 
 Top to bottom, phone width:
 
@@ -189,7 +189,7 @@ Top to bottom, phone width:
 Files: `src/components/app/app-row.tsx` (new), `app-card.tsx` (desktop, keep),
 `market-view.tsx` renders rows under `md:` and cards above it.
 
-### 5.2 App screen — `/market/[id]`
+### 6.2 App screen — `/market/[id]`
 
 The reference's best screen, and the one we are furthest from. Sections:
 
@@ -215,7 +215,7 @@ The reference's best screen, and the one we are furthest from. Sections:
    - **Step 3 — Report.** Locked until step 1 verifies, exactly as the reference
      locks its review. Opens `/tests/[id]/feedback`.
 
-3. **Chat with developer** — §5.5.
+3. **Chat with developer** — §6.5.
 4. **Developer profile** link, and **Open in store** only when the app has
    graduated and a public listing exists.
 5. **About / what the developer wants looked at / instructions** — existing,
@@ -224,7 +224,7 @@ The reference's best screen, and the one we are furthest from. Sections:
 Files: `src/app/(app)/market/[id]/app-detail.tsx`, new
 `activity-stepper.tsx`, `claim-install.tsx` (extracted from `optin-wizard.tsx`).
 
-### 5.3 My apps — `/apps`
+### 6.3 My apps — `/apps`
 
 - **Credit gate card, stated as a task.** `You have 10 ★, you need 40 to receive
   an activity` + `Earn 40 credits` → Home filtered to `Open`. This is our
@@ -236,16 +236,21 @@ Files: `src/app/(app)/market/[id]/app-detail.tsx`, new
 - Tapping an app → today's `/dashboard?app=` content: the pod clock, seat
   health, evidence pack, the feedback inbox for that app.
 
-### 5.4 Profile — `/u/[handle]`
+### 6.4 Profile — `/u/[handle]`
 
 Credits and ledger, reliability gauge, tier, badges, referral link, billing,
 notification settings, sign out. Mostly exists; needs the phone layout.
 
-### 5.5 Chat with developer — new
+### 6.5 Chat with developer — v2
 
-The reference has it and it is the right call: a tester who hits a bug at step 2
-currently has nowhere to go, and an owner who gets a vague report cannot ask a
-follow-up.
+Deferred to v2 by decision (§3.4), because it is the largest new surface here
+and the only one that carries an ongoing moderation cost. The need behind it is
+real — a tester who hits a bug at step 2 has nowhere to go, and an owner who gets
+a vague report cannot ask a follow-up — so v1 ships the cheap half instead: a
+**reply on a report**, one round trip, on the existing `feedback` row and inside
+the existing dispute rules. No new surface, no inbox, no moderation policy.
+
+The full design, for when it is time:
 
 - New table `threads` (app_id, tester_id, unique together) and `messages`
   (thread_id, sender_id, body, created_at, read_at).
@@ -261,7 +266,7 @@ your report and I'll approve it" — worth a line in the moderation guide.
 
 ---
 
-## 6. The activity model
+## 7. The activity model
 
 An activity is an `assignments` row with no pod. That is the smallest possible
 change: every downstream thing — proofs, check-ins, feedback, the credit
@@ -302,7 +307,7 @@ activity is symmetric exactly as a pod seat is.
 
 ---
 
-## 6a. The economy, rebalanced
+## 8. The economy, rebalanced
 
 With pods upcoming, activities carry the whole economy, and the number that
 matters is no longer the activity rate — it is the **signup grant**.
@@ -341,7 +346,7 @@ keeps the property worth protecting: *one activity done earns exactly one
 activity received*. That single sentence is the whole economy, and it should
 survive every future change to these numbers.
 
-## 6b. Exploit register
+## 9. Exploit register
 
 The two found today (`20260813200000_lock_payment_columns.sql`) are closed. The
 rest is what activities open up, and each line is a build item, not a note.
@@ -349,7 +354,7 @@ rest is what activities open up, and each line is a build item, not a note.
 | # | Exploit | Defence |
 | --- | --- | --- |
 | 1 | Self-dealing: test your own app | `start_activity` refuses `owner_id = auth.uid()`; already true for pods |
-| 2 | **Alt-account farming**: sign up, take the grant, never test | Grant cut to 40 (§6a); Turnstile on signup (built, needs the key set); `tester_email` verified before the first activity; `signup_ip_hash` / `device_fp_hash` recorded on signup and checked at claim |
+| 2 | **Alt-account farming**: sign up, take the grant, never test | Grant cut to 40 (§8); Turnstile on signup (built, needs the key set); `tester_email` verified before the first activity; `signup_ip_hash` / `device_fp_hash` recorded on signup and checked at claim |
 | 3 | **Ring farming**: two accounts trading activities forever | A pair cap — at most 2 activities between the same two members per 30 days, counted in `start_activity` |
 | 4 | Screenshot reuse across apps or accounts | `proofs.perceptual_hash` already exists; enforce it — a phash within Hamming distance 4 of an existing approved proof goes to the human queue, never to auto-approve |
 | 5 | Claim-and-abandon, holding a slot forever | Activities expire after 72h with no verified opt-in; the slot returns, the tester's reliability takes the hit |
@@ -362,7 +367,7 @@ rest is what activities open up, and each line is a build item, not a note.
 Items 2, 3, 4 and 5 are new work and belong in phase 2 beside `start_activity` —
 not after it. An exchange with no farming defence is a farm.
 
-## 7. New database surface, complete list
+## 10. New database surface, complete list
 
 | Object | Purpose |
 | --- | --- |
@@ -371,10 +376,10 @@ not after it. An exchange with no farming defence is a farm.
 | `start_activity(uuid)` | the only way an activity is created (§6) |
 | `market_pulse()` | 24h counts for the stats strip: active testers, installs, reports |
 | `market_feed(...)` | `market_apps` + `can_start`, `activity_slots_left`, `next_step` |
-| `threads`, `messages` + RLS | chat (§5.5) |
-| `apps.testflight_url` | iOS (§8) |
-| `assignments.expires_at` | claim-and-abandon (§6b.5) |
-| `activity_pair_count(uuid, uuid)` | ring-farm cap (§6b.3) |
+| `threads`, `messages` + RLS | chat (§6.5) |
+| `apps.testflight_url` | iOS (§11) |
+| `assignments.expires_at` | claim-and-abandon (§9.5) |
+| `activity_pair_count(uuid, uuid)` | ring-farm cap (§9.3) |
 
 Every new function follows the standing rules: `security definer`,
 `set search_path = public, extensions`, `revoke execute … from anon, public`,
@@ -383,7 +388,7 @@ decide a payment.
 
 ---
 
-## 8. iOS, done properly
+## 11. iOS, done properly
 
 The reference's iOS flow is public App Store install + public review, which is
 the part we refuse. But iOS itself is not the problem — the *store* is.
@@ -409,7 +414,7 @@ Google-specific machine — stays Android.
 
 ---
 
-## 9. Build order
+## 12. Build order
 
 **Phase 1 — the phone shape.** No schema. Ships alone and is worth shipping
 alone: `app-row.tsx`, the feed layout, the stats strip stubbed from existing
@@ -430,7 +435,7 @@ additive.
 
 ---
 
-## 10. Still open
+## 13. Still open
 
 Nothing blocking. Two worth revisiting once activities are live:
 
