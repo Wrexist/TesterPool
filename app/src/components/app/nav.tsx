@@ -48,6 +48,18 @@ const IconBilling = ({ size = 18, className }: { size?: number; className?: stri
   </svg>
 );
 
+/** Local to the rail: Launch feed is the only surface that needs a rocket glyph. */
+const IconLaunch = ({ size = 18, className }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+    <path
+      d="M12 2.5c2.8 1.8 4.5 4.9 4.5 8.5 0 2-.5 3.8-1.5 5.3l-3-1.2-3 1.2C7.9 14.8 7.5 13 7.5 11c0-3.6 1.7-6.7 4.5-8.5Z"
+      stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"
+    />
+    <circle cx="12" cy="9.5" r="1.6" stroke="currentColor" strokeWidth="1.7" />
+    <path d="M9 15.5 7 21l3.5-2M15 15.5 17 21l-3.5-2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 type Group = { label: string | null; items: Item[] };
 
 /**
@@ -75,6 +87,7 @@ function groups(
         { href: '/credits', label: 'Credits', Icon: IconCredits },
         { href: '/billing', label: 'Billing', Icon: IconBilling },
         { href: '/leaderboard', label: 'Leaderboard', Icon: IconTrophy },
+        { href: '/launch', label: 'Launch feed', Icon: IconLaunch },
       ],
     },
   ];
