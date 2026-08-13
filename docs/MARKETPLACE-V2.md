@@ -65,7 +65,23 @@ whole product. Nothing in the plan below is weakened by it.
 
 ---
 
-## 3. The decision this plan is built on
+## 3. Decisions taken (13 Aug 2026)
+
+Answered directly, so the rest of this document is instructions rather than
+options:
+
+1. **Activities are the product now. Pods become "Upcoming".** The marketplace
+   is the thing that ships; the 14-day cohort moves behind a coming-soon state
+   until activities have supply to feed it.
+2. **The pay is rebalanced** — §6a. The headline change is the signup grant, not
+   the activity rate.
+3. **`activity_target` defaults to 5.**
+4. **Chat waits.** Recommendation taken: §5.5 becomes a v2 item, with a cheaper
+   stand-in shipping instead (a reply on a report, which needs no new surface
+   and no new moderation policy).
+5. **Home replaces Dashboard as the landing screen.**
+
+## 4. The split this plan is built on
 
 You said it twice: *"app store for review and install apps should be a different
 tab than pods — make these two separate features."* This plan takes that
@@ -78,9 +94,16 @@ literally, and it is the substantive change.
   charged to that app's owner. No cohort, no fourteen days, no commitment. This
   is what the reference does and it is why their home screen has something on it
   for everyone.
-- **Pods (unchanged).** The 14-consecutive-day, 12-tester cohort that clears
-  Google's production-access gate. Committed, matched, escrowed, with dropout
-  penalties and rescue seats. This is the thing people pay for.
+- **Pods — upcoming.** The 14-consecutive-day, 12-tester cohort that clears
+  Google's production-access gate stays in the codebase, keeps its tests, and is
+  presented as *Upcoming* until activities are producing enough testers to fill
+  one. A pod that forms and never fills is worse than a pod that has not opened
+  yet: it burns the fourteen days a developer was counting on.
+
+  Concretely: `/pods` renders a waitlist state, `join_pod` stays callable by
+  admins only, the nav item keeps its place with an "Upcoming" tag, and the
+  pod-lifecycle cron keeps running for any pod already in flight. Nothing is
+  deleted. When supply is there it is a flag flip, not a rebuild.
 
 Activities are the **supply engine** — they give a new tester something to do in
 their first five minutes, and give an app owner installs before their pod fills.
@@ -279,6 +302,66 @@ activity is symmetric exactly as a pod seat is.
 
 ---
 
+## 6a. The economy, rebalanced
+
+With pods upcoming, activities carry the whole economy, and the number that
+matters is no longer the activity rate — it is the **signup grant**.
+
+Credits are conserved everywhere except two places that mint them: the signup
+grant and referral bonuses. 600 was correct when it was matched by the 560 a
+developer's own pod cost them: you were given the price of one pod and you paid
+it back by running one. With no pod to pay it back into, 600 is fifteen
+activities of other people's real work, taken and never returned. That is not a
+loophole at the edges; it is the whole supply of the network leaking through
+every new signup, and every alt account is another 600.
+
+**Change: `signupGrant` 600 → 40.** One activity's worth — enough to receive
+your first tester the moment you list an app, and nothing more. Everything past
+that is earned by testing or bought. This is the reference's design too (they
+grant 10 and require 30 to receive), and it is the right one: the network is
+bootstrapped by work rather than by gifts.
+
+| Key | Now | Then | Why |
+| --- | --- | --- | --- |
+| `signupGrant` | 600 | **40** | One received activity, not fifteen |
+| `optInVerified` / `install` | 10 | 10 | Unchanged, still symmetric |
+| `feedbackApproved` / `review` | 30 | 30 | Unchanged, still symmetric |
+| `dailyCheckin` | 0 | 0 | Stays zero — a check-in that minted would inflate |
+| `referralReferrer` / `Referee` | 75 / 50 | **20 / 20** | Same reason as the grant: minted, and an alt-farm's favourite door |
+| `PENALTY.dropout` | 120 | pod-only | Dormant while pods are upcoming |
+| `COST.bufferSeat` etc. | — | pod-only | Hidden from the credit menu while pods are upcoming |
+
+Existing balances are left alone. The grant change applies to new signups; a
+migration that clawed back credits people were promised would be worse than the
+inflation it fixed.
+
+**Activity rate stays 40.** With pods upcoming there is no per-hour comparison
+to lose, it keeps install and report symmetric with what the owner pays, and it
+keeps the property worth protecting: *one activity done earns exactly one
+activity received*. That single sentence is the whole economy, and it should
+survive every future change to these numbers.
+
+## 6b. Exploit register
+
+The two found today (`20260813200000_lock_payment_columns.sql`) are closed. The
+rest is what activities open up, and each line is a build item, not a note.
+
+| # | Exploit | Defence |
+| --- | --- | --- |
+| 1 | Self-dealing: test your own app | `start_activity` refuses `owner_id = auth.uid()`; already true for pods |
+| 2 | **Alt-account farming**: sign up, take the grant, never test | Grant cut to 40 (§6a); Turnstile on signup (built, needs the key set); `tester_email` verified before the first activity; `signup_ip_hash` / `device_fp_hash` recorded on signup and checked at claim |
+| 3 | **Ring farming**: two accounts trading activities forever | A pair cap — at most 2 activities between the same two members per 30 days, counted in `start_activity` |
+| 4 | Screenshot reuse across apps or accounts | `proofs.perceptual_hash` already exists; enforce it — a phash within Hamming distance 4 of an existing approved proof goes to the human queue, never to auto-approve |
+| 5 | Claim-and-abandon, holding a slot forever | Activities expire after 72h with no verified opt-in; the slot returns, the tester's reliability takes the hit |
+| 6 | Swarm-drain an owner | `activity_target` (default 5) + the funded check (owner must cover the full 40 before a tester starts) + `credits_paused` |
+| 7 | Low-effort reports at volume | Daily caps (10/10, already triggers); minimum length; repro required at severity ≥ 2; upheld disputes cost reliability |
+| 8 | Owner rejects honest criticism to avoid paying | Unchanged and non-negotiable: `review_feedback(id,'low_effort')` opens a moderator dispute, it does not reject the report |
+| 9 | Cash-out | There is none. Credits buy testing and nothing else, and no code path converts them to money. Keep it that way |
+| 10 | Evidence forgery for the Google submission | Closed today: `days_checked_in` and `feedback.status` are no longer client-writable |
+
+Items 2, 3, 4 and 5 are new work and belong in phase 2 beside `start_activity` —
+not after it. An exchange with no farming defence is a farm.
+
 ## 7. New database surface, complete list
 
 | Object | Purpose |
@@ -290,6 +373,8 @@ activity is symmetric exactly as a pod seat is.
 | `market_feed(...)` | `market_apps` + `can_start`, `activity_slots_left`, `next_step` |
 | `threads`, `messages` + RLS | chat (§5.5) |
 | `apps.testflight_url` | iOS (§8) |
+| `assignments.expires_at` | claim-and-abandon (§6b.5) |
+| `activity_pair_count(uuid, uuid)` | ring-farm cap (§6b.3) |
 
 Every new function follows the standing rules: `security definer`,
 `set search_path = public, extensions`, `revoke execute … from anon, public`,
@@ -345,22 +430,15 @@ additive.
 
 ---
 
-## 10. Decisions that are yours
+## 10. Still open
 
-1. **Do activities happen at all?** (§3) Everything from phase 2 onward assumes
-   yes. If the answer is no, the marketplace stays a directory and phase 1 is
-   the whole plan.
-2. **Activity reward: 40, or less?** A pod seat pays 40 for fourteen days of
-   attention; an activity pays the same for one session. That is generous and it
-   may be right — supply is the constraint early — but it means a tester earns
-   more per hour doing activities than holding a pod seat, and pods are the
-   product. Options: keep 40 and accept it; drop the activity report to 20; or
-   pay activities 40 but give pod completion a bonus funded by the platform.
-3. **Default `activity_target`.** I suggest 5 for a new app: enough to be worth
-   showing, small enough that an owner cannot be drained by surprise.
-4. **Chat in v1 or v2?** It is the largest new surface and the only one with a
-   moderation cost.
-5. **Does Home replace Dashboard as the post-login landing?** The reference's
-   home is the feed. Ours currently lands on the developer's own app, which is
-   the right default for someone mid-pod and the wrong one for a new tester.
-   Suggest: feed if you have no active pod, dashboard if you do.
+Nothing blocking. Two worth revisiting once activities are live:
+
+1. **When do pods come back?** Suggested trigger: 30 members who have completed
+   at least one activity in the last 14 days. That is enough to fill a pod of 15
+   twice over, which is what "we can start your clock this week" needs to be
+   true rather than hopeful.
+2. **Referral rates.** Cut to 20/20 in §6a on the same reasoning as the grant.
+   If referrals turn out to be the cheapest real acquisition channel, that is an
+   argument for raising them again — but with an activity completed before the
+   bonus pays, not on signup.
