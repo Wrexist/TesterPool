@@ -129,7 +129,7 @@ of truth; `profiles.credits` is a cached projection.
 RPCs callable by `authenticated`: `join_pod, start_pod, submit_checkin, review_feedback,
 arbitrate_dispute, market_apps, market_app, market_counts, market_categories`. Each authorises against `auth.uid()` itself.
 
-## Four traps this codebase has already fallen into
+## Five traps this codebase has already fallen into
 
 These were real bugs, found by verification, already fixed. Do not reintroduce them.
 
@@ -148,6 +148,19 @@ grant only what genuinely needs to be callable.
 every authenticated read silently returned zero rows. Cross-table checks go through the
 `SECURITY DEFINER` helpers: `owns_app, tests_app, owns_assignment_app,
 is_assignment_tester, is_feedback_tester, is_mod`.
+
+**An RLS policy that says "your own row" says "every column of your own row".**
+Supabase exposes every table over REST, so `for update using (tester_id = auth.uid())`
+on `assignments` let a tester `PATCH` their own `opt_in_verified_at` and fire the
+trigger that pays them and charges the app owner — no screenshot, no moderator.
+The same shape on `proofs` let them insert a pre-approved proof for the sweep to
+trust. Both are fixed in `20260813200000_lock_payment_columns.sql`, and the rule
+is general: **the client may never write a column that a trigger, a job or an RPC
+reads when deciding to move credits.** Writes that decide money go through a
+`SECURITY DEFINER` RPC; the table itself stays shut, and a guard trigger that
+checks `current_user` refuses the write even if a future policy widens again.
+`supabase/tests/05-payment-locks.sql` is the regression test and runs as
+`authenticated` — as the table owner it would pass against a broken schema.
 
 **Direct inserts into `auth.users` need empty strings, not NULL,** for
 `confirmation_token`, `recovery_token`, `email_change*`, `phone_change*` and
