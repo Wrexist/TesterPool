@@ -65,7 +65,9 @@ export function AppCard({ app }: { app: MarketApp }) {
         <SaveButton appId={app.id} initial={!!app.watching} />
       </div>
 
-      <Link href={`/market/${app.id}`} className="flex flex-col gap-4">
+      {/* flex-1 so the link fills the card: without it the mt-auto below has no
+          spare height to push against and the numbers stop lining up. */}
+      <Link href={`/market/${app.id}`} className="flex flex-1 flex-col gap-4">
         <div className="flex items-start gap-3 pr-10">
           <AppIcon name={app.name} src={app.icon_url} />
           <div className="min-w-0 flex-1">
@@ -88,9 +90,12 @@ export function AppCard({ app }: { app: MarketApp }) {
           {app.category && !listingOnly && <Pill tone="neutral">{app.category}</Pill>}
         </div>
 
+        {/* mt-auto here, not on the footer: a card whose pills wrapped to two
+            lines would otherwise sit its numbers a row lower than its
+            neighbours, and three cards side by side read as misaligned. */}
         <div
           className={cx(
-            'grid grid-cols-3 gap-3 rounded-xl border border-[var(--color-line)] px-4 py-3',
+            'mt-auto grid grid-cols-3 gap-3 rounded-xl border border-[var(--color-line)] px-4 py-3',
             'bg-[var(--color-bg)]'
           )}
         >
@@ -99,12 +104,14 @@ export function AppCard({ app }: { app: MarketApp }) {
           <Metric label="Reports" value={n(app.reports)} />
         </div>
 
-        <div className="mt-auto flex items-center gap-2 pt-1 text-xs text-[var(--color-mute)]">
-          <span className="min-w-0 flex-1 truncate">
+        <div className="flex items-center gap-3 pt-1 text-xs text-[var(--color-mute)]">
+          <span className="shrink-0">
             @{app.owner_handle ?? 'unknown'}
             {app.owner_country_code ? ` · ${app.owner_country_code}` : ''}
           </span>
-          {focus.length > 0 && <span className="shrink-0 truncate">Focus: {focus.join(', ')}</span>}
+          {focus.length > 0 && (
+            <span className="min-w-0 flex-1 truncate text-right">Focus: {focus.join(', ')}</span>
+          )}
         </div>
       </Link>
     </Card>

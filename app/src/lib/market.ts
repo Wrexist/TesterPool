@@ -100,7 +100,7 @@ export const SCOPES: FilterOption<Scope>[] = [
 export const PLATFORMS: FilterOption<PlatformFilter>[] = [
   { value: 'all',     label: 'All' },
   { value: 'android', label: 'Android' },
-  { value: 'ios',     label: 'iOS', hint: 'iOS apps are listings only. Google is the store with a 12-tester, 14-day gate; Apple has no equivalent, so pods do not run on iOS.' },
+  { value: 'ios',     label: 'iOS', hint: 'iOS is a listing feature on its own: discovery and visibility, separate from pods and credits, and never connected to App Store reviews or ratings.' },
 ];
 
 export const STATUSES: FilterOption<StatusFilter>[] = [
@@ -185,10 +185,15 @@ export function isFiltered(query: MarketQuery): boolean {
  * `apps.status` alone is not enough: 'in_pod' means "still filling" or "day 6
  * of 14" depending on the pod, and those are different things to a reader.
  */
-export function stageOf(app: Pick<MarketApp, 'status' | 'pod_status' | 'pod_day' | 'pod_seats_left'>): {
-  label: string;
-  tone: Tone;
-} {
+export function stageOf(
+  app: Pick<MarketApp, 'status' | 'pod_status' | 'pod_day' | 'pod_seats_left' | 'platform'>
+): { label: string; tone: Tone } {
+  // An iOS app has no pod to be looking for, so it never borrows pod language.
+  if (app.platform === 'ios') {
+    return app.status === 'graduated'
+      ? { label: 'Published', tone: 'green' }
+      : { label: 'Listed', tone: 'neutral' };
+  }
   if (app.status === 'graduated') return { label: 'Graduated', tone: 'green' };
   if (app.status === 'draft')     return { label: 'Draft', tone: 'neutral' };
   if (app.status === 'paused')    return { label: 'Paused', tone: 'amber' };
@@ -221,13 +226,16 @@ export function relationCopy(app: Pick<MarketApp, 'relation' | 'report_due'>): {
 }
 
 /**
- * iOS apps are listed, never seated.
+ * iOS is a listing feature of its own, deliberately separate.
  *
  * The pod mechanic exists to satisfy Google Play's closed-testing gate — 12
  * testers, 14 consecutive days — before a personal developer account may
- * publish. Apple has no equivalent gate, and running a paid testing exchange
- * against the App Store is what App Store Review guideline 2.2 is about. So an
- * iOS app can be listed here for visibility, and that is where it stops.
+ * publish. Apple has no equivalent gate, so there is nothing for an iOS build
+ * to clear and no reason to route one through pods, credits or proof.
+ *
+ * What an iOS listing is: discovery. What it is not, and must never become: a
+ * route to an App Store review or rating. That is the same line invariant 1
+ * draws for Android, drawn again here.
  */
 export function isListingOnly(app: Pick<MarketApp, 'platform'>): boolean {
   return app.platform === 'ios';

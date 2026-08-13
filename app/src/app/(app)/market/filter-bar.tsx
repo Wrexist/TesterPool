@@ -171,7 +171,7 @@ export function FilterBar({
             className="input h-9 pl-9 text-[13px]"
             type="search"
             value={term}
-            placeholder="Search apps, categories, developers"
+            placeholder="Search apps or developers"
             aria-label="Search the marketplace"
             onChange={(e) => setTerm(e.target.value)}
           />
@@ -222,20 +222,24 @@ export function FilterBar({
           ))}
         </Select>
 
-        {active && (
-          <Link href="/market" className="btn btn-ghost h-9 px-3 text-[13px]">
-            Clear
-          </Link>
-        )}
       </div>
 
       {/* ------------------------------------------------------ what this is */}
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--color-mute)]">
-        <span aria-live="polite">
-          {pending ? 'Updating…' : <><span className="num font-semibold text-[var(--color-dim)]">{total}</span> {total === 1 ? 'app' : 'apps'}</>}
-        </span>
-        {scopeHint && <span>{scopeHint}</span>}
-        {platformHint && <span>{platformHint}</span>}
+      <div className="flex flex-col gap-1 text-xs text-[var(--color-mute)]">
+        <div className="flex items-baseline gap-3">
+          <span aria-live="polite">
+            {pending ? 'Updating…' : <><span className="num font-semibold text-[var(--color-dim)]">{total}</span> {total === 1 ? 'app' : 'apps'}</>}
+          </span>
+          {active && (
+            <Link href="/market" className="font-semibold text-[var(--color-dim)] underline decoration-[var(--color-line-hi)] underline-offset-2 hover:text-[var(--color-ink)]">
+              Clear filters
+            </Link>
+          )}
+        </div>
+        {/* One hint per line. Two of them side by side ran the width of the
+            page and stopped reading as help. */}
+        {scopeHint && <p>{scopeHint}</p>}
+        {platformHint && <p>{platformHint}</p>}
       </div>
     </div>
   );
