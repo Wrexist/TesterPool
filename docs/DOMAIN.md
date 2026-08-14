@@ -1,88 +1,103 @@
 # Going live on testerpool.dev
 
-The order matters. DNS first, then Vercel, then the three services that hold a
-copy of the origin — Supabase auth, Stripe, and the app's own
-`NEXT_PUBLIC_SITE_URL`. Doing Supabase before the domain resolves just means
-doing it twice.
+Nine steps, in order. Each one says where to go, what to do, and how to know it
+worked. Do not skip ahead — step 3 fails in a confusing way if step 1 has not
+finished, and step 9 is what makes steps 2 through 8 take effect.
 
-Everything below assumes the Vercel project already exists with Root Directory
-set to `app`, as `DEPLOY.md` describes. If it does not, do that first.
+Assumes the Vercel project already exists with Root Directory set to `app`
+(`DEPLOY.md`). Budget an hour, most of it waiting on DNS.
 
-## 0. What the app does with the origin today
+---
 
-Three code paths read it, and each has a different fallback:
+## Step 1 — Add the domain in Vercel
 
-| Path | Reads | Falls back to |
+**Where:** Vercel project → Settings → Domains
+
+**Do:**
+1. Add `testerpool.dev`. Set it as the primary domain.
+2. Add `www.testerpool.dev`. Choose "Redirect to testerpool.dev".
+3. Copy the DNS records Vercel now shows you.
+
+Apex is primary because every URL in this repo is written without `www`.
+
+---
+
+## Step 2 — Add the DNS records at your registrar
+
+**Where:** wherever you bought the domain → its DNS panel
+
+**Do:** add the two records Vercel gave you. They will be:
+
+| Type | Name | Value |
 | --- | --- | --- |
-| `src/app/layout.tsx` | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` |
-| `src/lib/billing.ts` `siteUrl()` | `NEXT_PUBLIC_SITE_URL`, then `VERCEL_URL` | `http://localhost:3000` |
-| `src/lib/pods.ts` `referralLink()` | live browser origin, then `NEXT_PUBLIC_SITE_URL` | `https://testerpool.dev` |
+| `ALIAS` or `ANAME` (or `A` if neither is offered) | `@` | `cname.vercel-dns.com` (or `76.76.21.21` for the `A`) |
+| `CNAME` | `www` | `cname.vercel-dns.com` |
 
-`layout.tsx` is the one that bites quietly: `metadataBase` decides what every
-Open Graph and canonical URL resolves against. Unset on production and every
-link preview points at `localhost:3000`. Nothing errors — the previews are just
-wrong, and you find out from someone on Reddit.
+Prefer `ALIAS`/`ANAME` over `A` if the registrar offers it.
 
-Sign-in does not read the variable at all. `LoginForm.tsx` builds
-`emailRedirectTo` from `window.location.origin`, so the magic link points at
-whatever host the user was actually on. That is why step 3 is an allow-list
-entry and not a value to set.
+If the registrar instead offers to move nameservers to Vercel, that works and is
+less fiddly. Do not do it if email for this domain is already set up somewhere,
+because it moves the MX and TXT records too.
 
-## 1. Point DNS at Vercel
-
-Vercel project → Settings → Domains → Add → `testerpool.dev`.
-
-Add `www.testerpool.dev` in the same step and let Vercel redirect it to the
-apex. Pick the apex as the primary; every URL in this repo is written without
-`www`.
-
-At the registrar, add whichever record Vercel asks for:
-
-- **Apex** — an `A` record to `76.76.21.21`, or `ALIAS`/`ANAME` to
-  `cname.vercel-dns.com` if the registrar supports it. Prefer the ALIAS.
-- **www** — `CNAME` to `cname.vercel-dns.com`.
-
-If the registrar offers to move nameservers to Vercel, that also works and is
-less fiddly, but it moves MX and TXT records too — do not do it if email for the
-domain is already set up elsewhere.
-
-Wait for Vercel to show **Valid Configuration** and issue the certificate. This
-is usually minutes, occasionally an hour. Do not continue until the padlock is
-real: Supabase and Stripe both reject non-HTTPS origins, and `.dev` is on the
-HSTS preload list, so browsers refuse plain HTTP for it outright — a half-issued
-certificate looks like a total outage rather than a warning.
-
-Verify:
-
+**Check:**
 ```bash
 dig +short testerpool.dev
-curl -sSI https://testerpool.dev | head -1     # expect HTTP/2 200
 ```
+Returns an address. Nothing yet is normal for the first few minutes.
 
-## 2. Set NEXT_PUBLIC_SITE_URL
+---
 
-Vercel → Settings → Environment Variables.
+## Step 3 — Wait for the certificate
 
-| Scope | Value |
-| --- | --- |
-| Production | `https://testerpool.dev` |
-| Preview | leave unset — it falls back to `VERCEL_URL`, which is correct per branch |
-| Development | leave unset — `http://localhost:3000` |
+**Where:** back in Vercel → Settings → Domains
 
-No trailing slash. `siteUrl()` strips one and `metadataBase` tolerates it, but
-`referralLink()` string-concatenates and you get a double slash in every invite.
+**Do:** wait until the domain shows **Valid Configuration** and the certificate
+is issued. Usually minutes, sometimes an hour.
 
-`NEXT_PUBLIC_` variables are inlined at build time, not read at runtime. Setting
-this changes nothing until the next production deploy — step 6.
+**Check:**
+```bash
+curl -sSI https://testerpool.dev | head -1
+```
+Expect `HTTP/2 200`.
 
-## 3. Add the domain to Supabase auth
+**Do not continue until this passes.** `.dev` is on the HSTS preload list, so
+browsers refuse plain HTTP for it entirely — a half-issued certificate looks
+like a total outage rather than a warning. Supabase and Stripe also both reject
+non-HTTPS origins in the steps below.
 
-Supabase → Authentication → URL Configuration.
+---
 
-**Site URL:** `https://testerpool.dev`
+## Step 4 — Set NEXT_PUBLIC_SITE_URL
 
-**Redirect URLs** — add, keeping the existing Vercel entries so preview deploys
-keep working:
+**Where:** Vercel → Settings → Environment Variables
+
+**Do:** add one variable, Production scope only.
+
+| Name | Value | Scope |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | `https://testerpool.dev` | Production |
+
+No trailing slash. Leave Preview and Development unset — they correctly fall
+back to `VERCEL_URL` and `localhost:3000`.
+
+**Why it matters:** `layout.tsx` uses this for `metadataBase`. Unset on
+production, every Open Graph image and canonical URL silently resolves against
+`localhost:3000`. Nothing errors. The link previews are just wrong, and you find
+out from a stranger.
+
+Nothing changes on the live site yet — this is inlined at build time and takes
+effect in step 9.
+
+---
+
+## Step 5 — Add the domain to Supabase auth
+
+**Where:** Supabase → Authentication → URL Configuration
+
+**Do:**
+1. Set **Site URL** to `https://testerpool.dev`.
+2. Under **Redirect URLs**, add these two. Keep the existing Vercel entries so
+   preview deploys keep working.
 
 ```
 https://testerpool.dev/**
@@ -90,74 +105,111 @@ https://www.testerpool.dev/**
 ```
 
 The `/**` suffix is required. `/*` does not match `/auth/callback`, and the
-failure mode is a sign-in that completes at the provider and then dies on the
-way home with `Invalid web redirect url`. `AUTH-SETUP.md` covers the glob rules.
+failure mode is a sign-in that succeeds at the provider then dies on the way
+home with `Invalid web redirect url`. `AUTH-SETUP.md` covers the glob rules.
 
-Nothing changes at Google, GitHub or Apple. Their registered redirect URI points
-at `https://yudcncvarndslyyajflr.supabase.co/auth/v1/callback` and is
-independent of your domain.
+**Nothing to change at Google, GitHub or Apple.** Their registered redirect URI
+points at `https://yudcncvarndslyyajflr.supabase.co/auth/v1/callback` and has
+nothing to do with your domain.
 
-## 4. Repoint Stripe
+---
 
-Only if payments are live. Skip otherwise; the app degrades to "payments are not
-configured" and there is nothing to break.
+## Step 6 — Repoint the Stripe webhook
 
-1. Dashboard → Developers → Webhooks → the existing endpoint → update the URL to
+**Skip this entire step if payments are not live.** The app degrades to
+"payments are not configured" and there is nothing to break.
+
+**Where:** Stripe Dashboard, in **live** mode (test mode has a separate set of
+endpoints and secrets)
+
+**Do:**
+1. Developers → Webhooks → open the existing endpoint → change the URL to
    `https://testerpool.dev/api/stripe/webhook`.
-2. The signing secret is per endpoint. If you create a new endpoint rather than
-   editing the old one, copy the new `whsec_…` into `STRIPE_WEBHOOK_SECRET` on
-   Vercel Production, or every event fails signature verification and the route
-   returns 500 by design.
-3. Settings → Business → Public details: set the website to the new domain. This
-   is what shows on the Checkout page and the card statement descriptor.
-4. Do this in **live** mode. Test-mode endpoints and secrets are a separate set.
+2. **If you created a new endpoint instead of editing the old one:** the signing
+   secret is per endpoint. Copy the new `whsec_…` into `STRIPE_WEBHOOK_SECRET`
+   on Vercel Production. Skip this and every event fails signature verification
+   and the route returns 500, by design.
+3. Settings → Business → Public details → set the website to the new domain.
+   This is what appears on the Checkout page and the card statement.
 
-## 5. Email on the domain
+---
 
-`support@testerpool.dev` is hardcoded in `terms/page.tsx`, `privacy/page.tsx`
-and the suspended-account message in `auth/callback/route.ts`. Those pages are
-public, and the privacy policy names that address as the contact route for a
-data request — so the mailbox has to exist before the domain is announced, not
-after.
+## Step 7 — Set up support@testerpool.dev
 
-Any hosted mailbox works (Google Workspace, Fastmail, a registrar forwarder).
-Add its MX records at the registrar. If you moved nameservers to Vercel in step
-1, add them in Vercel's DNS panel instead.
+**Where:** any hosted mailbox (Google Workspace, Fastmail, a registrar
+forwarder), then your DNS panel for its MX records
 
-Separately: Supabase's default SMTP sends magic links from a shared Supabase
-address with a low rate limit, and it is explicitly not for production. Once the
-domain is live, set up a custom SMTP sender (Resend, Postmark, SES) under
-Authentication → Emails → SMTP Settings and verify SPF/DKIM for the domain.
-Deliverability of the magic link *is* the sign-in flow — if it lands in spam,
-the product does not work.
+**Do:** create the mailbox and add its MX records. If you moved nameservers to
+Vercel in step 2, add them in Vercel's DNS panel instead.
 
-## 6. Deploy, then verify
+**Why before launch, not after:** that address is hardcoded in
+`terms/page.tsx`, `privacy/page.tsx`, and the suspended-account message in
+`auth/callback/route.ts`. Those pages are public, and the privacy policy names
+it as the contact route for a data request.
 
-Actions → **Deploy** → Run workflow → Production. The build inlines the new
-`NEXT_PUBLIC_SITE_URL`.
+---
 
-Then walk it:
+## Step 8 — Set up custom SMTP for magic links
 
-- [ ] `https://testerpool.dev` loads; `www` redirects to it.
-- [ ] View source on the landing page — `og:url` and the canonical link say
+**Where:** Supabase → Authentication → Emails → SMTP Settings
+
+**Do:** point it at a real sender (Resend, Postmark, SES) and verify SPF and
+DKIM for the domain.
+
+Supabase's default sender is a shared address with a low rate limit and is
+explicitly not for production. Deliverability of the magic link *is* the sign-in
+flow. If it lands in spam, the product does not work.
+
+---
+
+## Step 9 — Deploy and verify
+
+**Where:** GitHub → Actions → **Deploy** → Run workflow → target **Production**
+
+This is what bakes in the variable from step 4.
+
+Then walk the list:
+
+- [ ] `https://testerpool.dev` loads, and `www` redirects to it.
+- [ ] View source on the landing page. `og:url` and the canonical link say
       `testerpool.dev`, not `localhost:3000`.
-- [ ] Sign in with a magic link end to end, from the new domain. The link in the
-      email points at `testerpool.dev/auth/callback`.
-- [ ] An authenticated page loads real data — that proves the Supabase env vars
+- [ ] Sign in end to end with a magic link, starting from the new domain. The
+      link in the email points at `testerpool.dev/auth/callback`.
+- [ ] An authenticated page shows real data. This proves the Supabase variables
       survived the rebuild.
-- [ ] Copy a referral link from the invite panel: `testerpool.dev/login?ref=…`.
-- [ ] `/admin/system` is green, confirming the four scheduled jobs are still
-      firing. They run on `pg_cron` inside Supabase and are unaffected by any of
-      this, so a red light here means something else broke.
-- [ ] If Stripe is live: trigger a test event from the Dashboard and confirm a
-      200 at the new endpoint.
+- [ ] Copy a referral link from the invite panel. It reads
+      `testerpool.dev/login?ref=…`.
+- [ ] `/admin/system` is green. The four scheduled jobs run on `pg_cron` inside
+      Supabase and are unaffected by any of this, so red here means something
+      else broke.
+- [ ] Stripe only: send a test event from the Dashboard, confirm a 200 at the
+      new endpoint.
 
-## What this does not touch
+---
+
+## Reference
+
+### Where the origin is read
+
+Three code paths, three different fallbacks:
+
+| Path | Reads | Falls back to |
+| --- | --- | --- |
+| `src/app/layout.tsx` | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` |
+| `src/lib/billing.ts` `siteUrl()` | `NEXT_PUBLIC_SITE_URL`, then `VERCEL_URL` | `http://localhost:3000` |
+| `src/lib/pods.ts` `referralLink()` | live browser origin, then `NEXT_PUBLIC_SITE_URL` | `https://testerpool.dev` |
+
+Sign-in reads none of them. `LoginForm.tsx` builds `emailRedirectTo` from
+`window.location.origin`, so the magic link always points at the host the user
+is actually on. That is why step 5 is an allow-list entry rather than a value to
+configure.
+
+### What this does not touch
 
 The Supabase project keeps its `yudcncvarndslyyajflr.supabase.co` hostname. A
-custom auth domain (`auth.testerpool.dev`) is a paid add-on and buys only a
-tidier URL in the address bar during OAuth; every redirect URI at every provider
-would have to be re-registered. Not worth it now.
+custom auth domain (`auth.testerpool.dev`) is a paid add-on that buys a tidier
+URL in the address bar during OAuth, and costs re-registering every redirect URI
+at every provider. Not worth it now.
 
 The scheduled jobs, the edge functions and the migration history are all
 independent of the domain.
