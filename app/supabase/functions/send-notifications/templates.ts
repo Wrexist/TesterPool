@@ -15,7 +15,8 @@
 export type Kind =
   | 'checkin_due' | 'streak_at_risk' | 'streak_broken' | 'pod_started'
   | 'pod_filling' | 'pod_completed' | 'seat_at_risk' | 'rescue_needed'
-  | 'feedback_due' | 'feedback_reviewed' | 'dispute_opened' | 'greenlit';
+  | 'feedback_due' | 'feedback_reviewed' | 'dispute_opened' | 'greenlit'
+  | 'tester_joined';
 
 export type Claimed = {
   id: number;
@@ -216,6 +217,17 @@ export function renderItem(n: Claimed, site: string): Item {
           `The readiness page has the exact dates, the tester count and drafts of the three answers the form asks for. All of it comes from closed testing tracks, which do not affect store rankings, ratings or public install counts.`,
         ],
         cta: { label: 'Open readiness', url: `${site}/readiness` },
+      };
+
+    case 'tester_joined':
+      return {
+        subject: `${app}: a tester picked it up`,
+        heading: `Someone started testing ${app}`,
+        body: [
+          `A member of the pool took an activity on ${app}. They will join your closed testing track, use the app, and send you one structured report on what broke and what they would change.`,
+          `You are charged when the work lands, not now: 10 credits when their opt-in is verified from a screenshot, 30 when the report arrives. Nothing about this touches your Play Store listing.`,
+        ],
+        cta: { label: 'Open the dashboard', url: `${site}/dashboard` },
       };
 
     default:

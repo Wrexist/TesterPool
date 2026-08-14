@@ -515,6 +515,63 @@ export async function startPod(podId: string): Promise<ActionResult> {
   return result;
 }
 
+/* ------------------------------------------------------------ activities */
+
+/**
+ * Take one app's job: join its closed test, use it, send one report.
+ *
+ * The marketplace has shown what an app's work pays since it was built and has
+ * never had a way to accept it — a seat existed only where pod matching made
+ * one. This is the missing verb, and every guard that matters lives in
+ * `start_activity`: the owner's consent, their remaining seats, their balance,
+ * the flag, and whether you already hold a seat here. The messages below only
+ * translate the refusals into a sentence a developer can act on.
+ *
+ * The install is a closed testing track opt-in and the report is private to the
+ * developer. It is not a store install and not a store review, and nothing on
+ * this path can become one.
+ */
+export async function startActivity(appId: string): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+
+  const { data, error } = await auth.supabase.rpc('start_activity', { p_app: appId });
+  if (error) return fail(error.message, 'rpc_error');
+
+  const result = fromRpc(data, 'Could not start on that app.');
+
+  if (result.ok) {
+    revalidatePath('/market');
+    revalidatePath(`/market/${appId}`);
+    revalidatePath('/tests');
+    revalidatePath('/dashboard');
+    result.message = 'Yours. Step one is the closed test — open it, install from it, then upload the screenshot.';
+    return result;
+  }
+
+  // Every one of these is a state the app owner or the pool is in, not a
+  // mistake the tester made. They read that way on purpose.
+  const said: Record<string, string> = {
+    activities_closed:
+      'Activities are paused right now. Nothing you have already started is affected.',
+    already_testing: 'You already have a seat on this app. It is on your tests page.',
+    your_own_app: 'This is your own app. You cannot test it for credits.',
+    listing_only:
+      'This is an iOS listing. Testing, proof and credits are Android only for now.',
+    not_open: 'This app is not open to testers at the moment.',
+    not_accepting: 'The developer is not taking one-off testers on this app.',
+    no_seats: 'Every seat on this app is taken. Others open as reports land.',
+    no_opt_in_route:
+      'The developer has not added a closed-track link yet, so there is nothing to join.',
+    owner_out_of_credits:
+      'The developer has run out of credits, so this app is paused until they top up. Nothing you do now would be paid.',
+    unknown_app: 'That app is no longer listed.',
+  };
+
+  if (result.error && said[result.error]) result.message = said[result.error];
+  return result;
+}
+
 /* ------------------------------------------------------------- check-ins */
 
 export async function submitCheckin(assignmentId: string, note?: string): Promise<ActionResult> {

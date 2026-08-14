@@ -63,6 +63,20 @@ export interface MarketApp {
   days_checked_in: number | null;
   report_due: boolean | null;
   watching: boolean | null;
+  /**
+   * Whether this viewer could start an activity on this app right now. Computed
+   * in `market_apps()` against every condition `start_activity` enforces —
+   * the owner's consent, their remaining seats, their balance, the flag — so a
+   * row that offers the work is a row the RPC will accept.
+   */
+  activity_open: boolean | null;
+  activity_seats_left: number | null;
+  /**
+   * True when the seat you hold here is an activity rather than a pod seat.
+   * The two differ in exactly one visible way: an activity is one check-in and
+   * has no fourteen-day clock, so nothing should draw a streak strip against it.
+   */
+  is_activity: boolean | null;
   total_count: number | null;
 }
 
@@ -89,13 +103,16 @@ export interface FilterOption<T extends string = string> {
   hint?: string;
 }
 
-export type Scope = 'all' | 'testing' | 'due' | 'tested' | 'mine' | 'saved';
+export type Scope = 'all' | 'open' | 'testing' | 'due' | 'tested' | 'mine' | 'saved';
 export type PlatformFilter = 'all' | 'android' | 'ios';
 export type StatusFilter = 'all' | 'needs_testers' | 'in_testing' | 'graduated';
 export type Sort = 'newest' | 'testers' | 'reports' | 'graduated' | 'name';
 
 export const SCOPES: FilterOption<Scope>[] = [
   { value: 'all',     label: 'All' },
+  // First, and first for a reason: it is the only chip that answers "is there
+  // anything here for me to do", which is the question a member arrives with.
+  { value: 'open',    label: 'Open to me', hint: 'Apps you can start on right now. Join the closed test, use it, send one report.' },
   { value: 'testing', label: 'Testing' },
   { value: 'due',     label: 'Report due' },
   { value: 'tested',  label: 'Tested' },

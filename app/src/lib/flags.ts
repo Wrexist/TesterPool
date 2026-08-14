@@ -43,6 +43,18 @@ export const FLAG_DEFAULTS = {
    * because a flag read failed.
    */
   pod_matching: true,
+  /**
+   * Whether a member may start a one-off activity: join an app's closed test,
+   * use it, file one report, be paid the same 10 + 30 a pod seat pays.
+   *
+   * Same rule as `pod_matching` — `start_activity` enforces this flag inside
+   * the database and `market_apps` computes `activity_open` from it, so the
+   * button, the row and the RPC all move together. Turning it off leaves work
+   * already started running; only new activities stop.
+   *
+   * Defaults true to match the RPC, which treats a missing row as open.
+   */
+  activities: true,
 } as const;
 
 export type FlagKey = keyof typeof FLAG_DEFAULTS;

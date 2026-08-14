@@ -28,7 +28,7 @@ import {
   type MarketQuery, type PlatformFilter,
 } from '@/lib/market';
 
-const COUNT_KEYS = ['testing', 'due', 'mine', 'saved'] as const;
+const COUNT_KEYS = ['open', 'testing', 'due', 'mine', 'saved'] as const;
 export type ScopeCounts = Partial<Record<(typeof COUNT_KEYS)[number], number>>;
 
 function Chip({

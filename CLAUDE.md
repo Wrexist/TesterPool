@@ -146,8 +146,24 @@ listing only after deciding which of those two rules it lands under.
 which write the append-only `credit_ledger` in the same statement. The ledger is the source
 of truth; `profiles.credits` is a cached projection.
 
-RPCs callable by `authenticated`: `join_pod, start_pod, submit_checkin, review_feedback,
-arbitrate_dispute, market_apps, market_app, market_counts, market_categories, market_pulse`. Each authorises against `auth.uid()` itself.
+RPCs callable by `authenticated`: `join_pod, start_pod, start_activity, submit_checkin,
+review_feedback, arbitrate_dispute, market_apps, market_app, market_counts,
+market_categories, market_pulse`. Each authorises against `auth.uid()` itself.
+
+**An `assignments` row with a null `pod_id` is an activity**, not a broken pod seat. It is
+the marketplace's own supply route: a member picks any open app, joins its closed testing
+track, uses it, files one report, and is paid the same 10 + 30 a pod seat pays out of the
+same owner's balance. `start_activity` is the only way to make one and it carries every
+guard that pod matching used to provide — the owner's consent (`apps.accepting_activities`),
+their remaining seats (`apps.activity_target`), and their balance, checked for the *whole*
+40 before the seat exists rather than after the tester has done the work. Gated by the
+`activities` flag, enforced in the RPC and mirrored into `market_apps.activity_open`, so the
+button and the RPC move together.
+
+Every lifecycle job joins `assignments` to `pods` on an inner join, so activities are
+excluded from the 14-day clock, dropout detection and escrow release by construction. Any
+new code reading a pod off an assignment must handle null — `submit_checkin` and `/tests`
+both did not, and the seat was unworkable from the screen it is worked from.
 
 ## Five traps this codebase has already fallen into
 

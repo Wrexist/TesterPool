@@ -8,6 +8,22 @@ It is written to be handed to a coding session. Every screen names the files it
 touches, every schema change names the migration it needs, and the decisions
 that were yours are recorded in §3, already answered.
 
+**Status, 14 Aug 2026: the activity itself is built.** The presentation layer
+landed first — `app-row.tsx`, `RewardChip`, `activity-steps.tsx` — and left the
+marketplace showing what every app's work paid with no way to accept it, because
+a seat still came only from pod matching and `pod_matching` is off for launch. A
+directory of jobs nobody could take.
+
+`20260814180000_activities.sql` and `20260814181000_market_activities.sql` close
+that: `assignments.pod_id` is nullable, `start_activity` is the door, and
+`market_apps` gained `activity_open` / `activity_seats_left` / `is_activity` plus
+an `open` scope. `supabase/tests/07-activities.sql` is the regression test.
+
+Still outstanding from this plan: the bottom tab bar (§5), `/u/[handle]` as a
+Profile tab (§6.4), the My apps rework (§6.3) including an owner-facing control
+for `accepting_activities` and `activity_target` — both are live columns with
+sane defaults and no UI yet — and chat (§6.5), which was already deferred.
+
 ---
 
 ## 1. What the reference gets right

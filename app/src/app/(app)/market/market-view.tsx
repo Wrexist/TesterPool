@@ -19,6 +19,7 @@ import { n } from '@/lib/pods';
 /** Named for why you are looking, not for what the filter is called. */
 const SECTION_TITLE: Record<MarketQuery['scope'], string> = {
   all: 'Apps to test',
+  open: 'Open to you right now',
   testing: 'Testing now',
   due: 'Reports you owe',
   tested: 'Apps you have tested',

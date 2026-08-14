@@ -5,6 +5,7 @@ import { Card, Pill, EmptyState, CreditChip, StreakStrip } from '@/components/ui
 import { CheckInButton } from './checkin-button';
 import { IconArrow, IconUpload, IconFeedback, IconCheck } from '@/components/app/icons';
 import { EARN, RULES } from '@/lib/economy';
+import { marketHref } from '@/lib/market';
 import { readTestingQuota, type TestingQuota } from '@/app/(app)/actions';
 import {
   podDay, stripFor, checkedInToday, daysRemaining, n, fmtDate, missedDays,
@@ -84,10 +85,14 @@ export default async function TestsPage() {
       <QuotaStrip quota={quota} />
 
       {active.length === 0 ? (
+        // Points at the marketplace, not at pods: an activity is the route that
+        // is open to everyone today and needs nothing to form first. A member
+        // sent to /pods while matching is closed learns only that the product's
+        // empty states send them nowhere.
         <EmptyState
           title="You are not testing anything yet"
-          body="Join a pod with your own app and you are seated as a tester for everyone else in it. Fourteen days of your attention for fourteen days of theirs."
-          action={<Link href="/pods" className="btn btn-primary">Browse forming pods <IconArrow size={15} /></Link>}
+          body={`Pick an app in the marketplace and it is yours: join the developer's closed testing track, use it, send one report. ${EARN.optInVerified + EARN.feedbackApproved} credits for the job, and you can finish it today.`}
+          action={<Link href={marketHref({ scope: 'open' })} className="btn btn-primary">Find an app to test <IconArrow size={15} /></Link>}
         />
       ) : (
         <div className="flex flex-col gap-3">
@@ -182,6 +187,16 @@ function TestCard({
 }) {
   const app = one<AppRow>(test.apps);
   const pod = one<Pod>(test.pods);
+  /*
+    A seat with no pod is an activity: one install, one session, one report, and
+    no fourteen-day clock to keep. Every pod-shaped quantity below reads as zero
+    or null for one, which is why this is computed first and gates the rest —
+    left alone, `podActive` was false, so the check-in button rendered disabled
+    with "Check-ins open when the pod starts" against a pod that will never
+    exist, and the report link (gated on day 7 of 14) never appeared at all. The
+    seat would have been unworkable from the screen it is worked from.
+  */
+  const activity = !test.pod_id;
   const duration = pod?.duration_days ?? RULES.requiredDays;
   const currentDay = podDay(pod?.starts_at, duration);
   const days = n(test.days_checked_in);
@@ -189,8 +204,12 @@ function TestCard({
   const podActive = pod?.status === 'active' && currentDay >= 1;
   const verified = !!test.opt_in_verified_at;
   const today = checkedInToday(test.last_checkin_on);
-  const missed = missedDays(days, currentDay);
-  const feedbackDue = podActive && currentDay >= 7;
+  const missed = activity ? 0 : missedDays(days, currentDay);
+  /** Work is possible: an activity the moment it exists, a pod once it starts. */
+  const workable = activity || podActive;
+  // An activity earns its report as soon as the opt-in is verified. There is no
+  // week to wait through, and holding the report back would be inventing one.
+  const feedbackDue = activity ? verified : podActive && currentDay >= 7;
   const feedbackSent = !!feedback && feedback.status !== 'draft';
 
   return (
@@ -210,17 +229,22 @@ function TestCard({
             {app?.category && <Pill tone="neutral">{app.category}</Pill>}
             {!verified && <Pill tone="amber">Opt-in required</Pill>}
             {verified && missed >= 2 && <Pill tone="red"><span className="num">{missed}</span> days missed</Pill>}
-            {days >= duration && <Pill tone="green">Full 14 days</Pill>}
+            {activity && <Pill tone="neutral">Activity</Pill>}
+            {!activity && days >= duration && <Pill tone="green">Full 14 days</Pill>}
           </div>
           {app?.tagline && <p className="mt-1 text-sm text-[var(--color-dim)]">{app.tagline}</p>}
 
           <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-[var(--color-mute)]">
             <span>
-              {podActive
-                ? <>Day <span className="num">{currentDay}</span> of <span className="num">{duration}</span> · <span className="num">{remaining}</span> days remaining</>
-                : pod?.status === 'forming'
-                  ? 'Pod still filling. The clock has not started.'
-                  : `Starts ${fmtDate(pod?.starts_at)}`}
+              {activity
+                ? days > 0
+                  ? 'Session logged. Send your report when you are ready.'
+                  : 'No clock on this one. Use the app, then report.'
+                : podActive
+                  ? <>Day <span className="num">{currentDay}</span> of <span className="num">{duration}</span> · <span className="num">{remaining}</span> days remaining</>
+                  : pod?.status === 'forming'
+                    ? 'Pod still filling. The clock has not started.'
+                    : `Starts ${fmtDate(pod?.starts_at)}`}
             </span>
             <span className="inline-flex items-center gap-1.5">Earned <CreditChip amount={earned} size="sm" /></span>
             {app?.focus_areas && app.focus_areas.length > 0 && (
@@ -232,7 +256,9 @@ function TestCard({
         <div className="lg:w-[300px] lg:shrink-0">
           {!verified ? (
             <div className="flex flex-col gap-2">
-              <StreakStrip days={stripFor(days, currentDay, duration)} total={duration} size={12} />
+              {!activity && (
+                <StreakStrip days={stripFor(days, currentDay, duration)} total={duration} size={12} />
+              )}
               <Link href={`/tests/${test.id}/optin`} className="btn btn-primary">
                 <IconUpload size={15} /> Verify your opt-in <span className="num">+{EARN.optInVerified}</span>
               </Link>
@@ -243,12 +269,15 @@ function TestCard({
           ) : (
             <CheckInButton
               assignmentId={test.id}
-              days={stripFor(days, currentDay, duration)}
-              currentDay={currentDay}
-              total={duration}
+              // An activity is a single session, so its strip is one cell and
+              // its day is always day one. Passing the pod's fourteen would
+              // draw thirteen empty days that nothing will ever fill.
+              days={activity ? stripFor(days, 1, 1) : stripFor(days, currentDay, duration)}
+              currentDay={activity ? 1 : currentDay}
+              total={activity ? 1 : duration}
               alreadyToday={today}
-              disabled={!podActive}
-              disabledReason={!podActive ? 'Check-ins open when the pod starts.' : undefined}
+              disabled={!workable}
+              disabledReason={!workable ? 'Check-ins open when the pod starts.' : undefined}
             />
           )}
         </div>
