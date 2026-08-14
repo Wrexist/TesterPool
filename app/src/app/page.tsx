@@ -6,11 +6,9 @@ import {
   Pill,
   CreditChip,
   StreakStrip,
-  streakFromCount,
   ReliabilityGauge,
-  ProgressRing,
   Avatar,
-  Stat,
+  TierBadge,
   cx,
   type DayState,
 } from '@/components/ui';
@@ -121,82 +119,105 @@ function Section({
 
 /* ------------------------------------------------------------ hero visual */
 
-type TesterRow = {
-  name: string;
-  handle: string;
-  country: string;
-  done: number;
-  reliability: number;
-};
-
-const HERO_TESTERS: TesterRow[] = [
-  { name: 'Priya Raman', handle: 'priya_builds', country: 'IN', done: 9, reliability: 96 },
-  { name: 'Tomas Novak', handle: 'tnovak', country: 'CZ', done: 9, reliability: 91 },
-  { name: 'Dani Okafor', handle: 'daniokafor', country: 'NG', done: 9, reliability: 88 },
-  { name: 'Mei Lin Chow', handle: 'meilin', country: 'MY', done: 8, reliability: 84 },
-  { name: 'Ola Berg', handle: 'olaberg', country: 'SE', done: 9, reliability: 97 },
+/**
+ * The offer, in one card: the reviews landing on your app.
+ *
+ * This replaced a pod progress ring at day 9 of 14, and then a picture of the
+ * work you do to earn them. Both were the price of the product drawn before the
+ * product. What a developer wants is the inbox — fourteen people who ship for a
+ * living, telling them what is wrong with their app before their users do.
+ *
+ * Three things it deliberately does not draw, all for invariant 1:
+ *
+ *   - No package name. For an app in closed testing the package name is the way
+ *     into the track, and the way in is granted by a pod, not by a picture on
+ *     the marketing site.
+ *   - No 1-5 rubric scores, even though the real review form collects them.
+ *     Those scores are private between a tester and a developer. Rendered on a
+ *     public page beside an app name they read as a star rating, which is the
+ *     exact shape the schema refuses to be able to represent. Severity is drawn
+ *     instead: it classifies a defect, it does not rate an app.
+ *   - No stars, no average, no aggregate of any kind. Fourteen reviews with a
+ *     number over them is a rating, however the number was computed.
+ *
+ * Server-rendered. The stagger is CSS only (`animate-pop` + delay), and the
+ * reduced-motion block in globals.css zeroes both duration and delay, so the
+ * whole card is simply present for anyone who asked for less movement.
+ */
+const INBOX: Array<{ name: string; handle: string; device: string; line: string; sev: 0 | 2 | 3 }> = [
+  {
+    name: 'Dani Okafor',
+    handle: 'daniokafor',
+    device: 'Pixel 6a · A13',
+    line: 'Export to Markdown silently does nothing when the note has an attachment. No error, no file.',
+    sev: 2,
+  },
+  {
+    name: 'Priya Raman',
+    handle: 'priya_builds',
+    device: 'Redmi Note 12',
+    line: 'Hard crash on rotate while the sync sheet is open. Repro steps attached, twice on two devices.',
+    sev: 3,
+  },
+  {
+    name: 'Ola Berg',
+    handle: 'olaberg',
+    device: 'Galaxy S21',
+    line: 'Offline editing held up on the underground. Move the attachment button out of the overflow menu.',
+    sev: 0,
+  },
 ];
 
-function HeroVisual() {
+function ReviewsVisual() {
+  const inCount = 11;
+  const total = RULES.podSeats - 1;
+
   return (
     <Card className="relative overflow-hidden p-5 sm:p-6">
       <div
         className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full"
         style={{ background: 'radial-gradient(circle, color-mix(in oklab, var(--color-accent) 16%, transparent), transparent 70%)' }}
       />
-      <div className="flex items-start justify-between gap-4">
+
+      <div className="relative flex items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold"
-              style={{ background: 'oklch(0.34 0.07 150)', color: 'oklch(0.9 0.12 150)' }}
-            >
-              F
-            </span>
-            <div>
-              <div className="text-sm font-semibold leading-tight">Ferndeck</div>
-              <div className="text-[11px] text-[var(--color-mute)]">com.ferndeck.app · pod HX-42</div>
-            </div>
+          <div className="text-sm font-semibold leading-tight">Reviews on Vellum Notes</div>
+          <div className="num mt-1 text-[11px] text-[var(--color-mute)]">
+            {inCount} of {total} in · day 11 of {RULES.requiredDays}
           </div>
         </div>
-        <Pill tone="green">On track</Pill>
+        <Pill tone="green">Closed track</Pill>
       </div>
 
-      <div className="mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-center">
-        <ProgressRing value={9} max={14} size={132} stroke={9} caption="Days held" sub="5 days to go" />
-        <div className="grid w-full flex-1 grid-cols-2 gap-2">
-          <Stat label="Opted in" value={<span className="num">15</span>} sub={`${RULES.requiredTesters} required`} />
-          <Stat label="Still active" value={<span className="num">14</span>} sub="1 rescue sent" />
-          <Stat label="Feedback" value={<span className="num">23</span>} sub="reports approved" />
-          <Stat label="Engagement" value={<span className="num">94%</span>} sub="daily open rate" tone="var(--color-accent)" />
-        </div>
-      </div>
-
-      <div className="mt-6 border-t border-[var(--color-line)] pt-4">
-        <div className="mb-3 flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-mute)]">
-            Your testers
-          </span>
-          <span className="num text-[11px] text-[var(--color-mute)]">day 9 / 14</span>
-        </div>
-        <ul className="space-y-2.5">
-          {HERO_TESTERS.map((t) => (
-            <li key={t.handle} className="flex items-center gap-3">
-              <Avatar name={t.name} size={26} />
+      <ul className="relative mt-5 space-y-2.5">
+        {INBOX.map((r, i) => (
+          <li
+            key={r.handle}
+            className="animate-pop rounded-xl border border-[var(--color-line)] bg-[var(--color-bg)] p-3"
+            style={{ animationDelay: `${120 * i}ms` }}
+          >
+            <div className="flex items-center gap-2.5">
+              <Avatar name={r.name} size={24} />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-medium leading-tight">{t.name}</div>
-                <div className="num text-[11px] text-[var(--color-mute)]">
-                  @{t.handle} · {t.country} · {t.reliability} rel
+                <div className="num truncate text-[11px] text-[var(--color-mute)]">
+                  @{r.handle} · {r.device}
                 </div>
               </div>
-              <StreakStrip days={streakFromCount(t.done, 9)} size={9} gap={2.5} />
-            </li>
-          ))}
-        </ul>
-        <div className="num mt-3 text-[11px] text-[var(--color-mute)]">
-          + 10 more testers holding the clock
-        </div>
-      </div>
+              {r.sev > 0 ? (
+                <Pill tone={r.sev >= 3 ? 'red' : 'amber'}>Severity {r.sev}</Pill>
+              ) : (
+                <CreditChip amount={EARN.feedbackApproved} signed size="sm" />
+              )}
+            </div>
+            <p className="mt-2 text-[13px] leading-relaxed text-[var(--color-dim)]">{r.line}</p>
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-5 border-t border-[var(--color-line)] pt-4 text-[12px] leading-relaxed text-[var(--color-mute)]">
+        Every one of them private, structured, and written by someone who has
+        shipped an Android app. None of them anywhere near your store listing.
+      </p>
     </Card>
   );
 }
@@ -245,6 +266,165 @@ function ClockCompare() {
   );
 }
 
+/* --------------------------------------------------------------- the job */
+
+/**
+ * What a tester is actually being asked to do, priced. Two of the three steps
+ * pay, and the middle one does not: showing up daily is the most important
+ * thing a tester does, and it is enforced through the Reliability Score rather
+ * than bribed through the balance. A check-in that minted credits would pay
+ * more for testing an app than testing it costs its developer — a money
+ * printer. `EARN.dailyCheckin` is 0 for that reason, so this reads it rather
+ * than hardcoding the gap.
+ */
+const JOB: Array<{ title: string; body: string; detail: string; pays: number | null }> = [
+  {
+    title: 'Opt in',
+    pays: EARN.optInVerified,
+    body:
+      'One tap on the developer’s closed-track link. You are in their testing track, which is the only place any of this happens.',
+    detail:
+      'Confirmed by screenshot proof reviewed on our side, never by your own word — that is why the credits are worth something.',
+  },
+  {
+    title: 'Use it',
+    pays: EARN.dailyCheckin || null,
+    body:
+      'Open the app on the days the pod is running and check in. Ten seconds. This is the part Google actually measures, so it is the part that counts.',
+    detail:
+      'Check-ins pay nothing on purpose. They build your Reliability Score, which is what gets you into good pods.',
+  },
+  {
+    title: 'Review',
+    pays: EARN.feedbackApproved,
+    body:
+      'One structured review against the two or three things the developer asked you to hammer: what broke, what confused you, what you would change.',
+    detail:
+      `A blocker pays the same as a compliment, plus a ${EARN.bugBountyBlocker}-credit bounty we fund ourselves. Finding the worst bug must never cost the developer most.`,
+  },
+];
+
+/* ------------------------------------------------------------ the report */
+
+/**
+ * A redacted report, drawn the way `(app)/feedback` draws a real one: same
+ * fields, same order, same severity and status pills, same paid chip.
+ *
+ * One difference, and it is deliberate. The real card renders the three rubric
+ * scores out of five; this one does not. Those scores are private between a
+ * tester and a developer, and three numbers out of five sitting beside an app
+ * name on a public page is a rating board — the shape invariant 1 keeps the
+ * schema unable to represent. The written fields are what makes the argument
+ * anyway: nobody was ever persuaded by "Usability 4/5".
+ */
+function ReportField({
+  label, value, tone, mono,
+}: { label: string; value: string; tone?: 'danger'; mono?: boolean }) {
+  return (
+    <div>
+      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-mute)]">
+        {label}
+      </div>
+      <p
+        className={cx('text-[13px] leading-relaxed', mono && 'num whitespace-pre-line')}
+        style={{ color: tone === 'danger' ? 'var(--color-danger)' : 'var(--color-dim)' }}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function SampleReport() {
+  return (
+    <Card className="p-5">
+      <div className="flex flex-wrap items-start gap-3">
+        <Avatar name="Dani Okafor" size={36} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold">@daniokafor</span>
+            <TierBadge tier="gold" size="sm" />
+            <span className="text-xs text-[var(--color-mute)]">on Vellum Notes</span>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--color-mute)]">
+            <span>Day 11</span>
+            <span>Pixel 6a · Android 13</span>
+            <span className="inline-flex items-center gap-1">
+              paid <CreditChip amount={EARN.feedbackApproved} size="sm" />
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Pill tone="amber">Severity 2</Pill>
+          <Pill tone="green">Approved</Pill>
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-col gap-4">
+        <ReportField
+          label="First impression"
+          value="Understood what it was for from the first screen, which is rarer than it sounds. Started a note within about fifteen seconds of opening it."
+        />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ReportField
+            label="What worked"
+            value="Offline editing held up on the underground with no sync errors when I came back up. Undo across app restarts is genuinely good."
+          />
+          <ReportField
+            label="What broke"
+            tone="danger"
+            value="Export to Markdown silently does nothing when the note has an attachment. No error, no file, no toast."
+          />
+        </div>
+        <ReportField
+          label="Reproduction steps"
+          mono
+          value={'1. New note, type anything\n2. Attach any image\n3. Menu → Export → Markdown\n4. Nothing happens. Repeats on a second device.'}
+        />
+        <ReportField
+          label="One change they would make"
+          value="Move the attachment button out of the overflow menu. I found it by accident on day four and I was looking for it on day one."
+        />
+      </div>
+    </Card>
+  );
+}
+
+const REPORT_CLAIMS: Array<{ title: string; body: React.ReactNode }> = [
+  {
+    title: 'Written against your rubric, not theirs',
+    body: (
+      <>
+        You name the two or three things you want hammered when you list the app.
+        The review answers those. A review that ignores them does not get paid,
+        which is why nobody sends you &ldquo;looks nice&rdquo;.
+      </>
+    ),
+  },
+  {
+    title: 'A blocker costs you exactly what a compliment costs',
+    body: (
+      <>
+        Every approved review charges the same {CHARGE.review} credits whatever it
+        says. If critical feedback were dearer you would learn to dispute it, and
+        the bounty on a blocker is funded by us for the same reason: finding your
+        worst bug must never cost you most.
+      </>
+    ),
+  },
+  {
+    title: 'You cannot quietly refuse to pay for it',
+    body: (
+      <>
+        Flagging a review as low-effort opens a moderator dispute. It does not
+        reject the review and it does not withhold the tester&rsquo;s credits &mdash;
+        a human decides. Creator approval without that step is a positivity
+        machine, which is the exact failure this was built against.
+      </>
+    ),
+  },
+];
+
 /* ---------------------------------------------------------- how it works */
 
 const STEPS = [
@@ -266,7 +446,7 @@ const STEPS = [
     n: '03',
     title: 'Everyone tests everyone for 14 days',
     body:
-      'One shared clock. Daily check-in with screenshot proof, then one structured feedback report per app at the end. Your dashboard shows exactly who is holding and who is slipping.',
+      'One shared clock. Daily check-in with screenshot proof, then one structured review per app at the end. Your dashboard shows exactly who is holding and who is slipping.',
     detail: 'Someone drops? A rescue tester is matched in hours, not days.',
   },
 ];
@@ -282,6 +462,33 @@ const COMPARISON: Array<{
   note?: string;
   cells: Array<{ verdict: Verdict; text: string }>;
 }> = [
+  {
+    criterion: 'Written reviews you can act on',
+    note: 'The reason you came',
+    cells: [
+      { verdict: 'good', text: `One structured, on-rubric review per tester, privately — ${RULES.podSeats - 1} of them` },
+      { verdict: 'bad', text: 'A five-star string you did not want, and cannot use' },
+      { verdict: 'mixed', text: 'Occasionally a paragraph; rarely actionable' },
+      { verdict: 'mixed', text: '“Looks nice”' },
+    ],
+  },
+  {
+    // The row a review-swap site cannot answer. Enforcement against traded
+    // public reviews does not stop at deleting the review: reporting through
+    // early 2026 describes risk travelling between linked accounts — shared
+    // device fingerprints, IP subnets, payment methods. A network built on
+    // trading public reviews is a graph of exactly those signals, so its
+    // downside is correlated across everyone in it. Deliberately unnamed; we
+    // win the row on the mechanism without picking a fight with anyone.
+    criterion: 'What happens if it works too well',
+    note: 'The downside nobody prices',
+    cells: [
+      { verdict: 'good', text: 'Nothing. Closed tracks are invisible to the store surface' },
+      { verdict: 'bad', text: 'A cluster of accounts trading public reviews is the pattern enforcement looks for, and termination travels between linked accounts' },
+      { verdict: 'bad', text: 'You are one of many buyers of the same seller’s accounts' },
+      { verdict: 'good', text: 'Nothing' },
+    ],
+  },
   {
     criterion: 'Policy risk',
     note: 'The one that ends your account',
@@ -308,15 +515,6 @@ const COMPARISON: Array<{
       { verdict: 'bad', text: 'Not offered' },
       { verdict: 'mixed', text: 'Re-order and wait, if the seller is still online' },
       { verdict: 'bad', text: 'You start asking again' },
-    ],
-  },
-  {
-    criterion: 'Written feedback',
-    cells: [
-      { verdict: 'good', text: 'One structured, on-rubric report per tester, privately' },
-      { verdict: 'bad', text: 'A five-star string you did not want' },
-      { verdict: 'mixed', text: 'Occasionally a paragraph; rarely actionable' },
-      { verdict: 'mixed', text: '“Looks nice”' },
     ],
   },
   {
@@ -434,7 +632,7 @@ function ComparisonTable() {
 
 const LEDGER: Array<{ label: string; detail: string; amount: number }> = [
   { label: 'Confirmed install', detail: 'your closed-track opt-in, verified', amount: EARN.optInVerified },
-  { label: 'Confirmed report', detail: 'on-rubric, arbitrated', amount: EARN.feedbackApproved },
+  { label: 'Confirmed review', detail: 'on-rubric, arbitrated, private', amount: EARN.feedbackApproved },
 ];
 
 /* ---------------------------------------------------------- testimonials */
@@ -472,6 +670,42 @@ const TESTIMONIALS = [
 /* ------------------------------------------------------------------- faq */
 
 const FAQ: Array<{ q: string; a: React.ReactNode }> = [
+  {
+    // Most-asked, so it goes first. A good share of the people who find this
+    // site searched for store reviews. Pretending otherwise loses them at the
+    // headline; serving it would lose them their developer account. The honest
+    // answer is the conversion: name what they came for, say plainly that we do
+    // not do it, and show what solves the underlying problem instead.
+    q: 'I came here to get reviews for my app. Is that what this is?',
+    a: (
+      <>
+        <p>
+          Partly, and the difference matters more than it sounds. You get{' '}
+          {RULES.podSeats - 1} written reviews of your app from developers who
+          ship Android apps themselves — what broke, on which device, what they
+          would change. Detailed, private, and yours to act on.
+        </p>
+        <p className="mt-3">
+          What you do not get is Play Store reviews or star ratings, and no
+          service can honestly sell you those. A review traded for anything —
+          money, credits, a review back — is an incentivised review under{' '}
+          <a href={POLICY_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+            Google&rsquo;s Ratings, Reviews and Installs policy
+          </a>
+          . Apps get removed for it and developer accounts get terminated for
+          it, and the sites that offer it are selling you that risk without
+          pricing it in.
+        </p>
+        <p className="mt-3">
+          The reason people want store reviews is almost always one of two
+          things: they cannot publish yet, or the app is not good enough to earn
+          reviews on its own. TesterPool is built for both. The first is the{' '}
+          {RULES.requiredTesters}-tester requirement, which a pod clears. The
+          second is what {RULES.podSeats - 1} critical reviews are for.
+        </p>
+      </>
+    ),
+  },
   {
     q: 'Is this against Google Play policy?',
     a: (
@@ -558,7 +792,7 @@ const FAQ: Array<{ q: string; a: React.ReactNode }> = [
         The numbers Google&rsquo;s production access form actually asks for:
         how many testers you had, how many completed all {RULES.requiredDays}{' '}
         days, average days active, daily engagement rate, the number of approved
-        feedback reports, how many raised significant issues, and a written
+        reviews, how many raised significant issues, and a written
         digest of what testers said and what you changed in response. It exports
         as a document you can paste from. Pro plans get it reviewed by a human
         before you submit.
@@ -596,8 +830,17 @@ export default function LandingPage() {
             }}
           />
           <div className="relative mx-auto max-w-6xl px-4 pb-20 pt-16 sm:px-6 sm:pb-24 sm:pt-24">
+            {/*
+              min-w-0 on both columns is load-bearing, not tidiness. A grid item
+              defaults to min-width:auto, so a child with a wide min-content —
+              the loop card's truncating app row — pushes the item past its
+              track instead of shrinking inside it. The hero section clips with
+              overflow-hidden, so the failure mode is not a scrollbar you would
+              notice: it is copy quietly cut off the right edge on a phone,
+              which is the device most of this audience is reading on.
+            */}
             <div className="grid items-start gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
-              <div>
+              <div className="min-w-0">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-line)] bg-[var(--color-surface)] py-1 pl-1 pr-3">
                   <Pill tone="green">New</Pill>
                   <span className="text-xs text-[var(--color-dim)]">
@@ -605,74 +848,210 @@ export default function LandingPage() {
                   </span>
                 </div>
 
-                <h1 className="mt-6 text-[2.6rem] font-bold leading-[1.04] tracking-tight sm:text-6xl">
-                  Get your 12.
+                {/*
+                  Three lines, and the size is set so it stays three at every
+                  width. A headline that wraps to four owns the whole first
+                  screen and pushes the proof card below the fold.
+                */}
+                <h1 className="mt-6 text-[2.4rem] font-bold leading-[1.06] tracking-tight sm:text-5xl">
+                  Get your app reviewed
                   <br />
-                  Keep them 14 days.
+                  by <span className="num">{RULES.podSeats - 1}</span> developers.
                   <br />
-                  <span style={{ color: 'var(--color-accent)' }}>Ship.</span>
+                  <span style={{ color: 'var(--color-accent)' }}>Then ship it.</span>
                 </h1>
 
                 <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--color-dim)]">
-                  Google Play will not let you publish until{' '}
-                  {RULES.requiredTesters} testers stay opted in for{' '}
-                  {RULES.requiredDays} consecutive days. TesterPool puts you in a pod
-                  of {RULES.podSeats} developers who test each other for the same{' '}
-                  {RULES.requiredDays} days. Everyone gets their twelve. Everyone
-                  graduates together.
+                  List your app and {RULES.podSeats - 1} indie developers install it,
+                  use it for {RULES.requiredDays} days, and each send you one
+                  structured review &mdash; what broke, on which device, what they
+                  would change. You hear it from people who ship Android apps before
+                  you hear it from your users, and Google Play&rsquo;s{' '}
+                  {RULES.requiredTesters}-testers-for-{RULES.requiredDays}-days
+                  requirement is satisfied on the way through.
                 </p>
 
-                <p className="mt-3 text-base text-[var(--color-mute)]">
-                  The tester network that won&rsquo;t get your app pulled.
+                {/*
+                  Most people arrive here having searched for reviews, and a good
+                  number of them mean store reviews. That demand is real and this
+                  paragraph is where it gets converted rather than either ignored
+                  or served.
+                  It leads with what you do get, because leading with a denial
+                  reads as a disclaimer and disclaimers get skipped. The denial
+                  still has to be here, above the fold, in plain words: the one
+                  thing this product must never be mistaken for is the thing that
+                  terminates a developer account. Do not move it down the page and
+                  do not soften it into "compliant" — say which reviews we mean.
+                */}
+                <p className="mt-4 max-w-xl rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-3 text-[15px] leading-relaxed text-[var(--color-dim)]">
+                  <strong className="font-semibold text-[var(--color-ink)]">
+                    Private developer reviews, inside your own closed testing track.
+                  </strong>{' '}
+                  Not Play Store reviews &mdash; those are incentivised the moment
+                  they are traded, and{' '}
+                  <a
+                    href={POLICY_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline decoration-[var(--color-line-hi)] underline-offset-2 hover:text-[var(--color-ink)]"
+                  >
+                    Google removes apps for it
+                  </a>
+                  . That is the difference between the reviews you want and the
+                  ones that cost you the account.
                 </p>
 
+                {/*
+                  The first ask is a look, not a form. /pool needs no account,
+                  so a visitor can see whether anyone is actually here before
+                  being asked for an email — which is the question they have,
+                  and the one a signup wall refuses to answer.
+                */}
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <Link href="/login" className="btn btn-primary h-11 px-5 text-[15px]">
-                    Start free <Arrow />
+                  <Link href="/pool" className="btn btn-primary h-11 px-5 text-[15px]">
+                    Browse the pool <Arrow />
                   </Link>
-                  <Link href="/readiness" className="btn btn-secondary h-11 px-5 text-[15px]">
-                    Check if you&rsquo;re ready
+                  <Link href="/login" className="btn btn-secondary h-11 px-5 text-[15px]">
+                    Start free
                   </Link>
                 </div>
 
-                <dl className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-[var(--color-line)] pt-6">
+                {/*
+                  This strip used to read "1,247 developers · 38 pods forming ·
+                  9,318 apps greenlit", hardcoded, beside a glowing "live" dot.
+                  On a page whose whole argument is that we are the honest option,
+                  invented traffic figures are the one unforced error that costs
+                  the argument — and "apps greenlit" is a claim about outcomes we
+                  would have to defend. These four are true, checkable against
+                  lib/economy, and they state the offer rather than flatter it.
+                  Real network counts return here in phase 4, from an
+                  anon-callable projection. See docs/FIRST-SIGHT.md.
+                */}
+                {/*
+                  No vertical rules between these. A separator that is a sibling
+                  of the items it separates ends up dangling at the start or end
+                  of a line the moment the row wraps, and this row wraps at every
+                  width between phone and desktop. Spacing separates them.
+                */}
+                <dl className="mt-10 grid grid-cols-3 gap-x-4 gap-y-3 border-t border-[var(--color-line)] pt-6">
                   {[
-                    { v: '1,247', l: 'developers' },
-                    { v: '38', l: 'pods forming' },
-                    { v: '9,318', l: 'apps greenlit' },
-                  ].map((s, i) => (
-                    <React.Fragment key={s.l}>
-                      {i > 0 && (
-                        <div className="hidden h-4 w-px bg-[var(--color-line)] sm:block" aria-hidden />
-                      )}
-                      <div className="flex items-baseline gap-2">
-                        <dt className="sr-only">{s.l}</dt>
-                        <dd className="num text-xl font-bold leading-none">{s.v}</dd>
-                        <dd className="text-sm text-[var(--color-mute)]">{s.l}</dd>
-                      </div>
-                    </React.Fragment>
+                    // The promise, with numbers on it. A competitor selling the
+                    // same shape says "up to 14 guaranteed"; ours is the better
+                    // deal — three people can disappear and you still clear
+                    // Google's bar — and it was the worse sentence until it had
+                    // its numbers stated this plainly.
+                    { v: `${RULES.podSeats - 1}`, l: 'reviews on your app' },
+                    {
+                      v: `${RULES.podSeats}`,
+                      l: `seats, so ${RULES.podSeats - RULES.requiredTesters} can vanish and you still clear ${RULES.requiredTesters}`,
+                    },
+                    { v: EARN.signupGrant.toLocaleString(), l: 'credits to start' },
+                  ].map((s) => (
+                    <div key={s.l}>
+                      <dt className="sr-only">{s.l}</dt>
+                      <dd className="num text-xl font-bold leading-none">{s.v}</dd>
+                      <dd className="mt-1.5 text-sm leading-snug text-[var(--color-mute)]">{s.l}</dd>
+                    </div>
                   ))}
-                  <div className="flex items-center gap-2 text-sm text-[var(--color-dim)]">
-                    <span
-                      className="inline-block h-1.5 w-1.5 rounded-full"
-                      style={{ background: 'var(--color-accent)', boxShadow: '0 0 8px var(--color-accent)' }}
-                    />
-                    live
-                  </div>
                 </dl>
+
+                <p className="mt-4 text-[13px] leading-relaxed text-[var(--color-mute)]">
+                  You pay for them by reviewing other people&rsquo;s apps. Credits
+                  move between members and testing never creates them, so the loop
+                  cannot be farmed and doing your share costs you nothing.
+                </p>
               </div>
 
-              <div className="lg:pt-4">
-                <HeroVisual />
+              <div className="min-w-0 lg:pt-4">
+                <ReviewsVisual />
               </div>
             </div>
           </div>
         </section>
 
+        {/* ---------------------------------------------------------- report */}
+        <Section
+          id="report"
+          eyebrow="What you get back"
+          title="One of the reviews, in full"
+          lede={
+            <>
+              Not a paraphrase and not a testimonial &mdash; this is the screen a
+              developer sees, with the tester&rsquo;s name changed. Fourteen of
+              these land on your app over {RULES.requiredDays} days.
+            </>
+          }
+        >
+          <div className="mt-12 grid gap-6 lg:grid-cols-[1.15fr_1fr] lg:gap-10">
+            <div className="min-w-0">
+              <SampleReport />
+            </div>
+            <div className="min-w-0 space-y-4">
+              {REPORT_CLAIMS.map((c) => (
+                <Card key={c.title} className="p-5">
+                  <h3 className="text-[15px] font-semibold leading-snug">{c.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[var(--color-dim)]">
+                    {c.body}
+                  </p>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </Section>
+
+        {/* ------------------------------------------------------------- job */}
+        <Section
+          id="job"
+          eyebrow="How you pay for them"
+          title="By reviewing other people’s apps"
+          lede={
+            <>
+              Fourteen reviews is real work by fourteen people, so the price is
+              that you do it too. Here is all of it &mdash; three things, none of
+              which take an evening.
+            </>
+          }
+        >
+          <div className="mt-12 grid gap-4 md:grid-cols-3">
+            {JOB.map((j) => (
+              <Card key={j.title} className="flex flex-col p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-base font-semibold">{j.title}</h3>
+                  {/*
+                    The unpaid step says so out loud. Left blank it reads as an
+                    omission, when it is the deliberate part: a check-in that
+                    minted credits would pay a tester more for testing an app
+                    than the test costs its developer.
+                  */}
+                  {j.pays === null ? (
+                    <Pill tone="neutral">Pays nothing</Pill>
+                  ) : (
+                    <CreditChip amount={j.pays} signed />
+                  )}
+                </div>
+                <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--color-dim)]">
+                  {j.body}
+                </p>
+                <p className="mt-4 border-t border-[var(--color-line)] pt-3 text-[12px] leading-relaxed text-[var(--color-mute)]">
+                  {j.detail}
+                </p>
+              </Card>
+            ))}
+          </div>
+
+          <p className="mt-6 max-w-2xl text-sm leading-relaxed text-[var(--color-dim)]">
+            A review takes about ten minutes. {RULES.podSeats - 1} of them
+            across two weeks is the entire cost of getting your own app to
+            production &mdash; {FULL_POD_COST.toLocaleString()} credits out as a
+            developer, {FULL_CYCLE_EARNINGS.toLocaleString()} back in as a tester.
+            Do your share and you break exactly even.
+          </p>
+        </Section>
+
         {/* --------------------------------------------------------- problem */}
         <Section
           id="problem"
-          eyebrow="The bottleneck"
+          eyebrow="Why they all arrive at once"
           title={
             <>
               Twelve testers. Fourteen consecutive days.
@@ -681,11 +1060,14 @@ export default function LandingPage() {
           }
           lede={
             <>
-              Every personal developer account created after 13 November 2023 has
-              to run a closed test with at least {RULES.requiredTesters} testers
-              opted in continuously for {RULES.requiredDays} days before Google
-              will even consider production access. Miss it by one tester on one
-              day and the count starts over.
+              The reviews come {RULES.podSeats - 1} at a time because the rule
+              does. Every personal developer account created after 13 November
+              2023 has to run a closed test with at least {RULES.requiredTesters}{' '}
+              testers opted in continuously for {RULES.requiredDays} days before
+              Google will even consider production access. Miss it by one tester
+              on one day and the count starts over &mdash; which is why a pod is{' '}
+              {RULES.podSeats} people on one shared clock rather than a queue you
+              dip into.
             </>
           }
         >
@@ -779,94 +1161,12 @@ export default function LandingPage() {
           </p>
         </Section>
 
-        {/* ------------------------------------------------------ compliance */}
-        <section
-          id="compliance"
-          className="scroll-mt-20 border-y border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-20 sm:px-6 sm:py-24"
-        >
-          <div className="mx-auto max-w-6xl">
-            <div className="grid gap-10 lg:grid-cols-[1fr_360px] lg:gap-14">
-              <div>
-                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-accent)]">
-                  Why this is safe
-                </div>
-                <h2 className="text-3xl font-bold leading-[1.1] tracking-tight sm:text-4xl">
-                  Nothing TesterPool does ever touches the public store
-                </h2>
-                <div className="mt-6 space-y-4 text-base leading-relaxed text-[var(--color-dim)]">
-                  <p>
-                    All activity happens inside your closed testing track. Closed
-                    track installs and usage do not affect store rankings, public
-                    ratings, or public install counts — they are invisible to the
-                    store surface entirely. There is nothing here for Google&rsquo;s
-                    anti-manipulation systems to object to, because there is no
-                    public signal being manufactured.
-                  </p>
-                  <p>
-                    Google&rsquo;s developer community guidance is explicit that
-                    using a third-party service to find testers for a closed test
-                    does not violate policy. What Google prohibits is incentivising{' '}
-                    <strong className="font-semibold text-[var(--color-ink)]">
-                      ratings, reviews and installs
-                    </strong>{' '}
-                    — and that is precisely the thing TesterPool refuses to sell. We
-                    have no product to offer you there. The database schema behind
-                    this site has no column that can hold a store review or a public
-                    rating; it was designed that way on purpose.
-                  </p>
-                  <p>
-                    Feedback on TesterPool is private, structured and delivered to you
-                    — never posted anywhere public. If a tester tried to trade a
-                    five-star review for credits, there would be no mechanism to
-                    pay them.
-                  </p>
-                </div>
-                <a
-                  href={POLICY_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-secondary mt-7"
-                >
-                  Read the Google Play policy yourself <Arrow />
-                </a>
-              </div>
-
-              <div className="space-y-3">
-                {[
-                  { ok: true, t: 'Closed testing track activity', s: 'Invisible to store rankings and ratings' },
-                  { ok: true, t: 'Private structured feedback', s: 'On a rubric, arbitrated, never published' },
-                  { ok: true, t: 'Daily engagement proof', s: 'Screenshot-backed, for your own application' },
-                  { ok: false, t: 'Public store reviews', s: 'No mechanism exists in the product' },
-                  { ok: false, t: 'Public ratings', s: 'No mechanism exists in the product' },
-                  { ok: false, t: 'Production installs', s: 'Not part of any pod, ever' },
-                ].map((r) => (
-                  <div
-                    key={r.t}
-                    className="flex items-start gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-bg)] px-4 py-3"
-                  >
-                    <span
-                      className="mt-0.5 shrink-0"
-                      style={{ color: r.ok ? 'var(--color-accent)' : 'var(--color-mute)' }}
-                    >
-                      {r.ok ? <Check /> : <Cross />}
-                    </span>
-                    <div>
-                      <div className="text-sm font-medium leading-tight">{r.t}</div>
-                      <div className="mt-0.5 text-xs text-[var(--color-mute)]">{r.s}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* ---------------------------------------------------- reliability */}
         <Section
           id="reliability"
-          eyebrow="Why nobody ghosts"
+          eyebrow="Why the reviews are worth reading"
           title="The Reliability Score is the whole trick"
-          lede="Every other free tester scheme dies the same way: people opt in, collect what they need, and disappear on day four. TesterPool makes disappearing the most expensive thing you can do."
+          lede="Every other free tester scheme dies the same way: people opt in, collect what they need, disappear on day four, and the reviews you do get are four words long. TesterPool makes both of those the most expensive things you can do."
         >
           <div className="mt-12 grid gap-4 lg:grid-cols-[320px_1fr]">
             <Card className="flex flex-col items-center justify-center gap-4 p-8">
@@ -929,7 +1229,11 @@ export default function LandingPage() {
                 { l: 'Completed all 14 days', v: '14', s: '1 replaced on day 6' },
                 { l: 'Avg days active', v: '13.6', s: 'across all testers' },
                 { l: 'Daily engagement', v: '94%', s: 'sessions with proof' },
-                { l: 'Feedback reports', v: '23', s: 'approved, on-rubric' },
+                // One review per tester per app, so this tracks the testers who
+                // finished rather than exceeding them. It read 23 while the
+                // label was "Feedback reports", which allowed several per
+                // tester; renaming it to reviews made the old number impossible.
+                { l: 'Private reviews', v: '14', s: 'approved, on-rubric' },
                 { l: 'Significant issues', v: '6', s: '2 blockers, 4 major' },
                 { l: 'Changes shipped', v: '9', s: 'in response to testing' },
                 { l: 'Devices covered', v: '11', s: 'Android 10 → 15' },
@@ -963,8 +1267,8 @@ export default function LandingPage() {
         <Section
           id="economy"
           eyebrow="The economy"
-          title="Credits price the edges, never the core"
-          lede="Credits move between developers, they are never minted. What a tester earns comes out of the balance of the developer whose app they tested — so doing your share costs nothing, and skipping it costs exactly what it should."
+          title="Credits move. Testing never mints them."
+          lede="This is the property the whole network rests on, so it is worth stating before the price list. Every credit a reviewer earns came out of the balance of the developer whose app they reviewed — no amount of work creates one, which is why the loop cannot be farmed and why doing your share costs you exactly nothing. The only credits that appear from nowhere are the ones we hand you at signup."
         >
           <div className="mt-12 grid gap-4 lg:grid-cols-[1fr_1fr]">
             <Card className="p-6">
@@ -994,8 +1298,9 @@ export default function LandingPage() {
                 The same number, because it is the same number. Credits move between
                 developers; nothing here mints them. A full pod earns you{' '}
                 {FULL_CYCLE_EARNINGS} and costs you {FULL_POD_COST}, so doing your
-                share breaks exactly even — and the currency cannot inflate, because
-                every credit anyone earns came out of somebody&rsquo;s balance.
+                share breaks exactly even &mdash; and no amount of testing can
+                inflate the supply, because every credit anyone earns came out of
+                somebody&rsquo;s balance.
               </p>
             </Card>
 
@@ -1037,6 +1342,88 @@ export default function LandingPage() {
             </div>
           </div>
         </Section>
+
+        {/* ------------------------------------------------------ compliance */}
+        <section
+          id="compliance"
+          className="scroll-mt-20 border-y border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-20 sm:px-6 sm:py-24"
+        >
+          <div className="mx-auto max-w-6xl">
+            <div className="grid gap-10 lg:grid-cols-[1fr_360px] lg:gap-14">
+              <div>
+                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-accent)]">
+                  Why this is safe
+                </div>
+                <h2 className="text-3xl font-bold leading-[1.1] tracking-tight sm:text-4xl">
+                  Nothing TesterPool does ever touches the public store
+                </h2>
+                <div className="mt-6 space-y-4 text-base leading-relaxed text-[var(--color-dim)]">
+                  <p>
+                    All activity happens inside your closed testing track. Closed
+                    track installs and usage do not affect store rankings, public
+                    ratings, or public install counts — they are invisible to the
+                    store surface entirely. There is nothing here for Google&rsquo;s
+                    anti-manipulation systems to object to, because there is no
+                    public signal being manufactured.
+                  </p>
+                  <p>
+                    Google&rsquo;s developer community guidance is explicit that
+                    using a third-party service to find testers for a closed test
+                    does not violate policy. What Google prohibits is incentivising{' '}
+                    <strong className="font-semibold text-[var(--color-ink)]">
+                      ratings, reviews and installs
+                    </strong>{' '}
+                    — and that is precisely the thing TesterPool refuses to sell. We
+                    have no product to offer you there. The database schema behind
+                    this site has no column that can hold a store review or a public
+                    rating; it was designed that way on purpose.
+                  </p>
+                  <p>
+                    Feedback on TesterPool is private, structured and delivered to you
+                    — never posted anywhere public. If a tester tried to trade a
+                    five-star review for credits, there would be no mechanism to
+                    pay them.
+                  </p>
+                </div>
+                <a
+                  href={POLICY_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-secondary mt-7"
+                >
+                  Read the Google Play policy yourself <Arrow />
+                </a>
+              </div>
+
+              <div className="space-y-3">
+                {[
+                  { ok: true, t: 'Closed testing track activity', s: 'Invisible to store rankings and ratings' },
+                  { ok: true, t: 'Private structured reviews', s: 'On a rubric, arbitrated, never published' },
+                  { ok: true, t: 'Daily engagement proof', s: 'Screenshot-backed, for your own application' },
+                  { ok: false, t: 'Public store reviews', s: 'No mechanism exists in the product' },
+                  { ok: false, t: 'Public ratings', s: 'No mechanism exists in the product' },
+                  { ok: false, t: 'Production installs', s: 'Not part of any pod, ever' },
+                ].map((r) => (
+                  <div
+                    key={r.t}
+                    className="flex items-start gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-bg)] px-4 py-3"
+                  >
+                    <span
+                      className="mt-0.5 shrink-0"
+                      style={{ color: r.ok ? 'var(--color-accent)' : 'var(--color-mute)' }}
+                    >
+                      {r.ok ? <Check /> : <Cross />}
+                    </span>
+                    <div>
+                      <div className="text-sm font-medium leading-tight">{r.t}</div>
+                      <div className="mt-0.5 text-xs text-[var(--color-mute)]">{r.s}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* --------------------------------------------------------- pricing */}
         <Section

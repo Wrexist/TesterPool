@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { PostHogProvider } from '@/components/PostHogProvider';
+import { SITE_URL } from '@/lib/site-url';
 import './globals.css';
 
 const inter = Inter({
@@ -12,15 +13,30 @@ const inter = Inter({
   variable: '--font-inter',
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+/*
+ * Lead with the loop, not the pod — same reposition as the landing page, and it
+ * matters more here, because a search result and a shared link are the actual
+ * first sight for most people who ever reach us.
+ *
+ * The old copy also promised "no money", which the pricing page contradicts.
+ * A claim the site itself disproves two clicks later is worse than no claim.
+ */
+const TITLE = 'TesterPool — Get your Android app reviewed by 14 developers';
 
+/*
+ * The keyword list intentionally includes the store-review searches, because
+ * that is what a large share of this audience actually types. The page answers
+ * them honestly — see the first FAQ entry — rather than either ignoring the
+ * demand or pretending to serve it. The description has to carry the
+ * disambiguation on its own: in a search result it is all anyone reads.
+ */
 const DESCRIPTION =
-  'Google Play needs 12 testers for 14 consecutive days. TesterPool puts you in a pod of 15 developers who test each other for the same 14 days — no money, no policy risk, no ghosting.';
+  'List your Android app and 14 indie developers install it, use it for 14 days, and each send you one structured review — what broke, on which device, what they would change. Private reviews inside your closed testing track, never Play Store reviews or ratings. Google Play’s 12-tester requirement is satisfied on the way through.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'TesterPool — Get your 12. Keep them 14 days. Ship.',
+    default: TITLE,
     template: '%s · TesterPool',
   },
   description: DESCRIPTION,
@@ -31,17 +47,22 @@ export const metadata: Metadata = {
     'production access',
     'Android beta testers',
     'closed testing track',
+    'app testing exchange',
+    'test apps for credits',
+    'get reviews for my app',
+    'app review exchange',
+    'Android app feedback',
   ],
   openGraph: {
     type: 'website',
     siteName: 'TesterPool',
     url: SITE_URL,
-    title: 'TesterPool — Get your 12. Keep them 14 days. Ship.',
+    title: TITLE,
     description: DESCRIPTION,
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TesterPool — Get your 12. Keep them 14 days. Ship.',
+    title: TITLE,
     description: DESCRIPTION,
   },
   robots: { index: true, follow: true },
