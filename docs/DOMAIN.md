@@ -24,7 +24,8 @@ Apex is primary because every URL in this repo is written without `www`.
 
 ## Step 2 — Add the DNS records at your registrar
 
-**Where:** wherever you bought the domain → its DNS panel
+**Where:** STRATO → DNS. The apex record goes under **A-post → hantera**, the
+`www` one under **TXT- och CNAME-poster → hantera**.
 
 **Do:** add the two records Vercel gave you. They will be:
 
@@ -35,9 +36,10 @@ Apex is primary because every URL in this repo is written without `www`.
 
 Prefer `ALIAS`/`ANAME` over `A` if the registrar offers it.
 
-If the registrar instead offers to move nameservers to Vercel, that works and is
-less fiddly. Do not do it if email for this domain is already set up somewhere,
-because it moves the MX and TXT records too.
+**Do not move the nameservers to Vercel.** It is the tidier option on a bare
+domain, but mail for this domain lives on STRATO's DNS — moving the nameservers
+takes the MX and TXT records with it and silently breaks everything in steps 7
+and 8.
 
 **Check:**
 ```bash
@@ -134,31 +136,96 @@ endpoints and secrets)
 
 ---
 
-## Step 7 — Set up support@testerpool.dev
+## Step 7 — Mail: MX and the three TXT records
 
-**Where:** any hosted mailbox (Google Workspace, Fastmail, a registrar
-forwarder), then your DNS panel for its MX records
+**Where:** STRATO → DNS
 
-**Do:** create the mailbox and add its MX records. If you moved nameservers to
-Vercel in step 2, add them in Vercel's DNS panel instead.
+The domain is registered at STRATO, whose panel differs from the generic
+instructions above in three ways worth writing down.
 
-**Why before launch, not after:** that address is hardcoded in
-`terms/page.tsx`, `privacy/page.tsx`, and the suspended-account message in
-`auth/callback/route.ts`. Those pages are public, and the privacy policy names
-it as the contact route for a data request.
+**MX-post → hantera:**
+
+| Field | Value |
+| --- | --- |
+| Primär e-postserver | Egen e-postserver |
+| Värdnamn | `hi.deomail.com` |
+| Prioritet | `hög` (STRATO's word for 10) |
+| Backup-e-postserver | **Inaktivera** |
+
+The backup setting is the trap. Left on "STRATO e-postserver" the domain
+publishes a second MX, and mail that does not reach DeoMail on the first
+attempt lands in a STRATO mailbox nobody reads. It does not look like a
+failure; the mail simply is not there.
+
+**TXT- och CNAME-poster → hantera.** Two toggles at the top of that page
+generate records of their own and must both be off, or you end up with two
+`_dmarc` records and two `v=spf1` records, which invalidates both pairs:
+
+- STRATO DMARC → `Ingen STRATO DMARC-regel`
+- STRATO SPF-regel → `Ingen STRATO SPF-regel`
+
+Then add three TXT records. The Prefix field appends `.testerpool.dev` itself,
+so enter only the prefix:
+
+| Prefix | Value |
+| --- | --- |
+| *(empty)* | `v=spf1 mx ~all` |
+| `dkim._domainkey` | the key from DeoMail, one line, no quotes |
+| `_dmarc` | `v=DMARC1; p=quarantine; adkim=s; aspf=s` |
+
+`v=spf1 mx ~all` authorises whatever the MX points at. That is deliberate: it
+means the sending provider and the receiving provider are the same host, and no
+`include:` has to be maintained. It also means **anything sending as this domain
+must go through DeoMail** — see step 8.
+
+**Check:** MXToolbox on `testerpool.dev` — `mx:`, `spf:`, `dmarc:`, and
+`dkim:testerpool.dev:dkim`. Two MX rows for `hi.deomail.com` with the same
+priority are one record with an IPv4 and an IPv6 address, not a duplicate.
+
+Then create the `support@testerpool.dev` mailbox in DeoMail. That exact address
+appears eleven times in the codebase, and the privacy policy names it as the
+contact route for a data request, so it has to exist before launch.
 
 ---
 
-## Step 8 — Set up custom SMTP for magic links
+## Step 8 — Point both senders at DeoMail
 
-**Where:** Supabase → Authentication → Emails → SMTP Settings
+The app sends mail from two places, and both have to use DeoMail. Sending
+through anything else fails SPF, and with `p=quarantine` and `aspf=s` the mail
+is quarantined rather than bounced — you get no error, users get nothing.
 
-**Do:** point it at a real sender (Resend, Postmark, SES) and verify SPF and
-DKIM for the domain.
+**8a. Magic links.** Supabase → Authentication → Emails → SMTP Settings. Fill in
+DeoMail's SMTP host, port, username and password; sender `support@testerpool.dev`,
+sender name `TesterPool`. Raise the auth rate limit on the same page — the
+default is sized for Supabase's shared sender.
 
-Supabase's default sender is a shared address with a low rate limit and is
-explicitly not for production. Deliverability of the magic link *is* the sign-in
-flow. If it lands in spam, the product does not work.
+Supabase's built-in sender is explicitly not for production, and here the magic
+link *is* the sign-in flow. If it lands in spam, nobody can log in.
+
+**8b. Pod reminders.** The `send-notifications` edge function sends over SMTP.
+Set four secrets on it:
+
+```bash
+supabase secrets set \
+  SMTP_HOST=<deomail smtp host> \
+  SMTP_USER=<username> \
+  SMTP_PASSWORD=<password> \
+  NOTIFICATION_FROM='TesterPool <support@testerpool.dev>' \
+  SITE_URL=https://testerpool.dev
+```
+
+`SMTP_PORT` defaults to 587 with STARTTLS; set it to 465 only if DeoMail
+requires implicit TLS. Miss any of the four and the function stays in dry-run:
+it renders every email, logs what it would have sent, and hands the rows back
+unconsumed. Nothing is lost and nothing is sent — see `OPERATIONS.md`.
+
+`SITE_URL` is worth setting explicitly even though it now defaults correctly. It
+is the origin in every deep link in every reminder, and a wrong value still
+sends — it just sends people somewhere else.
+
+**Check:** send a mail to `support@testerpool.dev` and reply from it. In Gmail,
+open the reply → Show original → `SPF: PASS`, `DKIM: PASS`, `DMARC: PASS`. That
+is the only proof that counts; a DNS checker only says the records exist.
 
 ---
 

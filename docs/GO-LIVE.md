@@ -365,9 +365,11 @@ select p.handle, l.reason, l.delta, l.balance_after, l.created_at
 
 ## Still open after all this
 
-**Email.** `RESEND_API_KEY` is unset, so the outbox drains to nothing. The daily
+**Email.** The SMTP secrets are unset, so the outbox drains to nothing. The daily
 check-in reminder is not a nicety here: a missed day resets someone else's
-fourteen. Set it on the `send-notifications` function the same way as step 2.
+fourteen. Set `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD` and `NOTIFICATION_FROM`
+on the `send-notifications` function the same way as step 2. `docs/DOMAIN.md`
+covers where the credentials come from.
 
 **Auto-renewal for Unlimited.** Sold as a 30-day pass through the existing
 one-off Checkout. Real recurring billing needs `mode: 'subscription'` and an

@@ -89,8 +89,10 @@ on the next tick. Until both exist the scheduled job is a deliberate no-op: it l
 `job_runs` every fifteen minutes with the names of the secrets it is waiting for and sends
 nothing. That is the intended state before launch.
 
-Four environment variables are set on the edge functions themselves. `RESEND_API_KEY` and
-`NOTIFICATION_FROM` configure delivery; without either of them the sender runs in dry-run mode,
+Environment variables are set on the edge functions themselves. `SMTP_HOST`, `SMTP_USER`,
+`SMTP_PASSWORD` and `NOTIFICATION_FROM` configure delivery, with `SMTP_PORT` defaulting to 587;
+mail goes out over SMTP through the same provider that holds the domain's MX, so the SPF record
+covers it without an extra `include:`. Without any one of the four the sender runs in dry-run mode,
 which means it claims a batch, renders every email, logs what it would have sent, hands the
 attempts back so no row is consumed, and returns a summary saying `delivery: unconfigured` with
 the missing variable named. It never marks a row as sent that it did not send. `SITE_URL` sets the
@@ -139,7 +141,7 @@ Install the Supabase CLI and run `supabase functions serve send-notifications --
 from the `app` directory, which serves the function at
 `http://localhost:54321/functions/v1/send-notifications` against whatever project your
 `supabase/.env` points at. Put the environment variables in `app/supabase/functions/.env.local`
-and pass it with `--env-file`; leave `RESEND_API_KEY` out of that file and every local run is a
+and pass it with `--env-file`; leave `SMTP_HOST` out of that file and every local run is a
 dry run, which is what you want while iterating on copy. Invoke it with
 `curl -X POST http://localhost:54321/functions/v1/send-notifications -H "Authorization: Bearer
 $SUPABASE_SERVICE_ROLE_KEY" -d '{"limit": 5, "dry_run": true}'`, and read the rendered text of each
