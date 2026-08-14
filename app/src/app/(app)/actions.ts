@@ -565,6 +565,11 @@ export async function startActivity(appId: string): Promise<ActionResult> {
       'The developer has not added a closed-track link yet, so there is nothing to join.',
     owner_out_of_credits:
       'The developer has run out of credits, so this app is paused until they top up. Nothing you do now would be paid.',
+    // Solvent, but every credit is already spoken for by testers who started
+    // before you. The app is not paused and comes back on its own, so this says
+    // "later", not "no".
+    owner_fully_committed:
+      'The developer has testers on this already and their balance is committed to them. Seats free up as those reports land — save the app and check back.',
     unknown_app: 'That app is no longer listed.',
   };
 

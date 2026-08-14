@@ -275,9 +275,19 @@ function TestCard({
               days={activity ? stripFor(days, 1, 1) : stripFor(days, currentDay, duration)}
               currentDay={activity ? 1 : currentDay}
               total={activity ? 1 : duration}
-              alreadyToday={today}
-              disabled={!workable}
-              disabledReason={!workable ? 'Check-ins open when the pod starts.' : undefined}
+              // An activity is one session. `alreadyToday` alone would let the
+              // button come back tomorrow against a seat that has no second
+              // day; the RPC refuses it either way, and a button that is
+              // refused is worse than a button that is not offered.
+              alreadyToday={today || (activity && days >= 1)}
+              disabled={!workable || (activity && days >= 1)}
+              disabledReason={
+                !workable
+                  ? 'Check-ins open when the pod starts.'
+                  : activity && days >= 1
+                    ? 'Logged. This one is a single session — the report is what is left.'
+                    : undefined
+              }
             />
           )}
         </div>
@@ -301,7 +311,9 @@ function TestCard({
                 <span className="num">+{EARN.feedbackApproved} if approved</span>
               </Link>
               <p className="text-xs text-[var(--color-mute)]">
-                Day seven onward — you have seen enough to be useful.
+                {activity
+                  ? 'Send it whenever you have something worth saying.'
+                  : 'Day seven onward — you have seen enough to be useful.'}
               </p>
             </>
           )}

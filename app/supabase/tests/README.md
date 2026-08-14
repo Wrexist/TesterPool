@@ -150,7 +150,7 @@ problem and prints what it wanted. Balances start at the signup grant, so assert
 payments as a delta from a baseline rather than an absolute — see the `baseline`
 temp table in 03.
 
-Run all six files in order: 01 clears the fixtures and creates the pod and the
+Run all seven files in order: 01 clears the fixtures and creates the pod and the
 creator that 02 and 03 build on, 04 creates the `Market %` apps that 06 reuses, and 05
 restores what it changes.
 

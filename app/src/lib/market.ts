@@ -302,11 +302,17 @@ export interface MarketPulse {
  * `start_activity` and `activity_open`, not here.
  */
 export function rewardFor(
-  app: Pick<MarketApp, 'relation' | 'platform' | 'status'>
+  app: Pick<MarketApp, 'relation' | 'platform' | 'status' | 'activity_open'>
 ): number | null {
   if (app.relation === 'owner' || app.relation === 'tested') return null;
   if (app.platform === 'ios') return null;
   if (app.status === 'draft' || app.status === 'paused') return null;
+  // A shipped app has no pod to fall back on: an activity is the only seat it
+  // can give, so it pays only while `activity_open` says the RPC would accept
+  // one. Without this a live app whose owner had closed intake or run dry
+  // showed `+40` on its row and "Not taking testers right now" on its own
+  // detail page — the same app, two answers.
+  if (app.status === 'graduated' && !app.activity_open) return null;
   return EARN.optInVerified + EARN.feedbackApproved;
 }
 

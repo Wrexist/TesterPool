@@ -50,11 +50,16 @@ delete from apps where id = 'aaaaaaaa-0000-0000-0000-00000000000a';
 -- ------------------------------------------------------------- fixtures
 -- An app that is open to activities, owned by the creator, whose balance 01
 -- left with enough in it to pay for work.
-insert into apps (id, owner_id, name, opt_in_url, status,
+-- `platform` is set explicitly on every fixture here, not left to the column
+-- default: `activity_open` gates on `a.platform = 'android'`, so a future
+-- change to that default would fail these assertions for a reason that has
+-- nothing to do with activities.
+insert into apps (id, owner_id, name, platform, opt_in_url, status,
                   accepting_activities, activity_target)
 values ('aaaaaaaa-0000-0000-0000-00000000000a',
         '11111111-1111-1111-1111-111111111111',
-        'Fernbank', 'https://play.google.com/apps/testing/com.fernbank.app',
+        'Fernbank', 'android',
+        'https://play.google.com/apps/testing/com.fernbank.app',
         'queued', true, 2);
 
 -- Two more testers, so the seat cap has something to bite on. Created before
@@ -200,10 +205,11 @@ select assert_eq(
 
 -- An owner who cannot pay. `_charge_owner` would take them to zero and pause
 -- the app *after* the tester had done the work; refusing up front is the point.
-insert into apps (id, owner_id, name, opt_in_url, status, accepting_activities, activity_target)
+insert into apps (id, owner_id, name, platform, opt_in_url, status, accepting_activities, activity_target)
 values ('aaaaaaaa-0000-0000-0000-00000000000b',
         '33333333-3333-3333-3333-333333333333',
-        'Skint Two', 'https://play.google.com/apps/testing/com.skint2.app', 'queued', true, 5)
+        'Skint Two', 'android',
+        'https://play.google.com/apps/testing/com.skint2.app', 'queued', true, 5)
 on conflict (id) do update set status = 'queued', credits_paused = false;
 
 do $$
@@ -227,20 +233,29 @@ select assert_eq(
   true, 'a listing that cannot pay is paused');
 
 -- An app with no way into a closed track has no step 1 to offer.
-insert into apps (id, owner_id, name, status, accepting_activities, activity_target)
+insert into apps (id, owner_id, name, platform, status, accepting_activities, activity_target)
 values ('aaaaaaaa-0000-0000-0000-00000000000c',
-        '11111111-1111-1111-1111-111111111111', 'No Door', 'draft', true, 5)
+        '11111111-1111-1111-1111-111111111111', 'No Door', 'android', 'draft', true, 5)
 on conflict (id) do nothing;
 select assert_eq(
   (start_activity('aaaaaaaa-0000-0000-0000-00000000000c') ->> 'error'),
   'not_open', 'refuses an app that is not listed');
 
--- The flag, enforced in the database rather than only in the UI.
-update feature_flags set enabled = false where key = 'activities';
-select assert_eq(
-  (start_activity('aaaaaaaa-0000-0000-0000-00000000000a') ->> 'error'),
-  'activities_closed', 'the flag is enforced inside the RPC');
-update feature_flags set enabled = true where key = 'activities';
+-- The flag, enforced in the database rather than only in the UI. The restore
+-- runs even when the assertion fails: `ON_ERROR_STOP` would otherwise abort with
+-- the flag still off, and the next run of this file would fail at the happy path
+-- instead of here, pointing at the wrong thing.
+do $$
+declare v_err text;
+begin
+  update feature_flags set enabled = false where key = 'activities';
+  v_err := start_activity('aaaaaaaa-0000-0000-0000-00000000000a') ->> 'error';
+  update feature_flags set enabled = true where key = 'activities';
+  perform assert_eq(v_err, 'activities_closed', 'the flag is enforced inside the RPC');
+exception when others then
+  update feature_flags set enabled = true where key = 'activities';
+  raise;
+end $$;
 
 -- ===========================================================================
 -- 3. The transfers — identical to a pod seat's
@@ -306,11 +321,67 @@ select assert_eq((select credits from profiles where handle = 'tester'), 10,
                  'an activity check-in mints nothing');
 
 -- No perfect-14 bonus can ever fire on a seat that has one day.
+-- Step 2 cannot precede step 1. tester2 holds a seat whose opt-in was never
+-- verified, and the UI simply does not render the button for that state — which
+-- is not a guard, because every RPC here is reachable over REST.
+select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', false);
+select assert_eq(
+  (submit_checkin((select id from assignments
+                    where app_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+                      and tester_id = '44444444-4444-4444-4444-444444444444'))
+   ->> 'error'),
+  'opt_in_required', 'an unverified activity cannot be checked in');
+
+select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', false);
+
+-- Anchored to this seat's own ref_id. The header says every assertion here is,
+-- and counting every streak_bonus the tester has ever received would have made
+-- this one fail the day 01 or 02 awarded one for a reason of its own.
 select assert_eq(
   (select count(*)::int from credit_ledger
     where user_id = '22222222-2222-2222-2222-222222222222'
-      and reason = 'streak_bonus'),
+      and reason = 'streak_bonus'
+      and ref_id = (select id from assignments
+                     where app_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+                       and tester_id = '22222222-2222-2222-2222-222222222222')),
   0, 'no streak bonus on an activity');
+
+-- One session, once. A second call on a later UTC date used to log day 2: no
+-- credits (daily_checkin pays 0) but days_checked_in, the streak and reliability
+-- all inflated, and `testers_full` counts seats that reach 14.
+-- Same day: the activity guard answers before the same-day guard does, because
+-- it is the more specific of the two and sits above it.
+select assert_eq(
+  (submit_checkin((select id from assignments
+                    where app_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+                      and tester_id = '22222222-2222-2222-2222-222222222222'))
+   ->> 'error'),
+  'activity_already_logged', 'a same-day repeat is refused');
+
+-- Tomorrow, simulated by clearing everything the same-day guard reads. This is
+-- the case that was actually open: `already_checked_in_today` only ever looked
+-- at today, so a tester coming back on a later UTC date logged day 2.
+update assignments set last_checkin_on = null
+ where app_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+   and tester_id = '22222222-2222-2222-2222-222222222222';
+delete from checkins
+ where assignment_id = (select id from assignments
+                         where app_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+                           and tester_id = '22222222-2222-2222-2222-222222222222')
+   and checkin_date = (now() at time zone 'utc')::date;
+
+select assert_eq(
+  (submit_checkin((select id from assignments
+                    where app_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+                      and tester_id = '22222222-2222-2222-2222-222222222222'))
+   ->> 'error'),
+  'activity_already_logged', 'an activity gets one session, not one a day');
+
+select assert_eq(
+  (select days_checked_in from assignments
+    where app_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+      and tester_id = '22222222-2222-2222-2222-222222222222'),
+  1, 'the refused repeat did not advance the day count');
 
 -- ===========================================================================
 -- 5. The report, and its charge
@@ -401,11 +472,11 @@ end $$;
 
 -- The routine shape instead: published, and running a closed track alongside
 -- production. That track is the only route this product will pay for.
-insert into apps (id, owner_id, name, status, store_url, package_name, opt_in_url,
+insert into apps (id, owner_id, name, platform, status, store_url, package_name, opt_in_url,
                   accepting_activities, activity_target, graduated_at)
 values ('aaaaaaaa-0000-0000-0000-00000000000d',
         '11111111-1111-1111-1111-111111111111',
-        'Fernbank Live', 'graduated',
+        'Fernbank Live', 'android', 'graduated',
         'https://play.google.com/store/apps/details?id=com.fernbank.live',
         'com.fernbank.live',
         'https://play.google.com/apps/testing/com.fernbank.live', true, 3, now())
@@ -413,13 +484,18 @@ on conflict (id) do update set status = 'graduated', credits_paused = false;
 
 select set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', false);
 
--- The `no_opt_in_route` guard in start_activity is the second layer: it still
--- refuses if the route is ever removed at runtime.
+-- And the constraint is why the `no_opt_in_route` guard inside start_activity
+-- cannot be reached through the table at all: stripping the route forces the
+-- row to 'draft', so the refusal that actually comes back is 'not_open' from the
+-- status gate one line above it. The guard stays as the second layer for a
+-- caller that is not the table — a future migration, a backfill — but this is
+-- what a tester hits, and the assertion says so rather than the comment
+-- claiming a path it does not take.
 update apps set opt_in_url = null, google_group = null, status = 'draft'
  where id = 'aaaaaaaa-0000-0000-0000-00000000000d';
 select assert_eq(
   (start_activity('aaaaaaaa-0000-0000-0000-00000000000d') ->> 'error'),
-  'not_open', 'an app with no route falls out of the open statuses');
+  'not_open', 'stripping the route forces draft, so the status gate answers first');
 update apps
    set opt_in_url = 'https://play.google.com/apps/testing/com.fernbank.live',
        status = 'graduated'
@@ -447,12 +523,20 @@ select assert_eq(
       and tester_id = '55555555-5555-5555-5555-555555555555'),
   null::uuid, 'a live app takes an activity, never a pod seat');
 
--- The `live` scope lists it; the `open` scope does too, since it is open.
+-- Both scopes are "work you could pick up", so holding the seat removes the app
+-- from each of them. Asserted for both, because the comment used to say the
+-- opposite of what the assertion checked.
 select assert_eq(
   (select count(*)::int from
      market_apps('live', null, null, null, null, 'newest', 48, 0) m
     where m.id = 'aaaaaaaa-0000-0000-0000-00000000000d'),
   0, 'the live scope drops an app once you hold its seat');
+
+select assert_eq(
+  (select count(*)::int from
+     market_apps('open', null, null, null, null, 'newest', 48, 0) m
+    where m.id = 'aaaaaaaa-0000-0000-0000-00000000000d'),
+  0, 'the open scope drops it too');
 
 -- A second tester still sees it, which is what makes the scope worth having.
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', false);
@@ -534,6 +618,90 @@ select assert_eq(
 select assert_eq(
   ((set_activity_intake('aaaaaaaa-0000-0000-0000-00000000000a', null, 2)) ->> 'accepting')::boolean,
   true, 'passing only a target does not disturb the switch');
+
+-- ===========================================================================
+-- 5d. An owner cannot be committed past their balance
+-- ===========================================================================
+-- The hole this closes, reproduced before it was fixed: the balance check
+-- locked `profiles.credits` and compared it to 40, then inserted the seat
+-- without reserving anything. The lock releases at commit with the balance
+-- untouched, so every caller read the same 40 and passed. An owner holding 40
+-- with `activity_target` 3 was given three seats — 120 of obligation against 40
+-- of balance.
+--
+-- It does not end in an unpaid tester, which would be bad enough. `_charge_owner`
+-- pays the tester in full and takes the owner to zero, by design, so the
+-- shortfall is *minted*: three completed activities on that owner would have
+-- created 80 credits from nothing, against invariant 1a.
+
+insert into apps (id, owner_id, name, platform, opt_in_url, status,
+                  accepting_activities, activity_target)
+values ('cccccccc-0000-0000-0000-00000000000f',
+        '11111111-1111-1111-1111-111111111111',
+        'Overcommit', 'android',
+        'https://play.google.com/apps/testing/com.overcommit.app', 'queued', true, 3)
+on conflict (id) do update
+  set status = 'queued', credits_paused = false,
+      accepting_activities = true, activity_target = 3;
+
+-- Exactly one job's worth, and nothing outstanding: every other activity seat
+-- in this file has had its report approved or belongs to a different owner.
+do $$
+declare v int; v_open int;
+begin
+  select count(*) into v_open
+    from assignments s join apps a2 on a2.id = s.app_id
+   where a2.owner_id = '11111111-1111-1111-1111-111111111111'
+     and s.pod_id is null and s.status not in ('dropped', 'removed')
+     and not exists (select 1 from feedback f
+                      where f.assignment_id = s.id
+                        and f.status in ('approved', 'arbitrated'));
+  -- Fund exactly one job beyond whatever is already outstanding, so the first
+  -- seat is affordable and the second is not.
+  select credits into v from profiles where handle = 'creator';
+  perform award_credits('11111111-1111-1111-1111-111111111111'::uuid,
+                        (40 * (v_open + 1)) - v, 'admin_adjust', null, null,
+                        'overcommit fixture');
+end $$;
+
+select set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', false);
+select assert_eq(
+  (start_activity('cccccccc-0000-0000-0000-00000000000f') ->> 'ok')::boolean,
+  true, 'the first seat is affordable');
+
+-- A different tester, a seat still open, and the balance already spoken for.
+select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', false);
+select assert_eq(
+  (start_activity('cccccccc-0000-0000-0000-00000000000f') ->> 'error'),
+  'owner_fully_committed', 'a second seat past the balance is refused');
+
+select assert_eq(
+  (select count(*)::int from assignments
+    where app_id = 'cccccccc-0000-0000-0000-00000000000f' and pod_id is null),
+  1, 'exactly one seat exists');
+
+-- Solvent, so the listing is NOT paused: it comes back on its own the moment an
+-- outstanding report lands. Pausing here would punish an owner for having
+-- testers, which is the opposite of what the pause is for.
+select assert_eq(
+  (select credits_paused from apps where id = 'cccccccc-0000-0000-0000-00000000000f'),
+  false, 'a fully committed listing is not paused');
+
+-- The obligation is counted across every app the owner has, because a balance
+-- is per-owner. A second listing must not reset the allowance.
+insert into apps (id, owner_id, name, platform, opt_in_url, status,
+                  accepting_activities, activity_target)
+values ('cccccccc-0000-0000-0000-0000000000f2',
+        '11111111-1111-1111-1111-111111111111',
+        'Overcommit Two', 'android',
+        'https://play.google.com/apps/testing/com.overcommit2.app', 'queued', true, 3)
+on conflict (id) do update
+  set status = 'queued', credits_paused = false,
+      accepting_activities = true, activity_target = 3;
+
+select assert_eq(
+  (start_activity('cccccccc-0000-0000-0000-0000000000f2') ->> 'error'),
+  'owner_fully_committed', 'a second listing does not reset the allowance');
 
 -- ===========================================================================
 -- 6. The client still cannot write its own seat

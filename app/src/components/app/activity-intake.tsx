@@ -50,6 +50,11 @@ export function ActivityIntake({
   const [seats, setSeats] = React.useState(target);
 
   function commit(next: { accepting?: boolean; target?: number }) {
+    // Kept so a refusal can be undone. `refresh: false` means no parent remount
+    // is coming to correct the optimistic value, so without this the control
+    // would go on showing a setting the database never accepted.
+    const previous = { accepting: open, target: seats };
+
     if (next.accepting !== undefined) setOpen(next.accepting);
     if (next.target !== undefined) setSeats(next.target);
 
@@ -60,6 +65,11 @@ export function ActivityIntake({
         if (typeof row?.accepting === 'boolean') setOpen(row.accepting);
         if (typeof row?.target === 'number') setSeats(row.target);
       },
+    }).then((result) => {
+      if (!result.ok) {
+        setOpen(previous.accepting);
+        setSeats(previous.target);
+      }
     });
   }
 
@@ -98,7 +108,7 @@ export function ActivityIntake({
           }}
         >
           <span
-            className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-[left]"
+            className="absolute top-0.5 h-5 w-5 rounded-full bg-[var(--color-ink)] transition-[left]"
             style={{ left: open ? '1.375rem' : '0.125rem' }}
           />
         </button>
