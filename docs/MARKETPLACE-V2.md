@@ -124,7 +124,7 @@ it are in §7 and §9.
 
 | Tab | Route | What it is |
 | --- | --- | --- |
-| **Home** | `/` (authed) or `/home` | The feed. Stats strip, "add your app" prompt, filter chips, **Apps to test** list. |
+| **Home** | `/market` | The feed. Stats strip, "add your app" prompt, filter chips, **Apps to test** list. |
 | **Pods** | `/pods` | The 14-day product. Your pod, forming pods, seats, the clock. |
 | **My apps** | `/apps` | Your listings, their activity, the credit gate, Add app. |
 | **Profile** | `/u/[handle]` | Credits, reliability, badges, billing, settings, sign out. |
@@ -171,7 +171,7 @@ Top to bottom, phone width:
 
 **The row** (replaces today's card on phones; the card stays on desktop):
 
-```
+```text
 ┌──────────────────────────────────────────────┐
 │ ▢56  Budget & Bill Planner              ›    │
 │      Planned                                 │
@@ -198,7 +198,7 @@ The reference's best screen, and the one we are furthest from. Sections:
 2. **Your activity** — the stepper. Three states, and the whole card is the
    reward's home:
 
-   ```
+   ```text
    YOUR ACTIVITY                          [★ +40]
    Complete all steps to earn the reward
    ①━━━━━━━━②━━━━━━━━③
@@ -218,7 +218,7 @@ The reference's best screen, and the one we are furthest from. Sections:
 3. **Chat with developer** — §6.5.
 4. **Developer profile** link, and **Open in store** only when the app has
    graduated and a public listing exists.
-5. **About / what the developer wants looked at / instructions** — existing,
+5. **About / what the developer wants testers to look at / instructions** — existing,
    moved below the fold.
 
 Files: `src/app/(app)/market/[id]/app-detail.tsx`, new
@@ -243,7 +243,7 @@ notification settings, sign out. Mostly exists; needs the phone layout.
 
 ### 6.5 Chat with developer — v2
 
-Deferred to v2 by decision (§3.4), because it is the largest new surface here
+Deferred to v2 by decision (Section 3, item 4), because it is the largest new surface here
 and the only one that carries an ongoing moderation cost. The need behind it is
 real — a tester who hits a bug at step 2 has nowhere to go, and an owner who gets
 a vague report cannot ask a follow-up — so v1 ships the cheap half instead: a
@@ -443,7 +443,7 @@ Nothing blocking. Two worth revisiting once activities are live:
    at least one activity in the last 14 days. That is enough to fill a pod of 15
    twice over, which is what "we can start your clock this week" needs to be
    true rather than hopeful.
-2. **Referral rates.** Cut to 20/20 in §6a on the same reasoning as the grant.
+2. **Referral rates.** Cut to 20/20 in Section 8 on the same reasoning as the grant.
    If referrals turn out to be the cheapest real acquisition channel, that is an
    argument for raising them again — but with an activity completed before the
    bonus pays, not on signup.

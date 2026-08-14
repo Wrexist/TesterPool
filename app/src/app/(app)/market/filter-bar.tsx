@@ -122,13 +122,18 @@ export function FilterBar({
     setTerm(query.q);
   }
 
+  // Every navigation carries the box's current text with it. `query.q` only
+  // catches up once the server render lands, so typing and then clicking a
+  // platform within the debounce window used to fire two navigations that each
+  // dropped the other's change. Sending `q` along makes the click a superset of
+  // the pending search, and the timer below then finds nothing left to do.
   const go = React.useCallback(
     (next: Partial<MarketQuery>) => {
       startTransition(() => {
-        router.push(marketHref({ ...query, page: 1, ...next }), { scroll: false });
+        router.push(marketHref({ ...query, q: term, page: 1, ...next }), { scroll: false });
       });
     },
-    [query, router]
+    [query, term, router]
   );
 
   React.useEffect(() => {

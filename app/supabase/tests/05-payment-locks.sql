@@ -77,6 +77,15 @@ values ('aaaa1111-0000-0000-0000-00000000dead',
         'aaaa2222-0000-0000-0000-00000000dead',
         'aaaa3333-0000-0000-0000-00000000dead');
 
+-- A pending proof owned by the tester, written as the table owner so that
+-- assertion 7 tests the UPDATE guard rather than the INSERT one.
+delete from proofs where id = 'ffff0000-0000-0000-0000-00000000dead';
+insert into proofs (id, uploader_id, assignment_id, kind, storage_path, status)
+values ('ffff0000-0000-0000-0000-00000000dead',
+        'aaaa3333-0000-0000-0000-00000000dead',
+        'aaaa1111-0000-0000-0000-00000000dead',
+        'opt_in', 'aaaa3333-0000-0000-0000-00000000dead/real.png', 'pending');
+
 select set_config('request.jwt.claim.sub', 'aaaa3333-0000-0000-0000-00000000dead', false);
 
 do $$
@@ -131,7 +140,28 @@ select assert_raises(
               'Marking my own homework as approved.', 'approved', 30) $q$,
   'a tester cannot approve their own report');
 
--- 6. Filing a real report still works, and lands unpaid and unreviewed.
+-- 6. A report pointed at an app the assignment is not for. This one was live:
+--    the guard checked the assignment's tester and never its app, so a member
+--    could inflate any app's report count — and with it the evidence pack its
+--    owner submits to Google.
+select assert_raises(
+  $q$ insert into feedback (assignment_id, tester_id, app_id, first_impression, status)
+      values ('aaaa1111-0000-0000-0000-00000000dead',
+              'aaaa3333-0000-0000-0000-00000000dead',
+              'aaaaaaaa-0000-0000-0000-000000000001',   -- a different app
+              'Credited to an app I was never assigned.', 'submitted') $q$,
+  'a report cannot be credited to another app');
+
+-- 7. The UPDATE paths, not just the INSERT ones. A guard that only covers
+--    inserts leaves an existing row open to being reopened.
+select assert_no_effect(
+  $q$ update proofs set status = 'approved'
+       where id = 'ffff0000-0000-0000-0000-00000000dead' $q$,
+  $q$ select status = 'pending' from proofs
+       where id = 'ffff0000-0000-0000-0000-00000000dead' $q$,
+  'a tester cannot approve a proof they already uploaded');
+
+-- 8. Filing a real report still works, and lands unpaid and unreviewed.
 insert into feedback (assignment_id, tester_id, app_id, first_impression, status, submitted_at)
 values ('aaaa1111-0000-0000-0000-00000000dead',
         'aaaa3333-0000-0000-0000-00000000dead',

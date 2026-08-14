@@ -50,13 +50,7 @@ export function AppDetail({ app }: { app: MarketAppDetail }) {
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--color-dim)]">{app.tagline}</p>
           )}
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <Link
-              href={`/u/${app.owner_handle ?? ''}`}
-              className="flex items-center gap-2 text-sm text-[var(--color-dim)] transition-colors hover:text-[var(--color-ink)]"
-            >
-              <Avatar name={app.owner_display_name || app.owner_handle || app.name} src={app.owner_avatar_url} size={26} />
-              <span className="font-medium">{app.owner_display_name || `@${app.owner_handle}`}</span>
-            </Link>
+            <OwnerLine app={app} />
             <TierBadge tier={tierOf(app.owner_tier)} size="sm" />
             <span className="text-xs text-[var(--color-mute)]">
               Reliability <span className="num font-semibold text-[var(--color-dim)]">{Math.round(n(app.owner_reliability))}</span>
@@ -148,15 +142,45 @@ export function AppDetail({ app }: { app: MarketAppDetail }) {
             </a>
           )}
 
-          <Link
-            href={marketHref({ q: app.owner_handle ?? '' })}
-            className="text-xs text-[var(--color-mute)] hover:text-[var(--color-ink)]"
-          >
-            {n(app.owner_apps)} {n(app.owner_apps) === 1 ? 'app' : 'apps'} from @{app.owner_handle} in the pool →
-          </Link>
+          {app.owner_handle && (
+            <Link
+              href={marketHref({ q: app.owner_handle })}
+              className="text-xs text-[var(--color-mute)] hover:text-[var(--color-ink)]"
+            >
+              {n(app.owner_apps)} {n(app.owner_apps) === 1 ? 'app' : 'apps'} from @{app.owner_handle} in the pool →
+            </Link>
+          )}
         </aside>
       </div>
     </div>
+  );
+}
+
+/**
+ * The developer, linked only when there is somewhere to link to.
+ *
+ * `owner_handle` is nullable in the projection, and an unguarded template
+ * rendered "@null" over a link to /u/ — a dead page under a wrong name.
+ */
+function OwnerLine({ app }: { app: MarketAppDetail }) {
+  const name = app.owner_display_name || (app.owner_handle ? `@${app.owner_handle}` : 'A developer');
+  const inner = (
+    <>
+      <Avatar name={app.owner_display_name || app.owner_handle || app.name} src={app.owner_avatar_url} size={26} />
+      <span className="font-medium">{name}</span>
+    </>
+  );
+
+  if (!app.owner_handle) {
+    return <span className="flex items-center gap-2 text-sm text-[var(--color-dim)]">{inner}</span>;
+  }
+  return (
+    <Link
+      href={`/u/${app.owner_handle}`}
+      className="flex items-center gap-2 text-sm text-[var(--color-dim)] transition-colors hover:text-[var(--color-ink)]"
+    >
+      {inner}
+    </Link>
   );
 }
 
@@ -301,6 +325,27 @@ function ActionCard({ app }: { app: MarketAppDetail }) {
   }
 
   const reward = rewardFor(app);
+
+  // Only an app that can still take testers gets a call to action. A shipped,
+  // paused or removed app offering "Want to test this?" is an invitation to a
+  // door that is shut.
+  if (app.status !== 'queued' && app.status !== 'in_pod') {
+    return (
+      <Card className="flex flex-col gap-3 p-5">
+        <h2 className="text-sm font-semibold">
+          {app.status === 'graduated' ? 'This one shipped' : 'Not taking testers'}
+        </h2>
+        <p className="text-sm leading-relaxed text-[var(--color-dim)]">
+          {app.status === 'graduated'
+            ? 'It cleared production access and is out of closed testing, so there is nothing left to test here.'
+            : 'The developer has this app paused. It may open to testers again later.'}
+        </p>
+        <Link href={marketHref({ status: 'needs_testers' })} className="btn btn-secondary">
+          Find an app that needs testers <IconArrow size={15} />
+        </Link>
+      </Card>
+    );
+  }
 
   return (
     <Card className="flex flex-col gap-3 p-5">

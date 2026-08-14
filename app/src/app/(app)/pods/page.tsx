@@ -18,7 +18,7 @@ type MemberRow = Pick<PodMember, 'pod_id' | 'user_id' | 'app_id' | 'status'> & {
 
 export default async function PodsPage() {
   const flags = await getFlags();
-  const podsOpen = flags.pods_open;
+  const podsOpen = flags.pod_matching;
 
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();

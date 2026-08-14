@@ -26,17 +26,23 @@ export const FLAG_DEFAULTS = {
   github_login: false,
   signups_open: true,
   /**
-   * Whether a developer may join a pod today.
+   * Whether a developer may join or start a pod today.
    *
-   * Off until activities are producing enough testers to fill one. A pod that
-   * forms and never fills is worse than a pod that has not opened yet: it burns
-   * the fourteen days the developer was counting on. Fails closed for the same
-   * reason — if we cannot confirm there is supply, we do not promise a cohort.
+   * This is the flag `join_pod` and `start_pod` already enforce inside the
+   * database, which is why the pods screen reads it rather than a second flag
+   * of its own: a gate the UI keeps and the RPC does not is not a gate, and
+   * every RPC here is reachable over REST.
    *
-   * Flip it in /admin/flags when the pool is deep enough. Nothing else changes:
-   * pods already in flight keep running, and the cron keeps advancing them.
+   * Turn it off in /admin/flags to put pods in their Upcoming state — the
+   * button and the RPC move together. Pods already in flight keep running, and
+   * the cron keeps advancing them either way.
+   *
+   * Defaults true to match the RPC, which treats a missing row as open. The
+   * flag row is the source of truth; this constant only covers an unreachable
+   * database, and in that case a join fails on its own merits rather than
+   * because a flag read failed.
    */
-  pods_open: false,
+  pod_matching: true,
 } as const;
 
 export type FlagKey = keyof typeof FLAG_DEFAULTS;

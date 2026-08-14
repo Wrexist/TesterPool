@@ -60,29 +60,47 @@ export function SaveButton({
   }
 
   const label = saved ? 'Saved. Click to remove' : 'Save for later';
+  const errorId = `save-error-${appId}`;
+
+  // A `title` needs a hover, so on a phone — where this surface is designed to
+  // be used — a failed save reverted the icon and said nothing at all. The
+  // reason goes in a live region instead, and `title` goes back to being the
+  // label it should always have been.
+  const announcement = (
+    <span id={errorId} role="status" aria-live="polite" className="sr-only">
+      {error ?? ''}
+    </span>
+  );
 
   if (variant === 'full') {
     return (
-      <button
-        type="button"
-        onClick={toggle}
-        aria-pressed={saved}
-        className="btn btn-secondary"
-        title={error ?? label}
-      >
-        <IconBookmark size={15} filled={saved} />
-        {saved ? 'Saved' : 'Save'}
-      </button>
+      <span className="inline-flex flex-col items-end gap-1">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-pressed={saved}
+          className="btn btn-secondary"
+          title={label}
+          aria-describedby={error ? errorId : undefined}
+        >
+          <IconBookmark size={15} filled={saved} />
+          {saved ? 'Saved' : 'Save'}
+        </button>
+        {error && <span className="text-xs text-[var(--color-danger)]">{error}</span>}
+        {announcement}
+      </span>
     );
   }
 
   return (
+    <>
     <button
       type="button"
       onClick={toggle}
       aria-pressed={saved}
       aria-label={label}
-      title={error ?? label}
+      title={label}
+      aria-describedby={error ? errorId : undefined}
       className={cx(
         'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors',
         saved
@@ -93,5 +111,7 @@ export function SaveButton({
     >
       <IconBookmark size={15} filled={saved} />
     </button>
+    {announcement}
+    </>
   );
 }

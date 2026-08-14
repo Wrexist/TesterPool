@@ -803,14 +803,22 @@ export async function setWatching(appId: string, watching: boolean): Promise<Act
   if ('error' in auth) return fail(auth.error, 'no_session');
   const { supabase, userId } = auth;
 
+  // `ignoreDuplicates` makes this `on conflict do nothing`, which is the right
+  // semantic for a row that is entirely its own key — there is nothing to
+  // merge — and it needs only INSERT rather than INSERT and UPDATE.
   const { error } = watching
     ? await supabase.from('app_watchlist').upsert(
         { user_id: userId, app_id: appId },
-        { onConflict: 'user_id,app_id' }
+        { onConflict: 'user_id,app_id', ignoreDuplicates: true }
       )
     : await supabase.from('app_watchlist').delete().eq('user_id', userId).eq('app_id', appId);
 
-  if (error) return fail(error.message, 'db_error');
+  if (error) {
+    // Postgres text names tables, columns and constraints, and this message is
+    // rendered in the page. Log the detail, return a sentence.
+    console.error('setWatching failed', { appId, watching, error: error.message });
+    return fail('Could not update your list. Try again.', 'db_error');
+  }
 
   revalidatePath('/market');
   revalidatePath(`/market/${appId}`);

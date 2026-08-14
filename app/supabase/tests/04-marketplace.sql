@@ -152,6 +152,10 @@ select assert_eq(
   (select count(*)::int from market_apps('saved') m), 0,
   'and nobody else''s watchlist leaks into theirs');
 
+-- Put 01's fixture back: 05 shares it, and a status this file changed would
+-- surface there as a failure in the wrong file.
+update apps set status = 'draft' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+
 -- The chip counts have to agree with the grid, or a chip promises a page that
 -- comes back empty.
 select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', false);
