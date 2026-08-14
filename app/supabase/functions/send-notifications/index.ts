@@ -18,19 +18,26 @@
  */
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { type Claimed, renderDigest, renderItem } from './templates.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
+const SMTP_HOST = Deno.env.get('SMTP_HOST') ?? '';
+const SMTP_PORT = Number(Deno.env.get('SMTP_PORT') ?? '587');
+const SMTP_USER = Deno.env.get('SMTP_USER') ?? '';
+const SMTP_PASSWORD = Deno.env.get('SMTP_PASSWORD') ?? '';
 const NOTIFICATION_FROM = Deno.env.get('NOTIFICATION_FROM') ?? '';
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? '';
-const SITE_URL = (Deno.env.get('SITE_URL') ?? 'https://testerpool.com').replace(/\/+$/, '');
+const SITE_URL = (Deno.env.get('SITE_URL') ?? 'https://testerpool.dev').replace(/\/+$/, '');
 
 const MAX_ATTEMPTS = 5;
 const DEFAULT_LIMIT = 100;
 const QUIET_HOURS = 20;
-/** Resend's free tier allows two requests a second. Stay under it. */
+/**
+ * One connection carries the whole batch, so this is politeness towards the
+ * provider's per-second cap rather than a hard limit of our own.
+ */
 const SEND_SPACING_MS = 120;
 
 const json = (body: unknown, status = 200) =>
@@ -179,7 +186,9 @@ Deno.serve(async (req: Request) => {
   // exactly what would have gone out, hand the attempts back, and let the next
   // run send for real once the key exists.
   const missing: string[] = [];
-  if (!RESEND_API_KEY) missing.push('RESEND_API_KEY');
+  if (!SMTP_HOST) missing.push('SMTP_HOST');
+  if (!SMTP_USER) missing.push('SMTP_USER');
+  if (!SMTP_PASSWORD) missing.push('SMTP_PASSWORD');
   if (!NOTIFICATION_FROM) missing.push('NOTIFICATION_FROM');
   const dryRun = forcedDryRun || missing.length > 0;
 
@@ -223,41 +232,68 @@ Deno.serve(async (req: Request) => {
     return json(summary);
   }
 
-  // Exact duplicates were covered by the digest that carried the original, so
-  // they are settled as sent rather than left to be re-claimed forever.
-  if (duplicates.length > 0) settle.sent.push(...duplicates);
   if (undeliverable.length > 0) {
     settle.failed.push({ ids: undeliverable, error: 'no deliverable email address on profile' });
   }
 
+  // One connection for the whole batch. denomailer dials lazily, so a wrong
+  // host or a rejected password surfaces on the first send rather than here.
+  const client = new SMTPClient({
+    connection: {
+      hostname: SMTP_HOST,
+      port: SMTP_PORT,
+      // 465 is implicit TLS. 587 opens in the clear and upgrades with STARTTLS,
+      // which denomailer negotiates on its own.
+      tls: SMTP_PORT === 465,
+      auth: { username: SMTP_USER, password: SMTP_PASSWORD },
+    },
+  });
+
   let emailsAccepted = 0;
+  const sendFailures: Array<{ ids: number[]; error: string }> = [];
   for (const d of digests) {
     try {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: NOTIFICATION_FROM,
-          to: [d.to],
-          subject: d.subject,
-          html: d.html,
-          text: d.text,
-        }),
+      await client.send({
+        from: NOTIFICATION_FROM,
+        to: d.to,
+        subject: d.subject,
+        content: d.text,
+        html: d.html,
       });
-      if (res.ok) {
-        emailsAccepted++;
-        settle.sent.push(...d.ids);
-      } else {
-        const detail = (await res.text()).slice(0, 300);
-        settle.failed.push({ ids: d.ids, error: `resend ${res.status}: ${detail}` });
-      }
+      emailsAccepted++;
+      settle.sent.push(...d.ids);
     } catch (e) {
-      settle.failed.push({ ids: d.ids, error: `resend request failed: ${String(e).slice(0, 200)}` });
+      sendFailures.push({ ids: d.ids, error: `smtp: ${String(e).slice(0, 240)}` });
     }
     await new Promise((r) => setTimeout(r, SEND_SPACING_MS));
+  }
+
+  try {
+    await client.close();
+  } catch {
+    // Every row is already accounted for by this point. A noisy teardown is not
+    // worth failing a run over.
+  }
+
+  // Every single digest failing is an outage or a bad credential, not three
+  // hundred bad addresses. Those rows go back on the queue rather than spending
+  // an attempt each: five bad runs in a row would otherwise drop a reminder for
+  // good, and a dropped reminder breaks somebody's fourteen-day clock.
+  const outage = emailsAccepted === 0 && sendFailures.length > 0;
+  let outageError: string | null = null;
+
+  if (outage) {
+    outageError = sendFailures[0].error;
+    const stranded = [...sendFailures.flatMap((f) => f.ids), ...duplicates];
+    if (stranded.length > 0) {
+      await db.rpc('release_notifications', { p_ids: stranded });
+      settle.released.push(...stranded);
+    }
+  } else {
+    settle.failed.push(...sendFailures);
+    // Exact duplicates were covered by the digest that carried the original, so
+    // they are settled as sent rather than left to be re-claimed forever.
+    if (duplicates.length > 0) settle.sent.push(...duplicates);
   }
 
   // ---- 5. Settle ----------------------------------------------------------
@@ -274,17 +310,21 @@ Deno.serve(async (req: Request) => {
 
   const failedRows = settle.failed.reduce((n, f) => n + f.ids.length, 0);
   const summary = {
-    ok: failedRows === 0,
+    ok: failedRows === 0 && !outage,
     dry_run: false,
-    delivery: 'resend' as const,
+    delivery: 'smtp' as const,
+    smtp_host: SMTP_HOST,
     claimed: rows.length,
     emails_sent: emailsAccepted,
     emails_attempted: digests.length,
     rows_sent: settle.sent.length,
     rows_failed: failedRows,
+    rows_released: settle.released.length,
     duplicate_rows_collapsed: duplicates.length,
     by_kind: countKinds(rows),
-    errors: settle.failed.slice(0, 5).map((f) => f.error),
+    errors: outageError
+      ? [`every digest failed, rows released for retry — ${outageError}`]
+      : settle.failed.slice(0, 5).map((f) => f.error),
     duration_ms: Date.now() - started,
   };
 
