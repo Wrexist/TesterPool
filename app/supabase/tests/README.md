@@ -21,6 +21,16 @@ psql -h "$SP" -p 5433 -U postgres -c "create database tp"
 psql -h "$SP" -p 5433 -U postgres \
      -c 'alter database tp set search_path to "$user", public, extensions'
 
+# `create extension pg_cron` / `pg_net` in the jobs migration need a control
+# file to exist even though the extension itself does nothing here. The stub
+# file creates the cron.* and net.* objects by hand, but it cannot write to the
+# extension directory from SQL, so this part happens in the shell.
+EXT=$(pg_config --sharedir)/extension
+for e in pg_cron pg_net; do
+  printf "comment = 'stub'\ndefault_version = '1.0'\nrelocatable = true\n" > "$EXT/$e.control"
+  printf -- "-- empty: objects come from 00-supabase-stub.sql\n" > "$EXT/$e--1.0.sql"
+done
+
 # Stubs, then the real migrations, then the tests.
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/00-supabase-stub.sql
 psql -h "$SP" -p 5433 -U postgres -d tp \
@@ -37,18 +47,26 @@ psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/02-install-cap.sql
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/03-proof-intake.sql
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/04-marketplace.sql
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/05-payment-locks.sql
+psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/06-showcase.sql
 ```
 
 `04` asserts the marketplace projection: what is listed to whom, and that a member
 browsing the directory cannot read the opt-in link or package name of an app they hold
 no assignment on.
 
-`05` is the only file that runs as `authenticated` rather than as the table
+`06` asserts the anonymous showcase behind the public `/pool` page: which apps a
+stranger is shown, that the `public_preview` opt-out withdraws one, that the limit is
+clamped, and — the half that matters — that the projection carries no package name,
+opt-in link, Google Group, tester instruction, id, owner or score. Its last assertions
+run as `anon` for real, because a grant test executed as the table owner would pass
+against a function `anon` cannot actually reach.
+
+`05` runs as `authenticated` rather than as the table
 owner, because the exploits it asserts against are only reachable from a signed-in
 session. It covers the two money printers found on 13 Aug 2026: writing your own
 `opt_in_verified_at`, and inserting your own pre-approved proof.
 
-All five files abort on the first failed assertion and print `ALL ... PASSED`
+All six files abort on the first failed assertion and print `ALL ... PASSED`
 at the end if nothing is wrong.
 
 ## What the stub provides

@@ -6,15 +6,23 @@ import * as React from 'react';
 import Link from 'next/link';
 import { LogoMark, Wordmark } from '@/components/Logo';
 
-const NAV = [
-  // First, because it is the proof rather than a claim: a real review, in full.
-  // It is what a visitor is deciding about, and the one link on this bar that
-  // shows the product instead of describing it.
+/**
+ * Ordered by what a first-time visitor needs. The two links that show the
+ * product rather than describe it come first: the pool is what is actually in
+ * the network, and the review is what you get out of it.
+ *
+ * `wide` holds the last two back until `lg`. Six links do fit across the bar at
+ * 768px, but only by wrapping each one onto three lines — which is invisible to
+ * an overflow check, because wrapped text does not overflow anything. The four
+ * that stay are the four a stranger is choosing between.
+ */
+const NAV: Array<{ href: string; label: string; wide?: boolean }> = [
+  { href: '/pool', label: 'Browse the pool' },
   { href: '/#report', label: 'See a review' },
   { href: '/#how', label: 'How it works' },
   { href: '/#pricing', label: 'Pricing' },
-  { href: '/readiness', label: 'Readiness check' },
-  { href: '/launch', label: 'Launch feed' },
+  { href: '/readiness', label: 'Readiness check', wide: true },
+  { href: '/launch', label: 'Launch feed', wide: true },
 ];
 
 export function SiteNav() {
@@ -26,12 +34,17 @@ export function SiteNav() {
           <Wordmark />
         </Link>
 
-        <div className="hidden items-center gap-6 md:flex">
+        <div className="hidden items-center gap-5 md:flex lg:gap-6">
           {NAV.map((n) => (
             <Link
               key={n.href}
               href={n.href}
-              className="text-[13px] font-medium text-[var(--color-dim)] transition-colors hover:text-[var(--color-ink)]"
+              className={[
+                // whitespace-nowrap so a bar that no longer fits overflows
+                // visibly instead of quietly stacking each label into a column.
+                'whitespace-nowrap text-[13px] font-medium text-[var(--color-dim)] transition-colors hover:text-[var(--color-ink)]',
+                n.wide ? 'hidden lg:inline' : '',
+              ].join(' ')}
             >
               {n.label}
             </Link>
@@ -55,6 +68,7 @@ const FOOTER_COLS: Array<{ title: string; links: Array<{ label: string; href: st
   {
     title: 'Product',
     links: [
+      { label: 'Browse the pool', href: '/pool' },
       { label: 'See a review', href: '/#report' },
       { label: 'How it works', href: '/#how' },
       { label: 'Pricing', href: '/#pricing' },

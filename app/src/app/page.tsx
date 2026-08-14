@@ -884,12 +884,18 @@ export default function LandingPage() {
                   ones that cost you the account.
                 </p>
 
+                {/*
+                  The first ask is a look, not a form. /pool needs no account,
+                  so a visitor can see whether anyone is actually here before
+                  being asked for an email — which is the question they have,
+                  and the one a signup wall refuses to answer.
+                */}
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <Link href="/login" className="btn btn-primary h-11 px-5 text-[15px]">
-                    Start free <Arrow />
+                  <Link href="/pool" className="btn btn-primary h-11 px-5 text-[15px]">
+                    Browse the pool <Arrow />
                   </Link>
-                  <Link href="/readiness" className="btn btn-secondary h-11 px-5 text-[15px]">
-                    Check if you&rsquo;re ready
+                  <Link href="/login" className="btn btn-secondary h-11 px-5 text-[15px]">
+                    Start free
                   </Link>
                 </div>
 

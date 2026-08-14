@@ -1,8 +1,9 @@
 # First sight — repositioning the landing page around the reviews
 
-Status: **phases 1–3 shipped** — hero repositioned around the reviews a developer
+Status: **phases 1–4 shipped** — hero repositioned around the reviews a developer
 receives, the review anchor section, the store-review FAQ conversion, honest stat strip,
-site metadata, and the resequencing. Phases 4–5 below are still proposals.
+site metadata, the resequencing, and the public `/pool` preview. Phase 5
+(instrumentation) is the only one still outstanding.
 Owner: marketing surface (`app/src/app/page.tsx`, `SiteChrome`, `/launch`, `/readiness`).
 
 ---
@@ -301,12 +302,15 @@ indexable that is not a pitch. Signed-in users hitting `/pool` redirect to
 *(Not `/apps`, as first drafted: `(app)/apps` already owns that URL — it is the
 authenticated "my apps" screen. A public route of the same name would collide.)*
 
-**Decision needed before building:** whether we are willing to expose app names and
-taglines to anonymous visitors at all. The argument for is that a name plus a tagline
-leaks nothing that gets anyone into a closed track, and an invisible marketplace
-recruits nobody. The argument against is that some developers are building in stealth.
-Mitigation, if we want it: an app-level `public_preview` boolean defaulting to true,
-with an opt-out in the app settings — one column, one filter in the RPC.
+**Decision, taken:** app names and taglines are visible to anonymous visitors, with an
+owner opt-out. `apps.public_preview` defaults to true and the showcase filters on it, so
+listing is opt-out rather than opt-in — an invisible marketplace recruits nobody, and a
+name plus a tagline leaks nothing that gets anyone into a closed track. Stealth builders
+can withdraw a single app without leaving the pool.
+
+**Still to build:** the opt-out has no UI yet. The column and the filter are live and
+tested; `/apps` needs a toggle on the app settings form so an owner can actually use it.
+Until then it is settable only by an admin. That is the one loose end from phase 4.
 
 ---
 
@@ -353,7 +357,7 @@ the new page and compare fortnight over fortnight.
 | ~~**1 — copy + hero**~~ | ~~New headline, lede, CTAs, the "job" cards, the loop visual, stat strip wired or removed~~ **done** | `app/src/app/page.tsx`, `app/src/app/layout.tsx`, `app/src/app/globals.css` |
 | ~~**2 — the review anchor**~~ | ~~§4.3 section, redacted sample review, the three claims~~ **done**, plus the store-review FAQ conversion | `app/src/app/page.tsx`, `app/src/app/layout.tsx` |
 | ~~**3 — resequencing**~~ | ~~Demote pod section, retarget reliability, move compliance, rewrite economy around conservation~~ **done**, plus the comparison row and nav | `app/src/app/page.tsx`, `app/src/components/SiteChrome.tsx` |
-| **4 — public preview** | `market_showcase()` migration + test, `/apps` route, signed-in redirect, hero CTA points at it | `app/supabase/migrations/`, `app/supabase/tests/`, `app/src/app/apps/` |
+| ~~**4 — public preview**~~ | ~~`market_showcase()` migration + test, route, signed-in redirect, hero CTA~~ **done** as `/pool`, plus a security fix the advisors turned up | `app/supabase/migrations/`, `app/supabase/tests/06-showcase.sql`, `app/src/app/pool/`, `SiteChrome.tsx` |
 | **5 — instrumentation** | Events, funnels, then measure | `PostHogProvider`, `page.tsx` |
 
 Phases 1–3 are copy and layout inside one file and carry no schema risk. Phase 4 is the
@@ -374,6 +378,38 @@ gates on `supabase/tests/` passing, since it adds a `security definer` function.
   *advertise* that step, which makes it harder to quietly remove later — deliberately.
 - No change to pods, matching, escrow, or the economy. This is a positioning change with
   one additive read-only RPC behind it.
+
+---
+
+## 9a. What phase 4 turned up
+
+**Four trigger functions were callable by `anon` over REST.** `get_advisors(security)`,
+run after applying `market_showcase`, flagged `guard_daily_install_cap`,
+`guard_daily_review_cap`, `on_optin_confirmed` and `unpause_on_topup` as executable by
+`anon` at `/rest/v1/rpc/<name>`. Two of them decide money — `on_optin_confirmed` is the
+trigger that moves 10 credits from an app owner to a tester.
+
+Not exploitable as it stood: PostgreSQL refuses to invoke a `returns trigger` function
+outside a trigger context. But that is a property of the return type, not a decision
+anyone made, and it violates this repo's own standing rule that a `security definer`
+function is revoked unless it genuinely needs to be callable. Fixed in
+`20260814150000_revoke_trigger_function_execute.sql`.
+
+Revoking `EXECUTE` does not stop a trigger firing — PostgreSQL checks that privilege when
+the trigger is *created*, not each time it fires. Verified before applying, against a
+throwaway replay of the full migration history: with the grants removed, an assignment
+insert, an opt-in stamp and a feedback insert all still reached their triggers.
+
+**The test harness recipe in `supabase/tests/README.md` did not work.** `create extension
+pg_cron` needs a control file to exist even though the stub creates the `cron.*` objects
+by hand, and SQL cannot write one. The README now carries the two shell lines that make
+the documented run actually run.
+
+**Six nav links wrap at 768px.** They do not overflow — each label quietly stacks into a
+three-line column instead, which is why a `scrollWidth > clientWidth` check misses it
+entirely. The last two links are now held back until `lg`, and every link is
+`whitespace-nowrap` so the next person to add one gets a visible overflow rather than a
+silent stack.
 
 ---
 
