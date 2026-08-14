@@ -14,13 +14,23 @@ const inter = Inter({
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
+/*
+ * Lead with the loop, not the pod — same reposition as the landing page, and it
+ * matters more here, because a search result and a shared link are the actual
+ * first sight for most people who ever reach us.
+ *
+ * The old copy also promised "no money", which the pricing page contradicts.
+ * A claim the site itself disproves two clicks later is worse than no claim.
+ */
+const TITLE = 'TesterPool — Test apps, earn testers, ship on Google Play';
+
 const DESCRIPTION =
-  'Google Play needs 12 testers for 14 consecutive days. TesterPool puts you in a pod of 15 developers who test each other for the same 14 days — no money, no policy risk, no ghosting.';
+  'Install apps from a pool of indie Android developers, send one structured report, and earn the 12 testers Google Play requires you to hold for 14 consecutive days. Closed testing tracks only — no store reviews, no ratings, no policy risk.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'TesterPool — Get your 12. Keep them 14 days. Ship.',
+    default: TITLE,
     template: '%s · TesterPool',
   },
   description: DESCRIPTION,
@@ -31,17 +41,19 @@ export const metadata: Metadata = {
     'production access',
     'Android beta testers',
     'closed testing track',
+    'app testing exchange',
+    'test apps for credits',
   ],
   openGraph: {
     type: 'website',
     siteName: 'TesterPool',
     url: SITE_URL,
-    title: 'TesterPool — Get your 12. Keep them 14 days. Ship.',
+    title: TITLE,
     description: DESCRIPTION,
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TesterPool — Get your 12. Keep them 14 days. Ship.',
+    title: TITLE,
     description: DESCRIPTION,
   },
   robots: { index: true, follow: true },

@@ -131,5 +131,17 @@
 .animate-pop { animation: pop .28s cubic-bezier(.2,.8,.2,1) both; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  /*
+   * Delay has to be zeroed alongside duration. `animate-pop` uses fill-mode
+   * `both`, so a staggered element holds its 0% keyframe — opacity 0 — for the
+   * whole delay. Collapsing only the duration therefore leaves content
+   * invisible for as long as the stagger lasts, which is worse than the
+   * animation it was meant to spare. Anything staggered is simply present.
+   */
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: .01ms !important;
+    transition-delay: 0ms !important;
+  }
 }

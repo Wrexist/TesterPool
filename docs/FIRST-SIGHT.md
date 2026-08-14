@@ -1,6 +1,7 @@
 # First sight — repositioning the landing page around the loop
 
-Status: proposal. Nothing in here is built yet.
+Status: **phase 1 shipped** (hero, the job section, honest stat strip, site metadata).
+Phases 2–5 below are still proposals.
 Owner: marketing surface (`app/src/app/page.tsx`, `SiteChrome`, `/launch`, `/readiness`).
 
 ---
@@ -247,11 +248,14 @@ cannot use it.
 - Needs a regression test in `supabase/tests/` asserting that an `anon` caller gets
   exactly those columns and no track-entry field.
 
-That RPC feeds a new public route **`/apps`** — a read-only shelf of what is in the pool
+That RPC feeds a new public route **`/pool`** — a read-only shelf of what is in the pool
 right now, no signup. It is the destination for the hero's primary CTA, it makes the
 stat strip clickable and therefore credible, and it gives search engines something
-indexable that is not a pitch. Signed-in users hitting `/apps` redirect to
+indexable that is not a pitch. Signed-in users hitting `/pool` redirect to
 `/market`, which stays exactly as it is.
+
+*(Not `/apps`, as first drafted: `(app)/apps` already owns that URL — it is the
+authenticated "my apps" screen. A public route of the same name would collide.)*
 
 **Decision needed before building:** whether we are willing to expose app names and
 taglines to anonymous visitors at all. The argument for is that a name plus a tagline
@@ -302,7 +306,7 @@ the new page and compare fortnight over fortnight.
 
 | Phase | Work | Files |
 | --- | --- | --- |
-| **1 — copy + hero** | New headline, lede, CTAs, the "job" cards, the loop visual, stat strip wired or removed | `app/src/app/page.tsx`, `app/src/components/SiteChrome.tsx` |
+| ~~**1 — copy + hero**~~ | ~~New headline, lede, CTAs, the "job" cards, the loop visual, stat strip wired or removed~~ **done** | `app/src/app/page.tsx`, `app/src/app/layout.tsx`, `app/src/app/globals.css` |
 | **2 — the report anchor** | §4.3 section, redacted sample report, the three claims | `page.tsx`, possibly one new marketing component |
 | **3 — resequencing** | Demote pod section, retarget reliability, move compliance, rewrite economy around conservation | `page.tsx` |
 | **4 — public preview** | `market_showcase()` migration + test, `/apps` route, signed-in redirect, hero CTA points at it | `app/supabase/migrations/`, `app/supabase/tests/`, `app/src/app/apps/` |
@@ -326,3 +330,24 @@ gates on `supabase/tests/` passing, since it adds a `security definer` function.
   *advertise* that step, which makes it harder to quietly remove later — deliberately.
 - No change to pods, matching, escrow, or the economy. This is a positioning change with
   one additive read-only RPC behind it.
+
+---
+
+## 10. Open copy decisions
+
+**The hero announcement chip** still reads *"NEW — Rescue testers now matched in under
+6 hours"*. It is a pod claim sitting above a loop headline, so it is now the one line
+above the fold that does not serve the spine. It was left alone deliberately: every
+replacement worth writing would be a claim about the network that nobody has verified,
+and inventing one is the mistake we just removed from the stat strip. Three honest
+options, in preference order:
+
+1. Point it at the pool once phase 4 lands — *"N apps open to testers right now"*, read
+   live from `market_showcase()`. This is the version the chip is actually for.
+2. Retire the chip until there is something true and new to announce.
+3. Keep it, and accept that first sight opens on the rescue feature.
+
+**The secondary CTA** is still "Check if you're ready" → `/readiness`. That stays the
+right call until `/pool` exists, because it is the only thing on the site today that a
+stranger can use without signing up. At phase 4 the pair becomes *Browse the pool*
+(primary) and *Start free* (secondary), and the readiness check moves into the nav.

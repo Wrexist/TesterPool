@@ -6,11 +6,8 @@ import {
   Pill,
   CreditChip,
   StreakStrip,
-  streakFromCount,
   ReliabilityGauge,
-  ProgressRing,
   Avatar,
-  Stat,
   cx,
   type DayState,
 } from '@/components/ui';
@@ -121,82 +118,154 @@ function Section({
 
 /* ------------------------------------------------------------ hero visual */
 
-type TesterRow = {
-  name: string;
-  handle: string;
-  country: string;
-  done: number;
-  reliability: number;
-};
+/**
+ * The loop, in one card: install an app, file one report, get paid.
+ *
+ * This replaced a pod progress ring at day 9 of 14. The ring was a picture of
+ * waiting — the cost of the product rendered before the product. What a first-
+ * time visitor needs to see instead is the thing they will actually do in their
+ * first five minutes, which is this.
+ *
+ * Two things it deliberately does not draw, both for invariant 1:
+ *
+ *   - No package name. For an app in closed testing the package name is the way
+ *     into the track, and the way in is granted by a pod, not by a picture on
+ *     the marketing site.
+ *   - No 1-5 rubric scores, even though the real report form collects them.
+ *     Those scores are private between a tester and a developer. Rendered on a
+ *     public page beside an app icon they read as a star rating, which is the
+ *     exact shape the schema refuses to be able to represent. Severity is drawn
+ *     instead: it classifies a defect, it does not rate an app.
+ *
+ * Server-rendered. The stagger is CSS only (`animate-pop` + delay), and the
+ * reduced-motion block in globals.css zeroes both duration and delay, so the
+ * whole card is simply present for anyone who asked for less movement.
+ */
+function LoopVisual() {
+  const beats = [
+    {
+      n: 1,
+      label: 'Pick an app from the pool',
+      body: (
+        <div className="flex items-center gap-3">
+          <span
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold"
+            style={{ background: 'oklch(0.34 0.07 150)', color: 'oklch(0.9 0.12 150)' }}
+            aria-hidden
+          >
+            V
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-semibold leading-tight">Vellum Notes</div>
+            <div className="truncate text-[11px] text-[var(--color-mute)]">
+              Productivity · Android · open to testers
+            </div>
+          </div>
+          <span
+            className="shrink-0 rounded-lg px-3 py-1.5 text-[12px] font-semibold"
+            style={{ background: 'var(--color-accent)', color: '#04150C' }}
+            aria-hidden
+          >
+            Install
+          </span>
+        </div>
+      ),
+    },
+    {
+      n: 2,
+      label: 'Use it, then write it up once',
+      body: (
+        <div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-mute)]">
+              What broke
+            </span>
+            <Pill tone="amber">Severity 2</Pill>
+          </div>
+          <p className="mt-2 text-[13px] leading-relaxed text-[var(--color-dim)]">
+            Export to Markdown silently does nothing on Android 13 when the note
+            has an attachment. Repro steps attached.
+          </p>
+        </div>
+      ),
+    },
+    {
+      n: 3,
+      label: 'Both halves of the job pay',
+      body: (
+        <ul className="space-y-2">
+          <li className="flex items-center justify-between gap-3">
+            <span className="text-[13px] text-[var(--color-dim)]">Install confirmed</span>
+            <CreditChip amount={EARN.optInVerified} signed size="sm" />
+          </li>
+          <li className="flex items-center justify-between gap-3">
+            <span className="text-[13px] text-[var(--color-dim)]">Report approved</span>
+            <CreditChip amount={EARN.feedbackApproved} signed size="sm" />
+          </li>
+          <li className="flex items-center justify-between gap-3 border-t border-[var(--color-line)] pt-2">
+            <span className="text-[13px] font-semibold">Buys you</span>
+            <span className="num text-[13px] font-semibold text-[var(--color-accent)]">
+              1 tester on your app
+            </span>
+          </li>
+        </ul>
+      ),
+    },
+  ];
 
-const HERO_TESTERS: TesterRow[] = [
-  { name: 'Priya Raman', handle: 'priya_builds', country: 'IN', done: 9, reliability: 96 },
-  { name: 'Tomas Novak', handle: 'tnovak', country: 'CZ', done: 9, reliability: 91 },
-  { name: 'Dani Okafor', handle: 'daniokafor', country: 'NG', done: 9, reliability: 88 },
-  { name: 'Mei Lin Chow', handle: 'meilin', country: 'MY', done: 8, reliability: 84 },
-  { name: 'Ola Berg', handle: 'olaberg', country: 'SE', done: 9, reliability: 97 },
-];
-
-function HeroVisual() {
   return (
     <Card className="relative overflow-hidden p-5 sm:p-6">
       <div
         className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full"
         style={{ background: 'radial-gradient(circle, color-mix(in oklab, var(--color-accent) 16%, transparent), transparent 70%)' }}
       />
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
+
+      <div className="relative flex items-center justify-between gap-4">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-mute)]">
+          One job, start to finish
+        </span>
+        <Pill tone="green">Closed track</Pill>
+      </div>
+
+      <ol className="relative mt-5 space-y-3">
+        {/* The rail. Decorative — the ordered list already carries the sequence. */}
+        <div
+          className="pointer-events-none absolute bottom-6 left-[13px] top-6 w-px"
+          style={{ background: 'var(--color-line)' }}
+          aria-hidden
+        />
+        {beats.map((b, i) => (
+          <li
+            key={b.n}
+            className="animate-pop relative flex gap-3"
+            style={{ animationDelay: `${120 * i}ms` }}
+          >
             <span
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold"
-              style={{ background: 'oklch(0.34 0.07 150)', color: 'oklch(0.9 0.12 150)' }}
+              className="num relative z-10 mt-0.5 inline-flex h-[27px] w-[27px] shrink-0 items-center justify-center rounded-full border text-[11px] font-bold"
+              style={{
+                background: 'var(--color-surface-2)',
+                borderColor: 'color-mix(in oklab, var(--color-accent) 34%, transparent)',
+                color: 'var(--color-accent)',
+              }}
+              aria-hidden
             >
-              F
+              {b.n}
             </span>
-            <div>
-              <div className="text-sm font-semibold leading-tight">Ferndeck</div>
-              <div className="text-[11px] text-[var(--color-mute)]">com.ferndeck.app · pod HX-42</div>
-            </div>
-          </div>
-        </div>
-        <Pill tone="green">On track</Pill>
-      </div>
-
-      <div className="mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-center">
-        <ProgressRing value={9} max={14} size={132} stroke={9} caption="Days held" sub="5 days to go" />
-        <div className="grid w-full flex-1 grid-cols-2 gap-2">
-          <Stat label="Opted in" value={<span className="num">15</span>} sub={`${RULES.requiredTesters} required`} />
-          <Stat label="Still active" value={<span className="num">14</span>} sub="1 rescue sent" />
-          <Stat label="Feedback" value={<span className="num">23</span>} sub="reports approved" />
-          <Stat label="Engagement" value={<span className="num">94%</span>} sub="daily open rate" tone="var(--color-accent)" />
-        </div>
-      </div>
-
-      <div className="mt-6 border-t border-[var(--color-line)] pt-4">
-        <div className="mb-3 flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-mute)]">
-            Your testers
-          </span>
-          <span className="num text-[11px] text-[var(--color-mute)]">day 9 / 14</span>
-        </div>
-        <ul className="space-y-2.5">
-          {HERO_TESTERS.map((t) => (
-            <li key={t.handle} className="flex items-center gap-3">
-              <Avatar name={t.name} size={26} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-medium leading-tight">{t.name}</div>
-                <div className="num text-[11px] text-[var(--color-mute)]">
-                  @{t.handle} · {t.country} · {t.reliability} rel
-                </div>
+            <div className="min-w-0 flex-1">
+              <div className="mb-2 text-[13px] font-medium">{b.label}</div>
+              <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-bg)] p-3">
+                {b.body}
               </div>
-              <StreakStrip days={streakFromCount(t.done, 9)} size={9} gap={2.5} />
-            </li>
-          ))}
-        </ul>
-        <div className="num mt-3 text-[11px] text-[var(--color-mute)]">
-          + 10 more testers holding the clock
-        </div>
-      </div>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <p className="mt-5 border-t border-[var(--color-line)] pt-4 text-[12px] leading-relaxed text-[var(--color-mute)]">
+        Do this {RULES.requiredTesters} times and you have paid for the{' '}
+        {RULES.requiredTesters} testers Google Play asks you to hold for{' '}
+        {RULES.requiredDays} consecutive days.
+      </p>
     </Card>
   );
 }
@@ -244,6 +313,44 @@ function ClockCompare() {
     </div>
   );
 }
+
+/* --------------------------------------------------------------- the job */
+
+/**
+ * What a tester is actually being asked to do, priced. Two of the three steps
+ * pay, and the middle one does not: showing up daily is the most important
+ * thing a tester does, and it is enforced through the Reliability Score rather
+ * than bribed through the balance. A check-in that minted credits would pay
+ * more for testing an app than testing it costs its developer — a money
+ * printer. `EARN.dailyCheckin` is 0 for that reason, so this reads it rather
+ * than hardcoding the gap.
+ */
+const JOB: Array<{ title: string; body: string; detail: string; pays: number | null }> = [
+  {
+    title: 'Opt in',
+    pays: EARN.optInVerified,
+    body:
+      'One tap on the developer’s closed-track link. You are in their testing track, which is the only place any of this happens.',
+    detail:
+      'Confirmed by screenshot proof reviewed on our side, never by your own word — that is why the credits are worth something.',
+  },
+  {
+    title: 'Use it',
+    pays: EARN.dailyCheckin || null,
+    body:
+      'Open the app on the days the pod is running and check in. Ten seconds. This is the part Google actually measures, so it is the part that counts.',
+    detail:
+      'Check-ins pay nothing on purpose. They build your Reliability Score, which is what gets you into good pods.',
+  },
+  {
+    title: 'Report',
+    pays: EARN.feedbackApproved,
+    body:
+      'One structured report against the two or three things the developer asked you to hammer: what broke, what confused you, what you would change.',
+    detail:
+      `A blocker pays the same as a compliment, plus a ${EARN.bugBountyBlocker}-credit bounty we fund ourselves. Finding the worst bug must never cost the developer most.`,
+  },
+];
 
 /* ---------------------------------------------------------- how it works */
 
@@ -596,8 +703,17 @@ export default function LandingPage() {
             }}
           />
           <div className="relative mx-auto max-w-6xl px-4 pb-20 pt-16 sm:px-6 sm:pb-24 sm:pt-24">
+            {/*
+              min-w-0 on both columns is load-bearing, not tidiness. A grid item
+              defaults to min-width:auto, so a child with a wide min-content —
+              the loop card's truncating app row — pushes the item past its
+              track instead of shrinking inside it. The hero section clips with
+              overflow-hidden, so the failure mode is not a scrollbar you would
+              notice: it is copy quietly cut off the right edge on a phone,
+              which is the device most of this audience is reading on.
+            */}
             <div className="grid items-start gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
-              <div>
+              <div className="min-w-0">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-line)] bg-[var(--color-surface)] py-1 pl-1 pr-3">
                   <Pill tone="green">New</Pill>
                   <span className="text-xs text-[var(--color-dim)]">
@@ -606,24 +722,26 @@ export default function LandingPage() {
                 </div>
 
                 <h1 className="mt-6 text-[2.6rem] font-bold leading-[1.04] tracking-tight sm:text-6xl">
-                  Get your 12.
+                  Install an app.
                   <br />
-                  Keep them 14 days.
+                  Write one report.
                   <br />
-                  <span style={{ color: 'var(--color-accent)' }}>Ship.</span>
+                  <span style={{ color: 'var(--color-accent)' }}>Get tested back.</span>
                 </h1>
 
                 <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--color-dim)]">
-                  Google Play will not let you publish until{' '}
-                  {RULES.requiredTesters} testers stay opted in for{' '}
-                  {RULES.requiredDays} consecutive days. TesterPool puts you in a pod
-                  of {RULES.podSeats} developers who test each other for the same{' '}
-                  {RULES.requiredDays} days. Everyone gets their twelve. Everyone
-                  graduates together.
+                  TesterPool is a pool of indie Android developers who test each
+                  other&rsquo;s apps inside closed testing tracks. You install what
+                  someone else built, use it for a few days, and send one structured
+                  report. That work earns credits, and credits buy you the{' '}
+                  {RULES.requiredTesters} testers Google Play requires you to hold
+                  for {RULES.requiredDays} consecutive days before it will let you
+                  publish.
                 </p>
 
-                <p className="mt-3 text-base text-[var(--color-mute)]">
-                  The tester network that won&rsquo;t get your app pulled.
+                <p className="mt-3 max-w-xl text-base leading-relaxed text-[var(--color-mute)]">
+                  Closed tracks only. No store reviews, no ratings, no public
+                  installs &mdash; nothing that can get your app pulled.
                 </p>
 
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -635,39 +753,98 @@ export default function LandingPage() {
                   </Link>
                 </div>
 
-                <dl className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-[var(--color-line)] pt-6">
+                {/*
+                  This strip used to read "1,247 developers · 38 pods forming ·
+                  9,318 apps greenlit", hardcoded, beside a glowing "live" dot.
+                  On a page whose whole argument is that we are the honest option,
+                  invented traffic figures are the one unforced error that costs
+                  the argument — and "apps greenlit" is a claim about outcomes we
+                  would have to defend. These four are true, checkable against
+                  lib/economy, and they state the offer rather than flatter it.
+                  Real network counts return here in phase 4, from an
+                  anon-callable projection. See docs/FIRST-SIGHT.md.
+                */}
+                {/*
+                  No vertical rules between these. A separator that is a sibling
+                  of the items it separates ends up dangling at the start or end
+                  of a line the moment the row wraps, and this row wraps at every
+                  width between phone and desktop. Spacing separates them.
+                */}
+                <dl className="mt-10 grid grid-cols-3 gap-x-4 gap-y-3 border-t border-[var(--color-line)] pt-6">
                   {[
-                    { v: '1,247', l: 'developers' },
-                    { v: '38', l: 'pods forming' },
-                    { v: '9,318', l: 'apps greenlit' },
-                  ].map((s, i) => (
-                    <React.Fragment key={s.l}>
-                      {i > 0 && (
-                        <div className="hidden h-4 w-px bg-[var(--color-line)] sm:block" aria-hidden />
-                      )}
-                      <div className="flex items-baseline gap-2">
-                        <dt className="sr-only">{s.l}</dt>
-                        <dd className="num text-xl font-bold leading-none">{s.v}</dd>
-                        <dd className="text-sm text-[var(--color-mute)]">{s.l}</dd>
-                      </div>
-                    </React.Fragment>
+                    { v: `+${EARN.optInVerified}`, l: 'per verified install' },
+                    { v: `+${EARN.feedbackApproved}`, l: 'per approved report' },
+                    { v: EARN.signupGrant.toLocaleString(), l: 'credits to start' },
+                  ].map((s) => (
+                    <div key={s.l}>
+                      <dt className="sr-only">{s.l}</dt>
+                      <dd className="num text-xl font-bold leading-none">{s.v}</dd>
+                      <dd className="mt-1.5 text-sm leading-snug text-[var(--color-mute)]">{s.l}</dd>
+                    </div>
                   ))}
-                  <div className="flex items-center gap-2 text-sm text-[var(--color-dim)]">
-                    <span
-                      className="inline-block h-1.5 w-1.5 rounded-full"
-                      style={{ background: 'var(--color-accent)', boxShadow: '0 0 8px var(--color-accent)' }}
-                    />
-                    live
-                  </div>
                 </dl>
+
+                <p className="mt-4 text-[13px] leading-relaxed text-[var(--color-mute)]">
+                  Credits move between members. Nothing is minted, so nobody can
+                  farm them &mdash; every credit you earn came out of the balance of
+                  the developer whose app you tested.
+                </p>
               </div>
 
-              <div className="lg:pt-4">
-                <HeroVisual />
+              <div className="min-w-0 lg:pt-4">
+                <LoopVisual />
               </div>
             </div>
           </div>
         </section>
+
+        {/* ------------------------------------------------------------- job */}
+        <Section
+          id="job"
+          eyebrow="What testing involves"
+          title="Three things, and none of them take an evening"
+          lede={
+            <>
+              The first fair question about any network that pays you to test is
+              how much work it is actually asking for. Here is all of it.
+            </>
+          }
+        >
+          <div className="mt-12 grid gap-4 md:grid-cols-3">
+            {JOB.map((j) => (
+              <Card key={j.title} className="flex flex-col p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-base font-semibold">{j.title}</h3>
+                  {/*
+                    The unpaid step says so out loud. Left blank it reads as an
+                    omission, when it is the deliberate part: a check-in that
+                    minted credits would pay a tester more for testing an app
+                    than the test costs its developer.
+                  */}
+                  {j.pays === null ? (
+                    <Pill tone="neutral">Pays nothing</Pill>
+                  ) : (
+                    <CreditChip amount={j.pays} signed />
+                  )}
+                </div>
+                <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--color-dim)]">
+                  {j.body}
+                </p>
+                <p className="mt-4 border-t border-[var(--color-line)] pt-3 text-[12px] leading-relaxed text-[var(--color-mute)]">
+                  {j.detail}
+                </p>
+              </Card>
+            ))}
+          </div>
+
+          <p className="mt-6 max-w-2xl text-sm leading-relaxed text-[var(--color-dim)]">
+            A report takes about ten minutes. {RULES.podSeats - 1} of them
+            across two weeks is the entire cost of getting your own app to
+            production &mdash; {FULL_POD_COST.toLocaleString()} credits out as a
+            developer, {FULL_CYCLE_EARNINGS.toLocaleString()} back in as a tester.
+            Do your share and you break exactly even.
+          </p>
+        </Section>
 
         {/* --------------------------------------------------------- problem */}
         <Section
