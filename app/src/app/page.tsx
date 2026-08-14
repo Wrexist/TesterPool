@@ -290,9 +290,9 @@ const JOB: Array<{ title: string; body: string; detail: string; pays: number | n
     title: 'Use it',
     pays: EARN.dailyCheckin || null,
     body:
-      'Open the app on the days the pod is running and check in. Ten seconds. This is the part Google actually measures, so it is the part that counts.',
+      'Open the app on the days your group is running and check in. Ten seconds. This is the part Google actually measures, so it is the part that counts.',
     detail:
-      'Check-ins pay nothing on purpose. They build your Reliability Score, which is what gets you into good pods.',
+      'Check-ins pay nothing on purpose. They build your Reliability Score, which is what gets you into the best groups.',
   },
   {
     title: 'Review',
@@ -433,14 +433,14 @@ const STEPS = [
     title: 'List your app',
     body:
       'Paste your Play closed-track opt-in link or Google Group, add a one-line brief and the two or three things you want testers to hammer. Two minutes.',
-    detail: 'Opt-in link validated before your pod starts — a broken link is the #1 silent killer.',
+    detail: 'Opt-in link validated before your group starts — a broken link is the #1 silent killer.',
   },
   {
     n: '02',
-    title: `Join a pod of ${RULES.podSeats}`,
+    title: `Get grouped with ${RULES.podSeats - 1} developers`,
     body:
       `Fifteen developers, all shipping in the same window, all matched on device mix and timezone spread. Twelve is the requirement; fifteen is what you get.`,
-    detail: 'Free pods typically fill in 3–6 days. Fast Pod starts within 24 hours.',
+    detail: 'A free group typically fills in 3–6 days. Fast Pod starts within 24 hours.',
   },
   {
     n: '03',
@@ -540,7 +540,7 @@ const COMPARISON: Array<{
     criterion: 'Time to start',
     note: 'Where money genuinely buys speed',
     cells: [
-      { verdict: 'mixed', text: 'Free pods fill in 3–6 days; Fast Pod within 24 hours' },
+      { verdict: 'mixed', text: 'A free group fills in 3–6 days; Fast Pod within 24 hours' },
       { verdict: 'good', text: 'Immediate' },
       { verdict: 'good', text: 'Immediate — the honest advantage of paying a stranger' },
       { verdict: 'mixed', text: 'As fast as people reply' },
@@ -635,35 +635,31 @@ const LEDGER: Array<{ label: string; detail: string; amount: number }> = [
   { label: 'Confirmed review', detail: 'on-rubric, arbitrated, private', amount: EARN.feedbackApproved },
 ];
 
-/* ---------------------------------------------------------- testimonials */
+/* --------------------------------------------------------- founding pod */
 
-const TESTIMONIALS = [
+/*
+ * This replaced three testimonials from developers who do not exist — named,
+ * quoted, with countries and outcomes attached. They were the most persuasive
+ * thing on the page and the only thing on it that could not survive one reader
+ * checking. A product whose entire pitch is "we are the honest option in a
+ * category built on lying to developers" cannot open with invented people.
+ *
+ * The slot is worth more used for the truth: this network is new, the first pod
+ * is the one being filled, and the people reading this are exactly who it needs.
+ * That is also the only ask that matters right now.
+ */
+const FOUNDING: Array<{ t: string; b: string }> = [
   {
-    quote:
-      'I had eleven testers twice and got rejected twice. Joined a pod on a Tuesday, applied on day 15 with the evidence pack attached, approved first try. The part that actually mattered was the engagement numbers — I had never been able to prove them before.',
-    name: 'Marcus Hedlund',
-    handle: '@hedlund_dev',
-    app: 'Tallyroom',
-    country: 'Sweden',
-    outcome: 'Approved first try, day 15',
+    t: 'What you get',
+    b: `A seat in the first group: ${RULES.podSeats - 1} developers installing your app, holding the track for ${RULES.requiredDays} days, and each sending one structured review. The same thing every later group gets.`,
   },
   {
-    quote:
-      'Two people went quiet around day 6. On any other service that is a month lost. Here the dashboard flagged it the same morning and both seats were refilled by the next day, and I still had buffer left over. I never dropped below twelve.',
-    name: 'Aisha Kamau',
-    handle: '@aishabuilds',
-    app: 'Sunbeam Habit',
-    country: 'Kenya',
-    outcome: 'Two rescues, zero days lost',
+    t: 'What we get',
+    b: 'The first cycle run end to end by people who will tell us what broke. Founding members set the standard the reviews are held to, and we would rather hear it from fifteen developers than from a launch.',
   },
   {
-    quote:
-      'I tested four apps while mine was in the pod and it cost me maybe six minutes a day. The feedback I got back was better than the paid QA round I did last year — someone found a crash on a Xiaomi device I do not own.',
-    name: 'Diego Salcedo',
-    handle: '@dsalcedo',
-    app: 'PocketRoute',
-    country: 'Colombia',
-    outcome: 'Free tier, 3 blockers found',
+    t: 'What is not here yet',
+    b: 'No apps have shipped yet, because no group has finished. The launch feed is empty and stays empty until one clears. Everything on this page describes how it works, not how well it has worked.',
   },
 ];
 
@@ -700,7 +696,7 @@ const FAQ: Array<{ q: string; a: React.ReactNode }> = [
           The reason people want store reviews is almost always one of two
           things: they cannot publish yet, or the app is not good enough to earn
           reviews on its own. TesterPool is built for both. The first is the{' '}
-          {RULES.requiredTesters}-tester requirement, which a pod clears. The
+          {RULES.requiredTesters}-tester requirement, which one group clears. The
           second is what {RULES.podSeats - 1} critical reviews are for.
         </p>
       </>
@@ -754,8 +750,8 @@ const FAQ: Array<{ q: string; a: React.ReactNode }> = [
         <p className="mt-3">
           Third, dropping out is expensive for the person who does it: it costs{' '}
           {PENALTY.dropout} credits and a serious hit to their Reliability Score,
-          which locks them out of pods below {RULES.minReliabilityToJoin}. Nobody
-          ghosts a pod twice.
+          which locks them out of groups below {RULES.minReliabilityToJoin}. Nobody
+          ghosts a group twice.
         </p>
       </>
     ),
@@ -766,19 +762,19 @@ const FAQ: Array<{ q: string; a: React.ReactNode }> = [
       <p>
         On the free tier, yes — that is the trade, and it is what makes the
         network honest. Testing one app costs roughly five minutes a day: open
-        it, do the thing, tap check-in. Testing every app in a full pod earns{' '}
-        {FULL_CYCLE_EARNINGS} credits — exactly what your own pod costs you, so
+        it, do the thing, tap check-in. Testing every app in a full group earns{' '}
+        {FULL_CYCLE_EARNINGS} credits — exactly what your own group costs you, so
         doing your share breaks even. If you would rather not, Fast Pod at $
         {planPrice('fast')} buys you a seat without reciprocating.
       </p>
     ),
   },
   {
-    q: 'How long until my pod starts?',
+    q: 'How long until reviewing starts?',
     a: (
       <p>
-        Free pods fill in three to six days depending on your device
-        requirements and how many pods are forming that week. Fast Pod guarantees
+        A free group fills in three to six days depending on your device
+        requirements and how many are forming that week. Fast Pod guarantees
         a start within 24 hours. We will be blunt: if you need testers this
         afternoon, a Fiverr gig is faster than our free tier. It is also the one
         most likely to get your account flagged.
@@ -804,8 +800,8 @@ const FAQ: Array<{ q: string; a: React.ReactNode }> = [
     a: (
       <p>
         Android closed testing is what we do properly today, because the 12/14
-        rule is the specific bottleneck we were built to break. TestFlight pods
-        are in limited beta — the same pod mechanics, the same reliability
+        rule is the specific bottleneck we were built to break. TestFlight rounds
+        are in limited beta — the same mechanics, the same reliability
         system, no 14-day requirement to satisfy. Ask for access when you sign
         up.
       </p>
@@ -976,9 +972,10 @@ export default function LandingPage() {
           title="One of the reviews, in full"
           lede={
             <>
-              Not a paraphrase and not a testimonial &mdash; this is the screen a
-              developer sees, with the tester&rsquo;s name changed. Fourteen of
-              these land on your app over {RULES.requiredDays} days.
+              This is the screen a developer sees, rendered by the same component
+              the product uses &mdash; an example of the format, not a real
+              member&rsquo;s report. {RULES.podSeats - 1} of these land on your app
+              over {RULES.requiredDays} days.
             </>
           }
         >
@@ -1065,9 +1062,9 @@ export default function LandingPage() {
               2023 has to run a closed test with at least {RULES.requiredTesters}{' '}
               testers opted in continuously for {RULES.requiredDays} days before
               Google will even consider production access. Miss it by one tester
-              on one day and the count starts over &mdash; which is why a pod is{' '}
-              {RULES.podSeats} people on one shared clock rather than a queue you
-              dip into.
+              on one day and the count starts over &mdash; which is why we group{' '}
+              {RULES.podSeats} people on one shared clock rather than running a
+              queue you dip into.
             </>
           }
         >
@@ -1174,8 +1171,8 @@ export default function LandingPage() {
               <div className="text-center">
                 <div className="text-sm font-semibold">Public, 0&ndash;100</div>
                 <p className="mt-1 text-xs leading-relaxed text-[var(--color-mute)]">
-                  Shown on every profile, every pod roster and the leaderboard.
-                  Below {RULES.minReliabilityToJoin} you cannot join a pod at all.
+                  Shown on every profile, every roster and the leaderboard.
+                  Below {RULES.minReliabilityToJoin} you cannot join a group at all.
                 </p>
               </div>
             </Card>
@@ -1184,8 +1181,8 @@ export default function LandingPage() {
               {[
                 { t: 'Check in every day', s: 'Your score climbs, and your seat stays clean', tone: 'up' },
                 { t: 'Finish a perfect streak', s: 'A Perfect 14 badge and your best score bump', tone: 'up' },
-                { t: 'Rescue someone mid-pod', s: `+${EARN.rescueBonus} credits and a lasting score bump`, tone: 'up' },
-                { t: 'Drop out mid-pod', s: `−${PENALTY.dropout} credits, a score collapse, and a lockout from pods`, tone: 'down' },
+                { t: 'Rescue someone mid-round', s: `+${EARN.rescueBonus} credits and a lasting score bump`, tone: 'up' },
+                { t: 'Drop out mid-round', s: `−${PENALTY.dropout} credits, a score collapse, and a lockout`, tone: 'down' },
               ].map((r) => (
                 <Card key={r.t} className="p-5" hover>
                   <div className="flex items-center gap-2">
@@ -1202,7 +1199,7 @@ export default function LandingPage() {
                 <p className="text-sm leading-relaxed text-[var(--color-dim)]">
                   You are testing alongside people whose next launch depends on the
                   same system working. That is a much stronger incentive than $20
-                  ever was, and it is why pods finish at rates a marketplace cannot
+                  ever was, and it is why groups finish at rates a marketplace cannot
                   reach.
                 </p>
               </Card>
@@ -1296,7 +1293,7 @@ export default function LandingPage() {
               </div>
               <p className="mt-4 text-sm leading-relaxed text-[var(--color-dim)]">
                 The same number, because it is the same number. Credits move between
-                developers; nothing here mints them. A full pod earns you{' '}
+                developers; nothing here mints them. A full round earns you{' '}
                 {FULL_CYCLE_EARNINGS} and costs you {FULL_POD_COST}, so doing your
                 share breaks exactly even &mdash; and no amount of testing can
                 inflate the supply, because every credit anyone earns came out of
@@ -1313,9 +1310,9 @@ export default function LandingPage() {
                   {[
                     { l: 'Buffer seat', v: COST.bufferSeat, s: 'One more tester above the 15 you already have' },
                     { l: 'Rescue seat', v: COST.rescueSeat, s: 'A verified replacement, matched within hours' },
-                    { l: 'Priority pod', v: COST.priorityPod, s: 'Front of the matching queue' },
+                    { l: 'Priority match', v: COST.priorityPod, s: 'Front of the matching queue' },
                     { l: 'Expert seat', v: COST.expertSeat, s: 'A long-form report from a senior tester' },
-                    { l: 'Second app', v: COST.extraApp, s: 'Run two apps through pods at once' },
+                    { l: 'Second app', v: COST.extraApp, s: 'Run two apps through testing at once' },
                   ].map((c) => (
                     <li key={c.l} className="flex items-start justify-between gap-4">
                       <div>
@@ -1402,7 +1399,7 @@ export default function LandingPage() {
                   { ok: true, t: 'Daily engagement proof', s: 'Screenshot-backed, for your own application' },
                   { ok: false, t: 'Public store reviews', s: 'No mechanism exists in the product' },
                   { ok: false, t: 'Public ratings', s: 'No mechanism exists in the product' },
-                  { ok: false, t: 'Production installs', s: 'Not part of any pod, ever' },
+                  { ok: false, t: 'Production installs', s: 'Not part of any round, ever' },
                 ].map((r) => (
                   <div
                     key={r.t}
@@ -1490,35 +1487,45 @@ export default function LandingPage() {
             })}
           </div>
           <p className="mt-4 text-xs text-[var(--color-mute)]">
-            One-off pricing per app, not a subscription. If your pod fails to reach{' '}
+            One-off pricing per app, not a subscription. If your group fails to reach{' '}
             {RULES.requiredTesters} verified testers, a paid plan is refunded in full.
           </p>
         </Section>
 
-        {/* ---------------------------------------------------- testimonials */}
+        {/* ------------------------------------------------ the founding group */}
         <Section
-          eyebrow="From the pods"
-          title="Developers who stopped restarting the clock"
+          id="founding"
+          eyebrow="Where this actually stands"
+          title="TesterPool is new. The first group is the one filling now."
+          lede={
+            <>
+              Most sites in this category would put three glowing testimonials
+              here. We do not have any yet, and inventing them would contradict
+              the only thing that makes this worth choosing.
+            </>
+          }
         >
           <div className="mt-12 grid gap-4 lg:grid-cols-3">
-            {TESTIMONIALS.map((t) => (
-              <Card key={t.handle} className="flex flex-col p-6" hover>
-                <Pill tone="green">{t.outcome}</Pill>
-                <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-[var(--color-dim)]">
-                  &ldquo;{t.quote}&rdquo;
-                </blockquote>
-                <div className="mt-6 flex items-center gap-3 border-t border-[var(--color-line)] pt-4">
-                  <Avatar name={t.name} size={34} />
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium leading-tight">{t.name}</div>
-                    <div className="truncate text-xs text-[var(--color-mute)]">
-                      {t.handle} · {t.app} · {t.country}
-                    </div>
-                  </div>
-                </div>
+            {FOUNDING.map((f) => (
+              <Card key={f.t} className="flex flex-col p-6">
+                <h3 className="text-base font-semibold">{f.t}</h3>
+                <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--color-dim)]">
+                  {f.b}
+                </p>
               </Card>
             ))}
           </div>
+
+          <Card className="mt-4 flex flex-col items-start justify-between gap-5 p-7 sm:flex-row sm:items-center">
+            <p className="max-w-2xl text-sm leading-relaxed text-[var(--color-dim)]">
+              If you need {RULES.requiredTesters} testers and would rather not buy
+              them from a stranger, the first group is open. It fills at{' '}
+              {RULES.podSeats} and starts on one shared day.
+            </p>
+            <Link href="/login" className="btn btn-primary shrink-0">
+              Take a seat <Arrow />
+            </Link>
+          </Card>
         </Section>
 
         {/* ------------------------------------------------------------- faq */}

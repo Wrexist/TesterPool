@@ -9,8 +9,17 @@ A compliance-safe growth network for indie **Android** developers. Google Play r
 after 13 Nov 2023 can publish to production. TesterPool solves it with **pods**: ~15
 developers who all test each other's apps across the same 14 days.
 
-The network is the *pool*. One cohort inside it is a *pod*. Keep that vocabulary — users
-draw from the pool and sit in a pod.
+The network is the *pool*. One cohort inside it is a *pod*. That vocabulary is correct
+**inside the codebase, the schema and the authenticated app** — tables, RPCs, `/pods`,
+variable names and comments all say pod, and should keep saying it.
+
+**The public marketing surface does not use the word.** A stranger deciding whether to
+sign up should never have to learn our jargon: the landing page, `/pool` and `/launch` say
+*group*, *round* or just *the 14 days*. Two deliberate exceptions — plan names (`Fast Pod`
+is a SKU tied to billing) and the blog, where explaining the mechanism is the point and
+one post has "pods" in an indexed slug. Decided 14 Aug 2026; the front door is
+marketplace-led — list your app, get installs and structured reviews — and the cohort is
+machinery the user does not have to think about.
 
 ## The two invariants. Do not break these.
 

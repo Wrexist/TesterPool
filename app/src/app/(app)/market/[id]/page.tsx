@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppDetail } from './app-detail';
 import type { MarketAppDetail } from '@/lib/market';
+import { getFlags } from '@/lib/flags';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,5 +27,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function MarketAppPage({ params }: { params: Promise<{ id: string }> }) {
   const app = await load((await params).id);
   if (!app) notFound();
-  return <AppDetail app={app} />;
+  const flags = await getFlags();
+  return <AppDetail app={app} podsOpen={flags.pod_matching} />;
 }

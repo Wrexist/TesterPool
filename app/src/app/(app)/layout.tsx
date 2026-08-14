@@ -6,6 +6,7 @@ import { AppNav, type NavProfile } from '@/components/app/nav';
 import { Pill } from '@/components/ui';
 import { podDay, tierOf, n, checkedInToday } from '@/lib/pods';
 import { RULES } from '@/lib/economy';
+import { getFlags } from '@/lib/flags';
 import type { Assignment, Pod, Profile } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: auth } = await supabase.auth.getUser();
   const user = auth?.user;
   if (!user) redirect('/login');
+
+  // Read once here so the nav and the pods screen cannot disagree about
+  // whether matching is open.
+  const flags = await getFlags();
 
   const { data: profileRow } = await supabase
     .from('profiles')
@@ -83,7 +88,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen flex-1 flex-col md:pl-[238px]">
-      <AppNav profile={nav} counts={{ tests: todoToday, feedback: inboxCount ?? 0 }} />
+      <AppNav
+        profile={nav}
+        counts={{ tests: todoToday, feedback: inboxCount ?? 0 }}
+        podsOpen={flags.pod_matching}
+      />
 
       <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-[var(--color-line)] bg-[var(--color-bg)]/90 px-4 backdrop-blur md:h-16 md:px-8">
         <Link href="/dashboard" className="flex items-center gap-2 md:hidden">

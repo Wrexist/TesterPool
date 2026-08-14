@@ -20,7 +20,7 @@ import { EARN, RULES } from '@/lib/economy';
 import { marketHref, stageOf, isListingOnly, rewardFor, type MarketAppDetail } from '@/lib/market';
 import { fmtDate, n, tierOf } from '@/lib/pods';
 
-export function AppDetail({ app }: { app: MarketAppDetail }) {
+export function AppDetail({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean }) {
 
   const stage = stageOf(app);
   const focus = app.focus_areas ?? [];
@@ -129,7 +129,7 @@ export function AppDetail({ app }: { app: MarketAppDetail }) {
 
         {/* -------------------------------------------------------- action */}
         <aside className="order-1 flex flex-col gap-4 lg:order-2 lg:sticky lg:top-6 lg:self-start">
-          <ActionCard app={app} />
+          <ActionCard app={app} podsOpen={podsOpen} />
 
           {app.store_url && (
             <a
@@ -193,7 +193,7 @@ function OwnerLine({ app }: { app: MarketAppDetail }) {
  * someone directly would be a way to earn credits from a developer who never
  * agreed to pay them. So the CTA for a stranger points at the pod.
  */
-function ActionCard({ app }: { app: MarketAppDetail }) {
+function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean }) {
   if (isListingOnly(app)) {
     return (
       <Card className="flex flex-col gap-3 p-5">
@@ -353,14 +353,35 @@ function ActionCard({ app }: { app: MarketAppDetail }) {
         <h2 className="text-sm font-semibold">Want to test this?</h2>
         {reward && <RewardChip amount={reward} />}
       </div>
-      <p className="text-sm leading-relaxed text-[var(--color-dim)]">
-        Seats are handed out by the pod, not by this page. Join a forming pod with your own app and
-        you are seated as a tester for every other app in it — this one included, if it is in the
-        same pod.
-      </p>
-      <Link href="/pods" className="btn btn-primary">
-        Browse forming pods <IconArrow size={15} />
-      </Link>
+      {/*
+        With `pod_matching` off there is no way to be seated, so this card must
+        not offer one. A primary button that lands on an "Upcoming" screen is a
+        dead door, and the first thing a new member would learn from it is that
+        the product's buttons cannot be trusted.
+      */}
+      {podsOpen ? (
+        <>
+          <p className="text-sm leading-relaxed text-[var(--color-dim)]">
+            Seats are handed out by the group, not by this page. Join a forming group with your own
+            app and you are seated as a tester for every other app in it — this one included, if it
+            is in the same one.
+          </p>
+          <Link href="/pods" className="btn btn-primary">
+            Browse forming groups <IconArrow size={15} />
+          </Link>
+        </>
+      ) : (
+        <>
+          <p className="text-sm leading-relaxed text-[var(--color-dim)]">
+            Matching opens once enough developers have joined to fill a full round. List your own
+            app now and you are in the first one — nothing to do after that but wait for the
+            start date.
+          </p>
+          <Link href="/apps" className="btn btn-primary">
+            List your app <IconArrow size={15} />
+          </Link>
+        </>
+      )}
       <p className="text-xs text-[var(--color-mute)]">
         Each confirmed install pays you {EARN.optInVerified} and each approved report{' '}
         {EARN.feedbackApproved}, out of the balance of the developer whose app you tested.
