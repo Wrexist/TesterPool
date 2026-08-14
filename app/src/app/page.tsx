@@ -635,35 +635,31 @@ const LEDGER: Array<{ label: string; detail: string; amount: number }> = [
   { label: 'Confirmed review', detail: 'on-rubric, arbitrated, private', amount: EARN.feedbackApproved },
 ];
 
-/* ---------------------------------------------------------- testimonials */
+/* --------------------------------------------------------- founding pod */
 
-const TESTIMONIALS = [
+/*
+ * This replaced three testimonials from developers who do not exist — named,
+ * quoted, with countries and outcomes attached. They were the most persuasive
+ * thing on the page and the only thing on it that could not survive one reader
+ * checking. A product whose entire pitch is "we are the honest option in a
+ * category built on lying to developers" cannot open with invented people.
+ *
+ * The slot is worth more used for the truth: this network is new, the first pod
+ * is the one being filled, and the people reading this are exactly who it needs.
+ * That is also the only ask that matters right now.
+ */
+const FOUNDING: Array<{ t: string; b: string }> = [
   {
-    quote:
-      'I had eleven testers twice and got rejected twice. Joined a pod on a Tuesday, applied on day 15 with the evidence pack attached, approved first try. The part that actually mattered was the engagement numbers — I had never been able to prove them before.',
-    name: 'Marcus Hedlund',
-    handle: '@hedlund_dev',
-    app: 'Tallyroom',
-    country: 'Sweden',
-    outcome: 'Approved first try, day 15',
+    t: 'What you get',
+    b: `A seat in the first pod: ${RULES.podSeats - 1} developers installing your app, holding the track for ${RULES.requiredDays} days, and each sending one structured review. The same thing every later pod gets.`,
   },
   {
-    quote:
-      'Two people went quiet around day 6. On any other service that is a month lost. Here the dashboard flagged it the same morning and both seats were refilled by the next day, and I still had buffer left over. I never dropped below twelve.',
-    name: 'Aisha Kamau',
-    handle: '@aishabuilds',
-    app: 'Sunbeam Habit',
-    country: 'Kenya',
-    outcome: 'Two rescues, zero days lost',
+    t: 'What we get',
+    b: 'The first cycle run end to end by people who will tell us what broke. Founding members set the standard the reviews are held to, and we would rather hear it from fifteen developers than from a launch.',
   },
   {
-    quote:
-      'I tested four apps while mine was in the pod and it cost me maybe six minutes a day. The feedback I got back was better than the paid QA round I did last year — someone found a crash on a Xiaomi device I do not own.',
-    name: 'Diego Salcedo',
-    handle: '@dsalcedo',
-    app: 'PocketRoute',
-    country: 'Colombia',
-    outcome: 'Free tier, 3 blockers found',
+    t: 'What is not here yet',
+    b: 'No graduated apps, because no pod has finished. The launch feed is empty and stays empty until one clears. Everything on this page describes how it works, not how well it has worked.',
   },
 ];
 
@@ -976,9 +972,10 @@ export default function LandingPage() {
           title="One of the reviews, in full"
           lede={
             <>
-              Not a paraphrase and not a testimonial &mdash; this is the screen a
-              developer sees, with the tester&rsquo;s name changed. Fourteen of
-              these land on your app over {RULES.requiredDays} days.
+              This is the screen a developer sees, rendered by the same component
+              the product uses &mdash; an example of the format, not a real
+              member&rsquo;s report. {RULES.podSeats - 1} of these land on your app
+              over {RULES.requiredDays} days.
             </>
           }
         >
@@ -1495,30 +1492,40 @@ export default function LandingPage() {
           </p>
         </Section>
 
-        {/* ---------------------------------------------------- testimonials */}
+        {/* -------------------------------------------------- the founding pod */}
         <Section
-          eyebrow="From the pods"
-          title="Developers who stopped restarting the clock"
+          id="founding"
+          eyebrow="Where this actually stands"
+          title="TesterPool is new. The first pod is the one filling now."
+          lede={
+            <>
+              Most sites in this category would put three glowing testimonials
+              here. We do not have any yet, and inventing them would contradict
+              the only thing that makes this worth choosing.
+            </>
+          }
         >
           <div className="mt-12 grid gap-4 lg:grid-cols-3">
-            {TESTIMONIALS.map((t) => (
-              <Card key={t.handle} className="flex flex-col p-6" hover>
-                <Pill tone="green">{t.outcome}</Pill>
-                <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-[var(--color-dim)]">
-                  &ldquo;{t.quote}&rdquo;
-                </blockquote>
-                <div className="mt-6 flex items-center gap-3 border-t border-[var(--color-line)] pt-4">
-                  <Avatar name={t.name} size={34} />
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium leading-tight">{t.name}</div>
-                    <div className="truncate text-xs text-[var(--color-mute)]">
-                      {t.handle} · {t.app} · {t.country}
-                    </div>
-                  </div>
-                </div>
+            {FOUNDING.map((f) => (
+              <Card key={f.t} className="flex flex-col p-6">
+                <h3 className="text-base font-semibold">{f.t}</h3>
+                <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--color-dim)]">
+                  {f.b}
+                </p>
               </Card>
             ))}
           </div>
+
+          <Card className="mt-4 flex flex-col items-start justify-between gap-5 p-7 sm:flex-row sm:items-center">
+            <p className="max-w-2xl text-sm leading-relaxed text-[var(--color-dim)]">
+              If you need {RULES.requiredTesters} testers and would rather not buy
+              them from a stranger, the founding pod is open. It fills at{' '}
+              {RULES.podSeats} and starts on one shared day.
+            </p>
+            <Link href="/login" className="btn btn-primary shrink-0">
+              Take a seat <Arrow />
+            </Link>
+          </Card>
         </Section>
 
         {/* ------------------------------------------------------------- faq */}

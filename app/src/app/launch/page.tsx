@@ -1,7 +1,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { Card, Pill, Avatar, cx } from '@/components/ui';
+import { Card, Pill, Avatar, EmptyState, cx } from '@/components/ui';
 import { SiteNav, SiteFooter } from '@/components/SiteChrome';
 import { createClient } from '@/lib/supabase/server';
 import { RULES } from '@/lib/economy';
@@ -38,109 +38,6 @@ type Greenlight = {
   dev: { handle: string; display_name: string; country_code: string | null } | null;
 };
 
-/* ------------------------------------------------------------ fallbacks */
-
-const PLACEHOLDERS: Greenlight[] = [
-  {
-    slug: 'ferndeck',
-    days: 14,
-    testers_count: 15,
-    feedback_count: 23,
-    engagement_pct: 94,
-    first_try: true,
-    approved_at: '2026-08-08T09:12:00Z',
-    app: { name: 'Ferndeck', tagline: 'Field notes for people who work outdoors', icon_url: null, category: 'Productivity' },
-    dev: { handle: 'marchedlund', display_name: 'Marcus Hedlund', country_code: 'SE' },
-  },
-  {
-    slug: 'tallyroom',
-    days: 14,
-    testers_count: 18,
-    feedback_count: 31,
-    engagement_pct: 91,
-    first_try: true,
-    approved_at: '2026-08-07T16:40:00Z',
-    app: { name: 'Tallyroom', tagline: 'Split bills without the group chat argument', icon_url: null, category: 'Finance' },
-    dev: { handle: 'hedlund_dev', display_name: 'Ingrid Solheim', country_code: 'NO' },
-  },
-  {
-    slug: 'sunbeam-habit',
-    days: 16,
-    testers_count: 15,
-    feedback_count: 19,
-    engagement_pct: 88,
-    first_try: false,
-    approved_at: '2026-08-06T11:05:00Z',
-    app: { name: 'Sunbeam Habit', tagline: 'Habit tracking that forgives a bad week', icon_url: null, category: 'Health & Fitness' },
-    dev: { handle: 'aishabuilds', display_name: 'Aisha Kamau', country_code: 'KE' },
-  },
-  {
-    slug: 'pocketroute',
-    days: 14,
-    testers_count: 15,
-    feedback_count: 27,
-    engagement_pct: 96,
-    first_try: true,
-    approved_at: '2026-08-05T08:20:00Z',
-    app: { name: 'PocketRoute', tagline: 'Offline transit maps for 40 cities', icon_url: null, category: 'Maps & Navigation' },
-    dev: { handle: 'dsalcedo', display_name: 'Diego Salcedo', country_code: 'CO' },
-  },
-  {
-    slug: 'krita-notes',
-    days: 14,
-    testers_count: 20,
-    feedback_count: 38,
-    engagement_pct: 93,
-    first_try: true,
-    approved_at: '2026-08-04T19:55:00Z',
-    app: { name: 'Krita Notes', tagline: 'Handwriting notes that actually search', icon_url: null, category: 'Productivity' },
-    dev: { handle: 'meilin', display_name: 'Mei Lin Chow', country_code: 'MY' },
-  },
-  {
-    slug: 'quiethours',
-    days: 14,
-    testers_count: 15,
-    feedback_count: 21,
-    engagement_pct: 90,
-    first_try: true,
-    approved_at: '2026-08-03T13:30:00Z',
-    app: { name: 'Quiet Hours', tagline: 'One switch for every notification you own', icon_url: null, category: 'Tools' },
-    dev: { handle: 'tnovak', display_name: 'Tomas Novak', country_code: 'CZ' },
-  },
-  {
-    slug: 'harborlist',
-    days: 15,
-    testers_count: 18,
-    feedback_count: 26,
-    engagement_pct: 87,
-    first_try: false,
-    approved_at: '2026-08-02T10:10:00Z',
-    app: { name: 'Harborlist', tagline: 'Shared shopping lists for households that argue', icon_url: null, category: 'Lifestyle' },
-    dev: { handle: 'priya_builds', display_name: 'Priya Raman', country_code: 'IN' },
-  },
-  {
-    slug: 'stavepad',
-    days: 14,
-    testers_count: 15,
-    feedback_count: 17,
-    engagement_pct: 92,
-    first_try: true,
-    approved_at: '2026-08-01T15:45:00Z',
-    app: { name: 'Stavepad', tagline: 'Sheet music practice log for teachers', icon_url: null, category: 'Education' },
-    dev: { handle: 'olaberg', display_name: 'Ola Berg', country_code: 'SE' },
-  },
-  {
-    slug: 'runeledger',
-    days: 14,
-    testers_count: 16,
-    feedback_count: 24,
-    engagement_pct: 89,
-    first_try: true,
-    approved_at: '2026-07-31T07:25:00Z',
-    app: { name: 'Runeledger', tagline: 'Invoicing for freelancers who hate invoicing', icon_url: null, category: 'Business' },
-    dev: { handle: 'daniokafor', display_name: 'Dani Okafor', country_code: 'NG' },
-  },
-];
 
 /* ------------------------------------------------------------- fetching */
 
@@ -156,7 +53,19 @@ type Row = {
   profiles: { handle: string; display_name: string; country_code: string | null } | null;
 };
 
-async function loadGreenlights(): Promise<{ rows: Greenlight[]; live: boolean }> {
+/**
+ * Returns nothing rather than something invented.
+ *
+ * This used to fall back to five fictional greenlights — named apps, named
+ * developers, invented tester counts — rendered under "Showing a recent
+ * selection", which reads as a claim that these apps really cleared production
+ * access. None had. On a site whose whole argument is that we are the honest
+ * option in a category built on lying to developers, a fabricated outcome is
+ * the one thing that ends the argument the moment a reader checks.
+ *
+ * An empty feed is a true statement about a new network. It is also temporary.
+ */
+async function loadGreenlights(): Promise<{ rows: Greenlight[]; ok: boolean }> {
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
@@ -171,7 +80,8 @@ async function loadGreenlights(): Promise<{ rows: Greenlight[]; live: boolean }>
       .order('approved_at', { ascending: false })
       .limit(48);
 
-    if (error || !data || data.length === 0) return { rows: PLACEHOLDERS, live: false };
+    if (error) return { rows: [], ok: false };
+    if (!data || data.length === 0) return { rows: [], ok: true };
 
     const rows = (data as unknown as Row[]).map((r) => ({
       slug: r.slug,
@@ -192,11 +102,11 @@ async function loadGreenlights(): Promise<{ rows: Greenlight[]; live: boolean }>
       dev: r.profiles,
     }));
 
-    return { rows, live: true };
+    return { rows, ok: true };
   } catch {
     // No database configured yet, or the network is unavailable. The feed is
     // marketing surface; it should never be the thing that 500s.
-    return { rows: PLACEHOLDERS, live: false };
+    return { rows: [], ok: false };
   }
 }
 
@@ -285,7 +195,7 @@ function GreenlightCard({ g }: { g: Greenlight }) {
 /* ------------------------------------------------------------------ page */
 
 export default async function LaunchPage() {
-  const { rows, live } = await loadGreenlights();
+  const { rows, ok } = await loadGreenlights();
 
   const totalTesters = rows.reduce((s, r) => s + r.testers_count, 0);
   const totalFeedback = rows.reduce((s, r) => s + r.feedback_count, 0);
@@ -315,6 +225,15 @@ export default async function LaunchPage() {
               access. These are the numbers each one applied with.
             </p>
 
+            {rows.length === 0 && (
+              <p className="mt-4 max-w-2xl text-base leading-relaxed text-[var(--color-mute)]">
+                There are none yet. TesterPool is new, the first pods are still
+                running, and this page stays empty until an app actually clears.
+                Nothing on it will ever be an illustration.
+              </p>
+            )}
+
+            {rows.length > 0 && (
             <dl className="mt-9 flex flex-wrap items-center gap-x-8 gap-y-4">
               {[
                 { l: 'apps greenlit', v: rows.length.toLocaleString() },
@@ -329,22 +248,32 @@ export default async function LaunchPage() {
                 </div>
               ))}
             </dl>
+            )}
           </div>
         </section>
 
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
-          {!live && (
-            <p className="mb-6 text-xs text-[var(--color-mute)]">
-              Showing a recent selection. New greenlights appear here within minutes
-              of approval.
-            </p>
+          {rows.length === 0 ? (
+            <EmptyState
+              title={ok ? 'No apps have cleared yet' : 'The feed could not be read'}
+              body={
+                ok
+                  ? 'A greenlight appears here within minutes of an app being approved for production. Until one is, there is nothing to show — and a page like this filled with examples would be worth less than an empty one.'
+                  : 'This page reads live from the network and the read failed. Rather than show you something invented, it shows you nothing. Try again shortly.'
+              }
+              action={
+                <Link href="/pool" className="btn btn-primary">
+                  See what is open to testers
+                </Link>
+              }
+            />
+          ) : (
+            <div className={cx('grid gap-4 sm:grid-cols-2 lg:grid-cols-3')}>
+              {rows.map((g) => (
+                <GreenlightCard key={g.slug} g={g} />
+              ))}
+            </div>
           )}
-
-          <div className={cx('grid gap-4 sm:grid-cols-2 lg:grid-cols-3')}>
-            {rows.map((g) => (
-              <GreenlightCard key={g.slug} g={g} />
-            ))}
-          </div>
 
           <Card className="mt-10 flex flex-col items-start justify-between gap-5 p-7 sm:flex-row sm:items-center">
             <div>
@@ -353,7 +282,7 @@ export default async function LaunchPage() {
               </h2>
               <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-[var(--color-dim)]">
                 Join a pod of {RULES.podSeats}, hold the clock for{' '}
-                {RULES.requiredDays} days, and get a share page like these with the
+                {RULES.requiredDays} days, and get a share page here with the
                 evidence attached.
               </p>
             </div>

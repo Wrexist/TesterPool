@@ -7,8 +7,9 @@ import { LogoMark, Wordmark } from '@/components/Logo';
 import { RULES } from '@/lib/economy';
 import { getGreenlight, type GreenlightView } from './greenlight';
 import { ShareButtons } from './ShareButtons';
+import { SITE_URL } from '@/lib/site-url';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+
 
 function summaryLine(g: GreenlightView) {
   const bits = [
