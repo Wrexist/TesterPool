@@ -5,7 +5,7 @@ import { Card } from '@/components/ui';
 export const metadata: Metadata = {
   title: 'Privacy Policy',
   description:
-    'What TesterPool collects, why, and how it is used to run closed-testing pods, calculate Reliability Score, and process payments.',
+    'What TesterPool collects, why, and how it is used to run closed testing, calculate Reliability Score, and process payments.',
   alternates: { canonical: '/privacy' },
   robots: { index: true, follow: true },
 };
@@ -66,7 +66,7 @@ export default function PrivacyPage() {
               track.
             </P>
             <P>
-              <strong className="font-semibold text-[var(--color-ink)]">Activity data.</strong> Pod
+              <strong className="font-semibold text-[var(--color-ink)]">Activity data.</strong> Testing
               assignments, opt-in confirmations, daily check-ins, streaks, structured feedback you write,
               and the inputs used to compute your Reliability Score.
             </P>
@@ -83,8 +83,8 @@ export default function PrivacyPage() {
 
             <H2>2. How we use information</H2>
             <Ul>
-              <li>Operate pods — matching you into a pod, tracking opt-ins and check-ins, and surfacing your feedback to the developer you tested for (and theirs to you, where you are the developer).</li>
-              <li>Calculate your Reliability Score and detect fraud, collusion, or abuse of the pod and credit system.</li>
+              <li>Operate the exchange — listing apps, tracking opt-ins and sessions, and surfacing your feedback to the developer you tested for (and theirs to you, where you are the developer).</li>
+              <li>Calculate your Reliability Score and detect fraud, collusion, or abuse of the testing and credit system.</li>
               <li>Process payments for paid plans through Stripe.</li>
               <li>Send transactional email — check-in reminders, opt-in verification, account and billing notices.</li>
               <li>Provide customer support and respond to requests sent to support@testerpool.dev.</li>
@@ -125,7 +125,7 @@ export default function PrivacyPage() {
               </a>
               . Depending on where you live, you may have additional rights under laws such as the GDPR or
               CCPA; we will honor requests consistent with applicable law. Deleting your account removes
-              your profile and stops future pod matching; some records may be retained briefly where
+              your profile and stops you taking on new work; some records may be retained briefly where
               required for fraud prevention or legal obligations.
             </P>
 

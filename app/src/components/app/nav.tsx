@@ -5,13 +5,12 @@
  *
  * One component, two shapes: a fixed left rail on desktop, a bottom tab bar on
  * mobile. The tab bar carries the four surfaces a tester touches daily; the
- * rest live behind a sheet, because a 14-day habit lives or dies on how fast
- * "check in" is reachable with a thumb.
+ * rest live behind a sheet, because the loop lives or dies on how fast the
+ * next app is reachable with a thumb.
  *
- * The rail is grouped rather than flat. Ten equally-weighted links read as ten
- * equally-important places; three of them — Dashboard, Marketplace and My
- * tests — are where a developer spends every day of the fourteen, and the
- * grouping says so without hiding anything.
+ * The rail is grouped rather than flat. Nine equally-weighted links read as
+ * nine equally-important places; three of them — Feed, My tests and My apps —
+ * are the whole exchange, and the grouping says so without hiding anything.
  */
 
 import * as React from 'react';
@@ -20,7 +19,7 @@ import { usePathname } from 'next/navigation';
 import { cx, Avatar, TierBadge, ReliabilityGauge } from '@/components/ui';
 import { CreditBalance } from '@/components/app/credit-balance';
 import {
-  IconDashboard, IconTests, IconPods, IconFeedback, IconCredits,
+  IconDashboard, IconTests, IconFeedback, IconCredits,
   IconTrophy, IconShield, IconMenu, IconUser, IconMarket, IconDevice,
 } from '@/components/app/icons';
 import type { Tier } from '@/lib/types';
@@ -78,8 +77,7 @@ type Group = { label: string | null; items: Item[] };
 function groups(
   isModerator: boolean,
   isAdmin: boolean,
-  counts: { tests?: number; feedback?: number },
-  podsOpen: boolean
+  counts: { tests?: number; feedback?: number }
 ): Group[] {
   const out: Group[] = [
     {
@@ -89,20 +87,11 @@ function groups(
         // own, and you. Everything else is one tap further into the sheet,
         // which is the right cost for a screen you visit weekly rather than
         // daily. The desktop rail still shows all of them.
-        { href: '/market', label: 'Marketplace', short: 'Home', Icon: IconMarket },
+        { href: '/market', label: 'Feed', short: 'Feed', Icon: IconMarket },
         { href: '/tests', label: 'My tests', short: 'Tests', Icon: IconTests, badge: counts.tests },
         { href: '/apps', label: 'My apps', short: 'Apps', Icon: IconDevice },
         { href: '/feedback', label: 'Feedback', Icon: IconFeedback, badge: counts.feedback },
         { href: '/dashboard', label: 'Dashboard', Icon: IconDashboard, mobile: false },
-        // Hidden while `pod_matching` is off. The route still resolves and says
-        // why it is closed for anyone holding a link, but a nav entry is an
-        // advertisement, and advertising a door that does not open is how a new
-        // product spends the trust it has not earned yet. The flag is the same
-        // one join_pod and start_pod enforce in the database, so the link and
-        // the RPC cannot disagree.
-        ...(podsOpen
-          ? [{ href: '/pods', label: 'Pods', Icon: IconPods, mobile: false } as Item]
-          : []),
       ],
     },
     {
@@ -146,16 +135,13 @@ function Badge({ value }: { value?: number }) {
 export function AppNav({
   profile,
   counts = {},
-  podsOpen = true,
 }: {
   profile: NavProfile;
   counts?: { tests?: number; feedback?: number };
-  /** Mirrors the `pod_matching` flag. Defaults open, matching the RPC. */
-  podsOpen?: boolean;
 }) {
   const pathname = usePathname() || '';
   const [sheet, setSheet] = React.useState(false);
-  const sections = groups(profile.isModerator, !!profile.isAdmin, counts, podsOpen);
+  const sections = groups(profile.isModerator, !!profile.isAdmin, counts);
   const [daily, ...rest] = sections;
   const primary = daily.items.filter((item) => item.mobile !== false);
   // Whatever the bar could not hold goes to the top of the sheet, badge and all.

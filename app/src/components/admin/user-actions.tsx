@@ -121,8 +121,8 @@ export function UserActions({
         <h4 className="text-sm font-semibold">{isBanned ? 'Ban status' : 'Ban account'}</h4>
         <p className="mt-0.5 text-xs text-[var(--color-mute)]">
           {isBanned
-            ? 'Lifting a ban restores sign-in. It does not put them back in the pods they were removed from.'
-            : 'A ban removes them from every pod and drops their assignments, which means other people need replacement testers today.'}
+            ? 'Lifting a ban restores sign-in. It does not give them back the seats they were removed from.'
+            : 'A ban drops every seat they hold, which means the developers they were testing for need replacements today.'}
         </p>
         <div className="mt-2">
           {isBanned ? (
@@ -135,7 +135,7 @@ export function UserActions({
               disabledHint={isSelf ? 'The database refuses ban changes on your own account.' : undefined}
               consequences={[
                 'They can sign in again immediately.',
-                'Pod memberships and assignments are not restored. They rejoin like a new member.',
+                'Seats they held are not restored. They start again like a new member.',
                 'The stored ban reason is cleared.',
               ]}
               action={(reason) => adminSetBan(userId, false, reason)}
@@ -149,7 +149,7 @@ export function UserActions({
               disabled={isSelf}
               disabledHint={isSelf ? 'The database refuses a self-ban.' : undefined}
               consequences={[
-                'They are removed from every pod they are in.',
+                'Every seat they currently hold is dropped.',
                 'Every active or pending assignment they hold is dropped, so the apps they were testing lose a tester mid-cycle.',
                 'The developers relying on those seats will need rescue testers.',
                 'The reason is stored on their profile and in the audit log.',

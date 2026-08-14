@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, Disclosure, Pill, cx } from '@/components/ui';
 import { Note, Spinner, useAction } from '@/components/app/action-button';
 import { IconArrow, IconAlert, IconCheck } from '@/components/app/icons';
-import { checkHandle, checkOptInUrl, checkPackageName, isGoogleAccountEmail, looksLikeEmail } from '@/lib/pods';
+import { checkHandle, checkOptInUrl, checkPackageName, isGoogleAccountEmail, looksLikeEmail } from '@/lib/format';
 import { completeOnboarding, type AppLookup } from '@/app/(app)/actions';
 import { COUNTRIES, guessCountryCode } from '@/lib/countries';
 import { AppFinder } from './app-finder';
@@ -104,7 +104,7 @@ export function OnboardingForm({
    * developer whose closed track does not exist yet, who came to TesterPool
    * precisely because they have not got that far. They reached the last step,
    * found "Finish setup" greyed out, and had nothing they could type to fix it.
-   * The link is genuinely needed — but at the moment a pod is joined, not at
+   * The link is genuinely needed — but at the moment a tester joins, not at
    * signup, so that is where it is asked for now.
    */
   // Deferring the opt-in link is deliberate. Saving a malformed one is not, and
@@ -136,7 +136,7 @@ export function OnboardingForm({
       { refresh: false }
     );
     if (result.ok) {
-      router.push('/pods');
+      router.push('/market');
       router.refresh();
     }
   }
@@ -178,7 +178,7 @@ export function OnboardingForm({
             <div>
               <h2 className="text-lg font-semibold">Pick a handle</h2>
               <p className="mt-1 text-sm text-[var(--color-dim)]">
-                Your pod sees this. Nothing else here is public.
+                Your testers see this. Nothing else here is public.
               </p>
             </div>
             <div>
@@ -218,7 +218,7 @@ export function OnboardingForm({
                 ))}
               </select>
               <p className="mt-1.5 text-xs text-[var(--color-mute)]">
-                Guessed from your time zone. We spread a pod across zones so check-ins do not all land
+                Guessed from your time zone. We spread testers across zones so sessions do not all land
                 at once.
               </p>
             </div>
@@ -304,7 +304,7 @@ export function OnboardingForm({
                     </p>
                   ) : (
                     <p className="mt-1.5 text-xs text-[var(--color-mute)]">
-                      No closed track yet? Finish setup without it. We ask again when you join a pod.
+                      No closed track yet? Finish setup without it. We ask again before anyone can test it.
                     </p>
                   )}
                 </div>

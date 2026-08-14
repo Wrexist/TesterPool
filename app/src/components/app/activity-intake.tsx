@@ -88,7 +88,7 @@ export function ActivityIntake({
           </div>
           <p className="mt-0.5 text-xs leading-relaxed text-[var(--color-mute)]">
             {open
-              ? 'Anyone in the pool can join your closed test, use the app and send you one report.'
+              ? 'Anyone here can join your closed test, use the app and send you one report.'
               : 'Nobody new can pick this app up. Testers already on it keep their seat and still get paid.'}
           </p>
         </div>

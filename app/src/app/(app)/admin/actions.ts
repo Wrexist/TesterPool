@@ -141,12 +141,12 @@ export async function adminSetBan(
   });
   if (error) return fail(rpcMessage(error), 'rpc_error');
 
-  revalidateAdmin('/admin/users', '/admin/pods');
+  revalidateAdmin('/admin/users');
   return {
     ok: true,
     message: banned
-      ? 'Account banned. They were removed from their pods and their assignments were dropped, so the people they were testing for need replacements.'
-      : 'Ban lifted. Pod memberships are not restored automatically.',
+      ? 'Account banned. Their open seats were dropped, so the developers they were testing for are back in the feed for replacements.'
+      : 'Ban lifted. Seats they had open are not restored automatically.',
   };
 }
 
@@ -175,45 +175,6 @@ export async function adminSetConfig(
 
   revalidateAdmin('/admin/economy', '/credits', '/launch');
   return { ok: true, message: `${key.replace(/_/g, ' ')} is now ${value}. It applies to the next credit movement, with no deploy.` };
-}
-
-/* ------------------------------------------------------------------- pods */
-
-export type PodActionKind = 'force_start' | 'extend' | 'complete' | 'cancel';
-
-export async function adminPodAction(
-  podId: string,
-  action: PodActionKind,
-  days: number | null,
-  reason: string
-): Promise<ActionResult> {
-  const auth = await requireAdmin();
-  if ('error' in auth) return fail(auth.error, 'forbidden');
-
-  const reasonError = checkReason(reason);
-  if (reasonError) return fail(reasonError, 'bad_reason');
-
-  if (action === 'extend' && (!days || days < 1)) {
-    return fail('Extending needs a positive number of days.', 'bad_days');
-  }
-
-  const { error } = await auth.supabase.rpc('admin_pod_action', {
-    p_pod: podId,
-    p_action: action,
-    p_days: action === 'extend' ? days : null,
-    p_reason: reason.trim(),
-  });
-  if (error) return fail(rpcMessage(error), 'rpc_error');
-
-  revalidateAdmin('/admin/pods', '/pods', '/tests', '/dashboard');
-
-  const messages: Record<PodActionKind, string> = {
-    force_start: 'Pod started. Day 1 of the clock is now, and every member has a check-in due today.',
-    extend: `Pod extended by ${days} ${days === 1 ? 'day' : 'days'}. Everyone in it now has a later finish date than the one they planned around.`,
-    complete: 'Pod marked complete. Active members are graduated and their completion counts are incremented.',
-    cancel: 'Pod cancelled. The apps went back to the queue and will need a new pod.',
-  };
-  return { ok: true, message: messages[action] };
 }
 
 /* ------------------------------------------------------------- moderation */

@@ -5,8 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { Card, Pill, Avatar, EmptyState, cx } from '@/components/ui';
 import { ProofActions, DisputeActions } from './mod-actions';
 import { IconAlert, IconShield } from '@/components/app/icons';
-import { fmtDateTime, fmtRelative, n } from '@/lib/pods';
-import type { Dispute, Feedback, PodHealthRow, Profile, Proof } from '@/lib/types';
+import { fmtDateTime, fmtRelative, n } from '@/lib/format';
+import type { Dispute, Feedback, Profile, Proof } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Moderation — TesterPool' };
@@ -246,7 +246,7 @@ function ReportField({ label, value }: { label: string; value: string | null }) 
 async function FraudSignals() {
   const supabase = await createClient();
 
-  const [{ data: hashRows }, { data: checkinRows }, { data: podRows }] = await Promise.all([
+  const [{ data: hashRows }, { data: checkinRows }] = await Promise.all([
     supabase
       .from('proofs')
       .select('id, uploader_id, perceptual_hash, storage_path, created_at')
@@ -258,12 +258,10 @@ async function FraudSignals() {
       .select('id, assignment_id, created_at, checkin_date')
       .order('created_at', { ascending: false })
       .limit(500),
-    supabase.from('pod_health').select('*').gt('dropouts', 1).limit(30),
   ]);
 
   const hashes = (hashRows ?? []) as Pick<Proof, 'id' | 'uploader_id' | 'perceptual_hash' | 'created_at'>[];
   const checkins = (checkinRows ?? []) as { id: string; assignment_id: string; created_at: string }[];
-  const pods = (podRows ?? []) as PodHealthRow[];
 
   const byHash = new Map<string, typeof hashes>();
   for (const proof of hashes) {
@@ -290,7 +288,7 @@ async function FraudSignals() {
     .slice(0, 8)
     .map(([key, count]) => ({ at: new Date(Number(key) * 600_000).toISOString(), count }));
 
-  const nothing = duplicates.length === 0 && burstWindows.length === 0 && pods.length === 0;
+  const nothing = duplicates.length === 0 && burstWindows.length === 0;
 
   if (nothing) {
     return (
@@ -332,22 +330,6 @@ async function FraudSignals() {
         ))}
       </Signal>
 
-      <Signal
-        title="Dropout clusters"
-        note="Pods losing more than one member. Two dropouts in one pod is usually coordination, not coincidence."
-        count={pods.length}
-      >
-        {pods.map((pod) => (
-          <div key={pod.id} className="flex flex-wrap items-center gap-3 border-b border-[var(--color-line)] px-4 py-3 last:border-b-0">
-            <span className="text-sm font-medium">{pod.name || `Pod ${pod.code}`}</span>
-            <Pill tone="red"><span className="num">{n(pod.dropouts)}</span> dropouts</Pill>
-            <span className="text-xs text-[var(--color-mute)]">
-              <span className="num">{n(pod.members)}</span> of <span className="num">{n(pod.core_seats)}</span> seats ·
-              avg <span className="num">{n(pod.avg_days).toFixed(1)}</span> days active
-            </span>
-          </div>
-        ))}
-      </Signal>
     </div>
   );
 }

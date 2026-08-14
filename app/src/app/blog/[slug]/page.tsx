@@ -95,12 +95,12 @@ export default async function PostPage({
                 See what is open to testers right now
               </h2>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-[var(--color-dim)]">
-                Every app in the pool is in a closed testing track and looking for
+                Every app in the feed is in a closed testing track and looking for
                 testers. No account needed to look.
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
-                <Link href="/pool" className="btn btn-primary">
-                  Browse the pool
+                <Link href="/feed" className="btn btn-primary">
+                  Browse the feed
                 </Link>
                 <Link href="/#report" className="btn btn-secondary">
                   See what a review looks like

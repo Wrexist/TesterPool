@@ -10,7 +10,7 @@
 
 import { RULES } from '@/lib/economy';
 import type { Feedback, ProductionEvidenceRow } from '@/lib/types';
-import { fmtDate, n } from '@/lib/pods';
+import { fmtDate, n } from '@/lib/format';
 
 export interface EvidenceInput {
   appName: string;

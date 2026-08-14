@@ -8,7 +8,7 @@ import { createServerClient } from '@supabase/ssr';
  * refresh token and invalidates the old, so the new pair has to be written back
  * to the browser or the next request presents a token that has already been
  * spent. Reuse detection then treats that as a stolen token and revokes the
- * session: the user is signed out mid-pod, on a product whose entire promise is
+ * session: the user is signed out mid-job, on a product whose entire promise is
  * that they check in every day for fourteen consecutive days.
  *
  * A Server Component cannot write cookies — `createClient` in

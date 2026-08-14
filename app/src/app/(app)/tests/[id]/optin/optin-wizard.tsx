@@ -227,7 +227,7 @@ export function OptInWizard({
             ) : (
               <p className="flex items-start gap-2 text-sm" style={{ color: 'var(--color-credit)' }}>
                 <IconAlert size={15} className="mt-0.5 shrink-0" />
-                This developer has not published an opt-in URL yet. Message them through their pod before
+                This developer has not published an opt-in URL yet. Message them through their listing before
                 uploading anything.
               </p>
             )}

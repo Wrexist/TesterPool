@@ -3,11 +3,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppNav, type NavProfile } from '@/components/app/nav';
-import { Pill } from '@/components/ui';
-import { podDay, tierOf, n, checkedInToday } from '@/lib/pods';
-import { RULES } from '@/lib/economy';
-import { getFlags } from '@/lib/flags';
-import type { Assignment, Pod, Profile } from '@/lib/types';
+import { tierOf, n } from '@/lib/format';
+import type { Assignment, Profile } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +12,11 @@ export const dynamic = 'force-dynamic';
  * The app shell. Everything behind this layout assumes a session and a profile,
  * so both are resolved once here and nothing downstream has to defend against
  * an anonymous request.
+ *
+ * There is no cohort in the header any more. The exchange is one app at a time:
+ * you take a listing off the feed, install it, file the report, get paid. What
+ * belongs at the top of every screen is therefore the count of work you have
+ * open, not the day-number of a fourteen-day clock nobody is on.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -22,10 +24,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: auth } = await supabase.auth.getUser();
   const user = auth?.user;
   if (!user) redirect('/login');
-
-  // Read once here so the nav and the pods screen cannot disagree about
-  // whether matching is open.
-  const flags = await getFlags();
 
   const { data: profileRow } = await supabase
     .from('profiles')
@@ -54,14 +52,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     isAdmin: (profile as Profile & { role?: string }).role === 'admin',
   };
 
-  const [{ data: membershipRows }, { data: assignmentRows }, { count: inboxCount }] = await Promise.all([
-    supabase
-      .from('pod_members')
-      .select('pod_id, status, pods(id, code, name, status, starts_at, ends_at, duration_days)')
-      .eq('user_id', user.id),
+  const [{ data: assignmentRows }, { count: inboxCount }] = await Promise.all([
     supabase
       .from('assignments')
-      .select('id, status, opt_in_verified_at, days_checked_in, last_checkin_on, pod_id')
+      .select('id, status, opt_in_verified_at')
       .eq('tester_id', user.id)
       .in('status', ['opt_in_pending', 'active']),
     supabase
@@ -71,61 +65,49 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .eq('apps.owner_id', user.id),
   ]);
 
-  type Membership = { pod_id: string; status: string; pods: Pod | Pod[] | null };
-  const memberships = (membershipRows ?? []) as Membership[];
-  const pods = memberships
-    .map((m) => (Array.isArray(m.pods) ? m.pods[0] : m.pods))
-    .filter((p): p is Pod => !!p);
-  const activePod = pods.find((p) => p.status === 'active') ?? null;
-  const duration = activePod?.duration_days ?? RULES.requiredDays;
-  const day = podDay(activePod?.starts_at, duration);
-
+  // Every open seat is a piece of work: either the install is unconfirmed or
+  // the report is unwritten. Both are one tap from /tests, so both count.
   const assignments = (assignmentRows ?? []) as Assignment[];
-  const activePodIds = new Set(pods.filter((p) => p.status === 'active').map((p) => p.id));
-  const todoToday = assignments.filter(
-    (a) => activePodIds.has(a.pod_id) && (!a.opt_in_verified_at || !checkedInToday(a.last_checkin_on))
-  ).length;
+  const openWork = assignments.length;
+  const toInstall = assignments.filter((a) => !a.opt_in_verified_at).length;
 
   return (
     <div className="flex min-h-screen flex-1 flex-col md:pl-[238px]">
-      <AppNav
-        profile={nav}
-        counts={{ tests: todoToday, feedback: inboxCount ?? 0 }}
-        podsOpen={flags.pod_matching}
-      />
+      <AppNav profile={nav} counts={{ tests: openWork, feedback: inboxCount ?? 0 }} />
 
       <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-[var(--color-line)] bg-[var(--color-bg)]/90 px-4 backdrop-blur md:h-16 md:px-8">
-        <Link href="/dashboard" className="flex items-center gap-2 md:hidden">
+        <Link href="/market" className="flex items-center gap-2 md:hidden">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7L12 2.5Z" stroke="var(--color-accent)" strokeWidth="1.9" strokeLinejoin="round" />
           </svg>
           <span className="text-sm font-semibold tracking-tight">TesterPool</span>
         </Link>
 
-        {activePod ? (
-          <div className="flex min-w-0 items-center gap-2">
-            <Pill tone={day >= duration ? 'violet' : 'green'}>
-              <span className="num">Day {Math.max(day, 1)} of {duration}</span>
-            </Pill>
-            <span className="hidden truncate text-xs text-[var(--color-dim)] sm:inline">
-              {activePod.name || `Pod ${activePod.code}`}
-            </span>
-          </div>
-        ) : (
-          <span className="truncate text-xs text-[var(--color-dim)]">
-            {pods.some((p) => p.status === 'forming')
-              ? 'Pod filling. The clock starts when the last seat fills.'
-              : 'No active pod yet.'}
-          </span>
-        )}
+        <span className="truncate text-xs text-[var(--color-dim)]">
+          {openWork === 0 ? (
+            <>Nothing open. Pick an app from the feed.</>
+          ) : toInstall > 0 ? (
+            <>
+              <span className="num">{openWork}</span> open — <span className="num">{toInstall}</span> waiting on an install
+            </>
+          ) : (
+            <>
+              <span className="num">{openWork}</span> open — reports left to write
+            </>
+          )}
+        </span>
 
         <div className="ml-auto flex items-center gap-2">
           {nav.isAdmin && (
             <Link href="/admin" className="btn btn-ghost hidden sm:inline-flex">Admin</Link>
           )}
-          {todoToday > 0 && (
+          {openWork > 0 ? (
             <Link href="/tests" className="btn btn-primary hidden sm:inline-flex">
-              <span className="num">{todoToday}</span> to do today
+              <span className="num">{openWork}</span> to finish
+            </Link>
+          ) : (
+            <Link href="/market" className="btn btn-primary hidden sm:inline-flex">
+              Browse the feed
             </Link>
           )}
         </div>

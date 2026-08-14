@@ -7,7 +7,7 @@ import { parseQuery, PAGE_SIZE, type MarketApp, type MarketPulse } from '@/lib/m
 export const dynamic = 'force-dynamic';
 export const metadata = {
   title: 'Marketplace — TesterPool',
-  description: 'Every app in the pool: what needs testers, what is mid-cycle, and what graduated.',
+  description: 'Every app taking testers: what is open, what you are working on, and what graduated.',
 };
 
 /**
@@ -18,7 +18,7 @@ export const metadata = {
  * the projection that decides what a browsing member is allowed to see. In
  * particular it withholds the opt-in link and package name of any app you are
  * not seated on — for an app in closed testing those two things ARE the way in,
- * and the way in is granted by a pod, not by a directory.
+ * and the way in is granted by taking the job, not by browsing a directory.
  */
 export default async function MarketPage({
   searchParams,

@@ -125,7 +125,7 @@ export default function Body() {
       </table>
 
       <p>
-        <Link href="/pool">See what is open to testers right now</Link>.
+        <Link href="/feed">See what is open to testers right now</Link>.
       </p>
     </>
   );

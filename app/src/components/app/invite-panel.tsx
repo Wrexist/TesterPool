@@ -4,17 +4,17 @@ import * as React from 'react';
 import { CopyButton } from '@/components/app/copy-button';
 import { CreditChip } from '@/components/ui';
 import { EARN } from '@/lib/economy';
-import { referralLink } from '@/lib/pods';
+import { referralLink } from '@/lib/format';
 
 /**
- * Pods fill faster when members bring people. The referrer is paid on the
- * referee's first completed pod, not on signup, which is why this can be shown
+ * The feed is deeper when members bring people. The referrer is paid on the
+ * referee's first finished job, not on signup, which is why this can be shown
  * everywhere without turning into a spam engine.
  */
 export function InvitePanel({
   code,
-  headline = 'Fill your pod faster',
-  body = 'Every developer you bring is another seat filled. You are paid when they finish their first pod, so the invite is only worth sending to someone who will actually test.',
+  headline = 'Bring another developer in',
+  body = 'Every developer you bring makes the feed deeper. You are paid when they finish their first job, so the invite is only worth sending to someone who will actually test.',
   referrals,
   titheEarned,
 }: {

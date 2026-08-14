@@ -14,7 +14,7 @@ import { FilterBar, type ScopeCounts } from './filter-bar';
 import { IconArrow, IconPlus } from '@/components/app/icons';
 import { EARN } from '@/lib/economy';
 import { marketHref, PAGE_SIZE, type MarketApp, type MarketPulse, type MarketQuery } from '@/lib/market';
-import { n } from '@/lib/pods';
+import { n } from '@/lib/format';
 
 /** Named for why you are looking, not for what the filter is called. */
 const SECTION_TITLE: Record<MarketQuery['scope'], string> = {
@@ -45,15 +45,9 @@ export function MarketView({
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Marketplace</h1>
-          {/* One line. The two features are named and separated here, so a
-              developer knows which screen owns the 14-day clock. */}
+          <h1 className="text-2xl font-semibold tracking-tight">Feed</h1>
           <p className="mt-1 text-sm text-[var(--color-dim)]">
-            Every app in the pool.{' '}
-            <Link href="/pods" className="underline decoration-[var(--color-line-hi)] underline-offset-2 hover:text-[var(--color-ink)]">
-              Pods
-            </Link>{' '}
-            handle the 14-day clock.
+            Every app taking testers right now. Pick one and it is yours.
           </p>
         </div>
         <Link href="/onboarding" className="btn btn-secondary shrink-0">
@@ -170,7 +164,7 @@ function Empty({ query }: { query: MarketQuery }) {
     return (
       <EmptyState
         title="You have not listed an app"
-        body="List it and it appears here beside the rest of the pool. A draft is private until you join a pod with it."
+        body="List it and it appears here beside everyone else's. A draft stays private until you open it to testers."
         action={<Link href="/onboarding" className="btn btn-primary">List your app <IconArrow size={15} /></Link>}
       />
     );
@@ -179,7 +173,7 @@ function Empty({ query }: { query: MarketQuery }) {
     return (
       <EmptyState
         title="Nothing saved yet"
-        body="The bookmark on any card keeps it here. Saving is private, pays nothing, and is the fastest way to remember an app you want to test when it next opens a pod."
+        body="The bookmark on any card keeps it here. Saving is private, pays nothing, and is the fastest way to remember an app you want to test when it next opens up."
         action={<Link href={marketHref({ status: 'needs_testers' })} className="btn btn-secondary">Find apps needing testers</Link>}
       />
     );
@@ -187,7 +181,7 @@ function Empty({ query }: { query: MarketQuery }) {
   return (
     <EmptyState
       title="No apps match that"
-      body="Nothing in the pool fits this combination right now. Widen the filters, or check back — apps arrive daily and pods form within a few days."
+      body="Nothing here fits this combination right now. Widen the filters, or check back — apps are listed daily."
       action={cleared}
     />
   );

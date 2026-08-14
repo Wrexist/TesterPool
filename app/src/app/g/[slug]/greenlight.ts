@@ -44,7 +44,7 @@ export function fallbackGreenlight(slug: string): GreenlightView {
     appName: titleFromSlug(slug),
     tagline: null,
     days: RULES.requiredDays,
-    testers: RULES.podSeats,
+    testers: RULES.cycleSize,
     feedback: 0,
     engagement: 0,
     firstTry: false,

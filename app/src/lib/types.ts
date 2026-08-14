@@ -9,8 +9,6 @@
 
 export type Platform = 'android' | 'ios';
 export type AppStatus = 'draft' | 'queued' | 'in_pod' | 'graduated' | 'paused' | 'rejected';
-export type PodStatus = 'forming' | 'locked' | 'active' | 'completed' | 'failed';
-export type SeatType = 'core' | 'buffer' | 'rescue';
 export type MembershipStatus =
   | 'invited' | 'joined' | 'opt_in_pending' | 'active' | 'dropped' | 'graduated' | 'removed';
 export type ProofKind = 'opt_in' | 'daily_use' | 'uninstall_release';
@@ -65,7 +63,7 @@ export interface AppRow {
   category: string | null;
   description: string | null;
   opt_in_url: string | null;
-  /** Set when the owner's balance ran out mid-pod. Cleared the moment it is positive again. */
+  /** Set when the owner's balance ran out mid-job. Cleared the moment it is positive again. */
   credits_paused: boolean;
   google_group: string | null;
   tester_instructions: string | null;
@@ -76,38 +74,10 @@ export interface AppRow {
   created_at: string;
 }
 
-export interface Pod {
-  id: string;
-  code: string;
-  name: string;
-  status: PodStatus;
-  core_seats: number;
-  required_testers: number;
-  duration_days: number;
-  category_focus: string | null;
-  is_priority: boolean;
-  starts_at: string | null;
-  ends_at: string | null;
-  locked_at: string | null;
-  completed_at: string | null;
-  created_at: string;
-}
-
-export interface PodMember {
-  id: string;
-  pod_id: string;
-  user_id: string;
-  app_id: string | null;
-  seat: SeatType;
-  status: MembershipStatus;
-  joined_at: string;
-  dropped_at: string | null;
-  drop_reason: string | null;
-}
-
 export interface Assignment {
   id: string;
-  pod_id: string;
+  /** Null for every seat taken off the feed. Nothing in the app reads it now. */
+  pod_id: string | null;
   app_id: string;
   tester_id: string;
   status: MembershipStatus;
@@ -246,22 +216,6 @@ export interface LeaderboardRow {
   apps_helped_ship: number;
   longest_streak: number;
   approved_reports: number;
-}
-
-export interface PodHealthRow {
-  id: string;
-  code: string;
-  name: string;
-  status: PodStatus;
-  core_seats: number;
-  required_testers: number;
-  starts_at: string | null;
-  ends_at: string | null;
-  day_index: number | null;
-  members: number;
-  dropouts: number;
-  verified_optins: number;
-  avg_days: number;
 }
 
 export interface ProductionEvidenceRow {

@@ -6,20 +6,27 @@ Read this before writing any code in this repo.
 
 A compliance-safe growth network for indie **Android** developers. Google Play requires
 **12 testers opted in for 14 consecutive days** before a personal developer account created
-after 13 Nov 2023 can publish to production. TesterPool solves it with **pods**: ~15
-developers who all test each other's apps across the same 14 days.
+after 13 Nov 2023 can publish to production. TesterPool solves it with a **feed**: you
+list your app, other developers pick it up one at a time, each joins your closed track,
+uses the app and sends you one private structured report.
 
-The network is the *pool*. One cohort inside it is a *pod*. That vocabulary is correct
-**inside the codebase, the schema and the authenticated app** — tables, RPCs, `/pods`,
-variable names and comments all say pod, and should keep saying it.
+**There are no pods.** Cohorts were removed on 14 Aug 2026 — there is no group to fill,
+no shared start date and no fourteen-day clock the product schedules. A tester takes a
+seat the moment they want it, and the developer pays for that seat out of their balance.
+Do not reintroduce cohort vocabulary: no *pod*, *pool*, *group*, *round* or *cohort* in
+routes, components, copy or new schema.
 
-**The public marketing surface does not use the word.** A stranger deciding whether to
-sign up should never have to learn our jargon: the landing page, `/pool` and `/launch` say
-*group*, *round* or just *the 14 days*. Two deliberate exceptions — plan names (`Fast Pod`
-is a SKU tied to billing) and the blog, where explaining the mechanism is the point and
-one post has "pods" in an indexed slug. Decided 14 Aug 2026; the front door is
-marketplace-led — list your app, get installs and structured reviews — and the cohort is
-machinery the user does not have to think about.
+Three things still say "pod" and are meant to. They are database and cron identifiers,
+not product language, and renaming them needs a migration rather than a find-and-replace:
+the `in_pod` value of the `app_status` enum (displayed as "Taking testers"), the
+`pod_seat_spend` / `cost_priority_pod` economy keys, the `fast_pod` billing entitlement
+(displayed as "Fast Track"), and the `pod-lifecycle` cron job. The blog also keeps one
+post with "pods" in an indexed slug, because explaining the mechanism is the point.
+
+The `pods` and `pod_members` tables still exist and still hold real history, but nothing
+in the app reads them, `pod_matching` is permanently false, and `join_pod` / `start_pod` /
+`admin_pod_action` have execute revoked from every role
+(`20260814220000_close_pod_matching.sql`). Do not grant them back.
 
 ## The two invariants. Do not break these.
 
@@ -37,8 +44,8 @@ install-count rewards, review-prompt tooling, or AI-drafted review copy.
 
 **1a. Credits move, they are never minted, and the client never decides a payment.**
 A confirmed install transfers 10 from the app owner to the tester; a confirmed report
-transfers 30. A full pod costs 560 and pays 560, so doing your share breaks even and the
-supply cannot inflate. Nothing that pays out may be triggered by a value the browser
+transfers 30. A full cycle — 14 testers on your app, 14 apps tested back — costs 560 and
+pays 560, so doing your share breaks even and the supply cannot inflate. Nothing that pays out may be triggered by a value the browser
 supplied — `submit_proof` exists because `recordOptInProof` once took a confidence score
 from the client and approved on it, which was a money printer.
 
@@ -57,27 +64,28 @@ ratings, or public install counts.*
 ```
 app/
   src/app/                routes — (app)/ is authenticated, everything else public
-    (app)/market/         the marketplace: every app in the pool, filtered by
-                          scope (testing / report due / mine / saved), platform,
-                          stage and category. Reads through market_apps(), never
+    (app)/market/         the feed: every app taking testers, filtered by scope
+                          (testing / report due / mine / saved), platform, stage
+                          and category. Reads through market_apps(), never
                           through the apps table. Rows under md, cards above it
     (app)/apps/           my apps: your listings, their counts, and the credit
                           gate stated as a task rather than an error
-    (app)/admin/          admin dashboard: overview, users, pods, economy,
-                          moderation, fraud, flags, audit, system health
+    (app)/admin/          admin dashboard: overview, users, economy, moderation,
+                          fraud, flags, audit, system health
     (app)/billing/        plans, credit packs, purchase history
     api/stripe/           checkout, webhook, portal
   src/components/ui/      design primitives — StreakStrip, ReliabilityGauge, CreditChip…
   src/components/app/     authenticated-surface components (incl. first-run)
   src/components/admin/   admin-only components
   src/lib/economy.ts      earn/spend rates, tiers, plans (mirrors economy_config)
-  src/lib/market.ts       marketplace filters, URL parsing, stage/relation copy
-  src/lib/pods.ts         pod-day maths, seat health, formatting
+  src/lib/market.ts       feed filters, URL parsing, stage/relation copy
+  src/lib/format.ts       dates, ledger labels, status copy, validators
   src/lib/evidence.ts     drafts Google's three production-access answers
   src/lib/flags.ts        feature flags, read server-side, fail-safe defaults
   src/lib/billing.ts      SKU catalogue
   supabase/migrations/    the exact applied history — apply in filename order
   supabase/functions/     Deno edge functions: send-notifications, triage-proof
+  src/app/feed/           the public browse page (was /pool; 308 redirect kept)
 design/                   standalone design system + screen mockups
 docs/                     STRATEGY, BUILD-PLAN, AUTH-SETUP, OPERATIONS, PAYMENTS
 shots/                    screenshots of the running app
@@ -85,20 +93,19 @@ shots/                    screenshots of the running app
 
 ## What runs on its own
 
-Four scheduled jobs keep the clock honest. `pod-lifecycle` (hourly at :07) starts full pods,
-closes finished ones and releases escrow. `clock-watch` (every 6 hours) enqueues check-in
-reminders and detects dropouts. `nightly` (02:20 UTC) reconciles the ledger and prunes.
+Four scheduled jobs keep the books honest. `pod-lifecycle` (hourly at :07) releases escrow,
+awards badges and recomputes reliability — the cron name is historical, there are no cohorts
+left for it to advance. `clock-watch` (every 6 hours) enqueues reminders and turns a
+long-abandoned seat into a dropout. `nightly` (02:20 UTC) reconciles the ledger and prunes.
 `send-notifications` (every 15 minutes) drains the outbox by calling the edge function.
 
 `/admin/system` is the smoke alarm for all of it. Check there first when something feels wrong.
 `docs/OPERATIONS.md` has the detail.
 
-Pods are gated by the `pod_matching` flag, which `join_pod` and `start_pod` already enforce
-inside the database. Turn it off in `/admin/flags` to put pods in their Upcoming state: the
-join button and the RPC move together, because a gate the UI keeps and the RPC does not is
-not a gate. A pod is a promise about fourteen specific days, and opening one before there
-are enough testers to fill it costs a developer a month — `/pods` says exactly that and
-points at the marketplace. Pods already in flight keep running either way.
+The feed is gated by the `activities` flag, which `start_activity` enforces inside the
+database and `market_apps` mirrors into `activity_open`. Turn it off in `/admin/flags` and
+the button, the row and the RPC all move together, because a gate the UI keeps and the RPC
+does not is not a gate. Work already started keeps running either way.
 
 `app/AGENTS.md` and `app/CLAUDE.md` are generated by `next dev` — leave them alone and
 commit them if they change.
@@ -131,13 +138,13 @@ disputes, credit_ledger, greenlights, badges, user_badges, referrals, economy_co
 app_watchlist`.
 Views: `leaderboard, pod_health, production_evidence`.
 
-**The marketplace reads through `market_apps` / `market_app` / `market_counts` /
+**The feed reads through `market_apps` / `market_app` / `market_counts` /
 `market_categories` / `market_pulse`, never through `apps`.** Those five are
 `SECURITY DEFINER` and are the projection that decides what a browsing member may see. They
 withhold `opt_in_url`, `google_group`, `package_name` and `tester_instructions` from anyone
 who neither owns the app nor holds an assignment on it — for an app in closed testing the
-package name *is* the way into the track, and the way in is granted by a pod, not by a
-directory. `package_name` reappears once an app is `graduated`, because by then the listing
+package name *is* the way into the track, and the way in is granted by taking the job, not
+by browsing a directory. `package_name` reappears once an app is `graduated`, because by then the listing
 is public and there is no track left to protect. They also
 surface no scores and no averages, for the reason in invariant 1. Add a column to the
 listing only after deciding which of those two rules it lands under.
@@ -146,24 +153,23 @@ listing only after deciding which of those two rules it lands under.
 which write the append-only `credit_ledger` in the same statement. The ledger is the source
 of truth; `profiles.credits` is a cached projection.
 
-RPCs callable by `authenticated`: `join_pod, start_pod, start_activity,
-set_activity_intake, submit_checkin, review_feedback, arbitrate_dispute, market_apps,
-market_app, market_counts, market_categories, market_pulse`. Each authorises against
-`auth.uid()` itself.
+RPCs callable by `authenticated`: `start_activity, set_activity_intake, submit_checkin,
+review_feedback, arbitrate_dispute, market_apps, market_app, market_counts,
+market_categories, market_pulse`. Each authorises against `auth.uid()` itself.
+`join_pod`, `start_pod` and `admin_pod_action` are revoked from every role and stay that way.
 
-**An `assignments` row with a null `pod_id` is an activity**, not a broken pod seat. It is
-the marketplace's own supply route: a member picks any open app, joins its closed testing
-track, uses it, files one report, and is paid the same 10 + 30 a pod seat pays out of the
-same owner's balance. `start_activity` is the only way to make one and it carries every
-guard that pod matching used to provide — the owner's consent (`apps.accepting_activities`),
-their remaining seats (`apps.activity_target`), and their balance, checked for the *whole*
-40 before the seat exists rather than after the tester has done the work. Gated by the
-`activities` flag, enforced in the RPC and mirrored into `market_apps.activity_open`, so the
-button and the RPC move together.
+**Every `assignments` row now has a null `pod_id`.** A seat is one member, one app: they
+pick anything open, join its closed testing track, use it, file one report, and are paid
+10 + 30 out of the owner's balance. `start_activity` is the only way to make one and it
+carries every guard — the owner's consent (`apps.accepting_activities`), their remaining
+seats (`apps.activity_target`), and their balance, checked for the *whole* 40 before the
+seat exists rather than after the tester has done the work. Gated by the `activities` flag,
+enforced in the RPC and mirrored into `market_apps.activity_open`, so the button, the row
+and the RPC all move together.
 
-**A `graduated` app still takes activities.** Clearing Google's gate ends the *pod* — a
-shipped app has no production-access requirement left and takes no pod seat — but a live
-game still has bugs and a developer who wants to hear about them, and the `live` scope in
+**A `graduated` app still takes testers.** Clearing Google's gate ends the requirement — a
+shipped app has no production-access bar left to clear — but a live game still has bugs and
+a developer who wants to hear about them, and the `live` scope in
 `market_apps` is how they are browsed. The route in is unchanged and is the whole boundary
 of the feature: the tester joins the closed track the developer runs alongside production,
 never the public listing. `start_activity` refuses without `opt_in_url` or `google_group`,
@@ -172,10 +178,12 @@ without one impossible, so "install from the store page" is unreachable rather t
 refused. That constraint is now load-bearing for a reason it was not written for; do not
 relax it.
 
-Every lifecycle job joins `assignments` to `pods` on an inner join, so activities are
-excluded from the 14-day clock, dropout detection and escrow release by construction. Any
-new code reading a pod off an assignment must handle null — `submit_checkin` and `/tests`
-both did not, and the seat was unworkable from the screen it is worked from.
+Every lifecycle job joins `assignments` to `pods` on an inner join. That was written to
+exclude activities from the cohort clock; now that every seat is one, it means those joins
+match nothing and the jobs are effectively no-ops over assignments. Escrow release still
+runs off its own path. Anything new that reads `pod_id` off an assignment must handle null,
+because it always is — `submit_checkin` and `/tests` both once did not, and the seat was
+unworkable from the screen it is worked from.
 
 ## Five traps this codebase has already fallen into
 
@@ -233,7 +241,8 @@ Copy is confident and specific. No emoji, no exclamation marks, no "revolutioniz
 for a solo developer in Lagos or Jakarta who is four weeks behind schedule.
 
 Handle nulls defensively — this app gets demoed against partially-populated data, and a new
-user with no pod must see a page that guides them, never a blank screen.
+user with nothing listed and nothing taken on must see a page that guides them, never a
+blank screen.
 
 ## Before launch
 

@@ -4,32 +4,20 @@
  * This is the only moment where we can explain the whole idea before they
  * decide whether to bother. Three constraints shaped it:
  *
- *  1. The core concept has to land without reading a paragraph. The pod
- *     diagram and the 14-square strip do that work; the words support them.
+ *  1. The core concept has to land without reading a paragraph. The exchange
+ *     diagram does that work; the words support it.
  *  2. It has to be honest about the deal up front. A developer who arrives
- *     wanting 12 testers and discovers on day three that they owe 14 people
- *     daily attention will feel tricked and drop out — and a dropout resets a
- *     stranger's clock. Saying "about two minutes a day, for fourteen days"
- *     here is cheaper than a broken pod later.
+ *     wanting testers and discovers that credits only move — that receiving
+ *     work means doing work — will feel tricked and leave. Saying it here is
+ *     cheaper than a stalled listing later.
  *  3. It must not become a wall. Everything below the fold is optional.
  */
 import Link from 'next/link';
-import { Card, StreakStrip, CreditChip, cx } from '@/components/ui';
-import { RULES, EARN } from '@/lib/economy';
+import { Card, CreditChip, cx } from '@/components/ui';
+import { EARN, CHARGE } from '@/lib/economy';
 
-function Seat({ filled = false, you = false }: { filled?: boolean; you?: boolean }) {
-  return (
-    <span
-      className="inline-block rounded-full"
-      style={{
-        width: 18, height: 18,
-        background: you ? 'var(--color-accent)' : filled ? 'var(--color-surface-2)' : 'transparent',
-        border: you ? 'none' : `1px ${filled ? 'solid' : 'dashed'} var(--color-line-hi)`,
-        boxShadow: you ? '0 0 0 3px color-mix(in oklab, var(--color-accent) 22%, transparent)' : undefined,
-      }}
-    />
-  );
-}
+/** What one tester's full run is worth, from both sides of the trade. */
+const RUN = CHARGE.install + CHARGE.review;
 
 function StepNumber({ n }: { n: number }) {
   return (
@@ -46,6 +34,29 @@ function StepNumber({ n }: { n: number }) {
   );
 }
 
+/** One side of the trade, drawn as a labelled amount. */
+function Side({
+  label, amount, detail, tone,
+}: {
+  label: string;
+  amount: number;
+  detail: string;
+  tone: 'earn' | 'spend';
+}) {
+  const color = tone === 'earn' ? 'var(--color-accent)' : 'var(--color-credit)';
+  return (
+    <div className="rounded-lg border border-[var(--color-line)] bg-[var(--color-bg)]/60 p-3.5">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-mute)]">
+        {label}
+      </div>
+      <div className="num mt-1 text-xl font-bold" style={{ color }}>
+        {tone === 'earn' ? '+' : '−'}{amount}
+      </div>
+      <p className="mt-1 text-xs leading-relaxed text-[var(--color-dim)]">{detail}</p>
+    </div>
+  );
+}
+
 export function FirstRun({ credits }: { credits: number }) {
   return (
     <div className="flex flex-col gap-4">
@@ -54,13 +65,13 @@ export function FirstRun({ credits }: { credits: number }) {
         <div className="grid items-center gap-8 md:grid-cols-[1.1fr_1fr]">
           <div>
             <h2 className="text-[26px] font-bold leading-[1.15] tracking-tight md:text-[32px]">
-              You need 12 testers for 14 days.
+              You need testers.
               <br />
               <span className="text-[var(--color-accent)]">So does everyone else here.</span>
             </h2>
             <p className="mt-3 max-w-md text-[15px] leading-relaxed text-[var(--color-dim)]">
-              We seat you with about fifteen developers who all need the same thing. You run the
-              fourteen days together.
+              List your app and it goes into the feed. Other developers pick it up, install it and
+              send you a written report. You do the same for theirs — and that is what pays for it.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -71,44 +82,39 @@ export function FirstRun({ credits }: { credits: number }) {
                         strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </Link>
-              <Link href="/pods" className="btn btn-secondary">See pods forming</Link>
+              <Link href="/market" className="btn btn-secondary">Browse the feed</Link>
               <span className="text-xs text-[var(--color-mute)]">Takes about two minutes.</span>
             </div>
           </div>
 
-          {/* A pod, drawn. Fifteen seats, one of them yours. */}
+          {/* The trade, drawn. One tester's run, both directions. */}
           <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-bg)]/60 p-5">
             <div className="flex items-baseline justify-between">
               <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-mute)]">
-                A pod
+                One tester, one app
               </span>
-              <span className="num text-[11px] text-[var(--color-mute)]">
-                {RULES.podSeats} seats · {RULES.requiredTesters} required
-              </span>
+              <span className="num text-[11px] text-[var(--color-mute)]">{RUN} credits</span>
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Seat you />
-              {Array.from({ length: RULES.podSeats - 1 }, (_, i) => (
-                <Seat key={i} filled={i < 10} />
-              ))}
+            <div className="mt-3 grid grid-cols-2 gap-2.5">
+              <Side
+                label="You test"
+                amount={RUN}
+                detail={`${EARN.optInVerified} for the confirmed install, ${EARN.feedbackApproved} for the report.`}
+                tone="earn"
+              />
+              <Side
+                label="You are tested"
+                amount={RUN}
+                detail="The same amounts, out of your balance, to the developer who did the work."
+                tone="spend"
+              />
             </div>
+
             <p className="mt-3 text-xs leading-relaxed text-[var(--color-dim)]">
-              <span className="text-[var(--color-accent)]">●</span> is you. Everyone tests everyone, so a
-              full pod gives you fourteen testers — two spare, on purpose.
+              Credits only ever move between developers — nothing here mints them. Test one app for
+              every tester you take, and it costs you nothing.
             </p>
-
-            <div className="mt-4 border-t border-[var(--color-line)] pt-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-mute)]">
-                  Your 14 days
-                </span>
-                <span className="num text-[11px] text-[var(--color-mute)]">one check-in a day</span>
-              </div>
-              <div className="mt-2">
-                <StreakStrip days={['done', 'done', 'done', 'done', 'today']} size={14} gap={4} />
-              </div>
-            </div>
           </div>
         </div>
       </Card>
@@ -123,13 +129,13 @@ export function FirstRun({ credits }: { credits: number }) {
           },
           {
             n: 2,
-            title: 'Join a pod',
-            body: 'The clock begins the moment the last seat fills.',
+            title: 'Pick one off the feed',
+            body: 'Any app that is open. Join its closed test, use it properly, file one report.',
           },
           {
             n: 3,
-            title: 'Test, and be tested',
-            body: 'Open each app once a day. From day seven, write one honest report. About two minutes a day.',
+            title: 'Get paid, and pay out',
+            body: 'What you earn testing funds the testers who come to your listing. No queue, no waiting for a cohort.',
           },
         ].map((s) => (
           <Card key={s.n} className="p-5">
@@ -148,9 +154,9 @@ export function FirstRun({ credits }: { credits: number }) {
           <div className="max-w-2xl">
             <h3 className="text-[15px] font-semibold">The part worth knowing before you start</h3>
             <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-dim)]">
-              This is a trade, not a service. Stop checking in halfway through and you do not just lose
-              your own streak — you reset someone else&apos;s fourteen days. That is why reliability is
-              public here.
+              This is a trade, not a service. Take an app on and abandon it and you have held a
+              developer&apos;s balance against work that never arrived. That is why reliability is
+              public here, and why a report has to be specific to be paid.
             </p>
           </div>
           <div className="shrink-0 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface-2)] px-4 py-3">
@@ -161,7 +167,7 @@ export function FirstRun({ credits }: { credits: number }) {
               <CreditChip amount={credits} size="lg" />
             </div>
             <div className="mt-1 text-xs text-[var(--color-dim)]">
-              Enough to pay for your whole first pod. Testing everyone else&apos;s app earns it back.
+              Enough to pay for your first testers. Testing other apps earns it back.
             </div>
           </div>
         </div>
@@ -187,15 +193,14 @@ export function FirstRun({ credits }: { credits: number }) {
         </svg>
         <span>
           Everything happens inside closed testing tracks, which do not affect store rankings,
-          ratings, or public install counts.
+          ratings, or public install counts. Reports are private to the developer, never store reviews.
         </span>
       </div>
 
       <p className="px-1 text-xs text-[var(--color-mute)]">
         Credits, in short: you earn <span className="num">{EARN.optInVerified}</span> for a confirmed
         install and <span className="num">{EARN.feedbackApproved}</span> for a confirmed report — paid by
-        the developer whose app it is. Yours pays your testers the same way, so a pod you carry your
-        weight in costs you nothing.
+        the developer whose app it is. Yours pays your testers the same way.
       </p>
     </div>
   );

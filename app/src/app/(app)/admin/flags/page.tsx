@@ -4,7 +4,7 @@ import { Card, Pill, EmptyState } from '@/components/ui';
 import { Section, WarnBox, AnnouncementBanner } from '@/components/admin/parts';
 import { FlagToggle } from '@/components/admin/flag-toggle';
 import { AnnouncementComposer, AnnouncementRetire } from '@/components/admin/announcement-composer';
-import { fmtDateTime, fmtRelative } from '@/lib/pods';
+import { fmtDateTime, fmtRelative } from '@/lib/format';
 import { KILL_SWITCHES, toneOf, type AnnouncementRow, type FeatureFlagRow } from '@/lib/admin';
 
 export const dynamic = 'force-dynamic';
@@ -42,7 +42,7 @@ export default async function AdminFlagsPage() {
         {killSwitches.length === 0 ? (
           <Card className="px-4 py-5">
             <p className="text-sm text-[var(--color-mute)]">
-              Neither pod_matching nor checkins_open exists in feature_flags. Nothing here to freeze.
+              Neither activities nor checkins_open exists in feature_flags. Nothing here to freeze.
             </p>
           </Card>
         ) : (

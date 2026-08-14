@@ -29,12 +29,12 @@ export const metadata: Metadata = {
   title: 'The pool',
   description:
     'Every Android app currently open to testers on TesterPool, and what the network did in the last 24 hours. No account needed to look.',
-  alternates: { canonical: '/pool' },
+  alternates: { canonical: '/feed' },
   openGraph: {
     title: 'The pool · TesterPool',
     description:
       'Android apps currently open to testers, and what the network did in the last 24 hours.',
-    url: '/pool',
+    url: '/feed',
   },
 };
 
@@ -72,7 +72,7 @@ const EMPTY: Showcase = {
 
 /**
  * Never throws and never invents. A failed call renders the empty state, which
- * says the pool could not be read — not a fabricated pool. The whole argument
+ * says the feed could not be read — not a fabricated one. The whole argument
  * of this page is that our numbers are real.
  */
 async function loadShowcase(): Promise<{ data: Showcase; ok: boolean }> {
@@ -179,12 +179,12 @@ export default async function PoolPage() {
 
   const { data, ok } = await loadShowcase();
 
-  const seats = RULES.podSeats;
+  const seats = RULES.cycleSize;
   const seatsLeft = Math.max(0, seats - data.members);
   const filling = data.members < seats;
 
   const stats: Array<{ v: number; l: string; sub: string }> = [
-    { v: data.members, l: 'developers joined', sub: `first group fills at ${seats}` },
+    { v: data.members, l: 'developers joined', sub: `${seats} is a full cycle` },
     { v: data.open_apps, l: 'apps open to testers', sub: 'right now' },
     { v: data.reviews, l: 'reviews delivered', sub: 'last 24 hours' },
     { v: data.graduated, l: 'apps shipped', sub: 'all time' },
@@ -198,21 +198,21 @@ export default async function PoolPage() {
           <div className="mx-auto max-w-6xl">
             <div className="max-w-2xl">
               <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-accent)]">
-                The pool
+                The feed
               </div>
               <h1 className="text-4xl font-bold leading-[1.06] tracking-tight sm:text-5xl">
                 What is open to testers right now
               </h1>
               <p className="mt-5 text-lg leading-relaxed text-[var(--color-dim)]">
                 Every app below is in a closed testing track and looking for
-                testers. Install one, use it for the {RULES.requiredDays} days its
-                round runs, send one structured review, and the credits you earn
-                buy the same treatment for yours.
+                testers. Take one, install it, use it properly, send one
+                structured review — and the credits you earn buy the same
+                treatment for yours.
               </p>
               <p className="mt-3 text-sm leading-relaxed text-[var(--color-mute)]">
                 Names and taglines only. The opt-in link and package name arrive
-                when you are matched with an app, never from a directory &mdash;
-                that is what keeps a closed track closed.
+                when you take the app on, never from a directory &mdash; that is
+                what keeps a closed track closed.
               </p>
 
               {ok && filling && (
@@ -221,7 +221,7 @@ export default async function PoolPage() {
                  * against a target gives a reason to act now; an empty grid gives
                  * a reason to leave. It has to stay real — this reads the same
                  * `market_showcase` count the stat strip does, and it disappears
-                 * of its own accord once the first group is full.
+                 * of its own accord once the network is a full cycle deep.
                  */
                 <div className="mt-8 max-w-md">
                   <div className="flex items-baseline justify-between gap-3">
@@ -251,10 +251,11 @@ export default async function PoolPage() {
                     />
                   </div>
                   <p className="mt-3 text-sm leading-relaxed text-[var(--color-dim)]">
-                    Reviewing starts when the first group is full. Everyone in it
-                    installs everyone else&rsquo;s app on the same day, so the{' '}
-                    {RULES.requiredDays}-day clock runs once rather than fifteen
-                    times.
+                    Nothing waits on this number &mdash; you can take an app the
+                    day you join. It is here because a deeper network is more
+                    testers for your own app, and {seats} developers is the point
+                    at which everyone can clear Google&rsquo;s{' '}
+                    {RULES.requiredTesters}.
                   </p>
                 </div>
               )}
@@ -300,15 +301,15 @@ export default async function PoolPage() {
                 title={
                   ok
                     ? filling
-                      ? 'The first group is still filling'
+                      ? 'Nothing is open at this minute'
                       : 'Nothing open at this minute'
-                    : 'The pool could not be read'
+                    : 'The feed could not be read'
                 }
                 body={
                   ok
                     ? filling
-                      ? `${seatsLeft} of ${seats} seats are still open. List your app now and it is in the first round of reviews — there is no queue ahead of you, which will not be true for long.`
-                      : 'Every app in the network is mid-cycle. New listings open continuously — sign up and you will be matched with the next round.'
+                      ? `The network is ${data.members} developers deep and still early. List your app now and it is at the front of a feed with nothing ahead of it — which will not be true for long.`
+                      : 'Every listed app has the testers it asked for. New ones are listed continuously — sign up and you will see them as they arrive.'
                     : 'This page reads live from the network and the read failed. Rather than show you invented numbers, it shows you nothing. Try again shortly.'
                 }
                 action={

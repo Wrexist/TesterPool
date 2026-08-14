@@ -155,6 +155,25 @@ keep saying which reviews we mean, at body size, above the fold.
 
 ---
 
+## 4b. The structural change, 14 Aug 2026
+
+Cohorts are gone. The product is now the shape §2 describes theirs as: a feed of listings,
+a wallet, and one member taking one app at a time. `/pods`, `/admin/pods`, the Pods nav
+entry, `joinPod`, `startPod` and `adminPodAction` are deleted; `/pool` is `/feed` behind a
+308; `pod_matching` is permanently false and `join_pod` / `start_pod` / `admin_pod_action`
+have execute revoked from every role. The `pods` and `pod_members` tables and their history
+stay. `docs/GROWTH-BETS.md` §2's feed boost is now the natural next step rather than a
+bolt-on, and `Fast Pod` became `Fast Track` — display name only, the `fast_pod` entitlement
+key is unchanged.
+
+**What did not change, and must not.** Everything in §3 stands. The install is still a
+closed-track opt-in and the report is still private to the developer. Removing the cohort
+removed scheduling, not the compliance boundary: this is now their *shape* with none of
+their product, and the row in §4.4 is if anything sharper, because the only remaining
+difference between the two products is the one that matters.
+
+---
+
 ## 5. Open questions for someone with an unblocked browser
 
 - Actual prices for Testing Packs and star bundles. **[unverified]**

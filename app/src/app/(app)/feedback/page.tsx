@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Card, Pill, Avatar, TierBadge, EmptyState, CreditChip } from '@/components/ui';
 import { ReviewActions } from './review-actions';
 import { IconArrow, IconAlert } from '@/components/app/icons';
-import { fmtDate, n, tierOf } from '@/lib/pods';
+import { fmtDate, n, tierOf } from '@/lib/format';
 import type { AppRow, Feedback, FeedbackStatus, Profile } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';

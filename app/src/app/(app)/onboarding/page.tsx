@@ -27,7 +27,7 @@ export default async function OnboardingPage() {
   return (
     <div className="pb-8">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Three steps, then you are in a pod</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Three steps, then you are listed</h1>
         <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
           About two minutes.
         </p>

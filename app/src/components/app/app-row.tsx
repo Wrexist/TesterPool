@@ -19,7 +19,7 @@ import { Pill, cx } from '@/components/ui';
 import { AppIcon } from '@/components/app/app-card';
 import { IconArrow, IconAndroid, IconApple } from '@/components/app/icons';
 import { cardChip, isListingOnly, rewardFor, type MarketApp } from '@/lib/market';
-import { n } from '@/lib/pods';
+import { n } from '@/lib/format';
 
 /** What one app's work pays a tester, as the chip that ends every row. */
 export function RewardChip({ amount, size = 'md' }: { amount: number; size?: 'sm' | 'md' }) {

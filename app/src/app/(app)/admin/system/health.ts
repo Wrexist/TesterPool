@@ -71,9 +71,9 @@ export const JOB_SPECS: JobSpec[] = [
     cronName: 'pod-lifecycle',
     schedule: 'Hourly at :07',
     cronExpr: '7 * * * *',
-    does: 'Starts full pods, closes finished ones, releases escrow, awards badges and recomputes reliability.',
+    does: 'Releases escrow on finished work, awards badges and recomputes reliability. The cron name is historical — there are no cohorts left for it to advance.',
     stops:
-      'no pod can start or close, escrowed opt-in credits stay locked, and finished testers are not paid.',
+      'escrowed opt-in credits stay locked, finished testers are not paid, and reliability stops moving.',
     lateAfterMs: 2 * HOUR + 15 * MIN,
     staleAfterMs: 6 * HOUR,
   },
@@ -82,9 +82,9 @@ export const JOB_SPECS: JobSpec[] = [
     cronName: 'clock-watch',
     schedule: 'Every 6 hours, on the hour',
     cronExpr: '0 */6 * * *',
-    does: 'Enqueues check-in reminders, warns at-risk streaks and seats, and converts four missed days into a dropout.',
+    does: 'Enqueues session reminders, warns on seats going stale, and converts a long-abandoned seat into a dropout.',
     stops:
-      'nobody is being reminded to check in, and dropouts are not being detected. Every day this is down costs somebody a day of their 14.',
+      'nobody is being reminded to finish what they took on, and abandoned seats are not being detected — so owners keep paying for work that is not coming.',
     lateAfterMs: 13 * HOUR,
     staleAfterMs: 25 * HOUR,
   },

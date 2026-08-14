@@ -8,7 +8,7 @@ import { AdminProofActions } from '@/components/admin/proof-actions';
 // `arbitrate_dispute` RPC, so it is reused rather than duplicated.
 import { DisputeActions } from '@/app/(app)/mod/mod-actions';
 import { IconAlert } from '@/components/app/icons';
-import { fmtDateTime, fmtRelative, n } from '@/lib/pods';
+import { fmtDateTime, fmtRelative, n } from '@/lib/format';
 import type { Dispute, Feedback, Profile, Proof } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';

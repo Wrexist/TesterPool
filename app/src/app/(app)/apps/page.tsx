@@ -7,7 +7,7 @@ import { ActivityIntake } from '@/components/app/activity-intake';
 import { IconPlus, IconArrow, IconAlert } from '@/components/app/icons';
 import { CHARGE } from '@/lib/economy';
 import { marketHref, type MarketApp } from '@/lib/market';
-import { n } from '@/lib/pods';
+import { n } from '@/lib/format';
 import type { Profile } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';

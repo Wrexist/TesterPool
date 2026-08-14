@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Card, Avatar, TierBadge, ReliabilityGauge, Stat, Pill, EmptyState, StreakStrip } from '@/components/ui';
 import { IconArrow } from '@/components/app/icons';
-import { fmtDate, n, tierOf } from '@/lib/pods';
+import { fmtDate, n, tierOf } from '@/lib/format';
 import { RULES } from '@/lib/economy';
 import type { Badge, Greenlight, Profile, UserBadge } from '@/lib/types';
 
@@ -93,7 +93,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       </Card>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <Stat label="Pods completed" value={<span className="num">{n(profile.pods_completed)}</span>} />
+        <Stat label="Jobs completed" value={<span className="num">{n(profile.pods_completed)}</span>} />
         <Stat label="Apps helped ship" value={<span className="num">{n(profile.apps_helped_ship)}</span>} />
         <Stat label="Approved reports" value={<span className="num">{reports}</span>} />
         <Stat label="Longest streak" value={<span className="num">{n(profile.longest_streak)}</span>} sub="consecutive days" />
@@ -101,7 +101,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           label="Dropouts"
           value={<span className="num">{n(profile.pods_dropped)}</span>}
           tone={n(profile.pods_dropped) > 0 ? 'var(--color-danger)' : undefined}
-          sub={n(profile.pods_dropped) === 0 ? 'never broke a clock' : 'clocks broken'}
+          sub={n(profile.pods_dropped) === 0 ? 'never abandoned a seat' : 'seats abandoned'}
         />
       </div>
 
@@ -128,7 +128,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         {badges.length === 0 ? (
           <EmptyState
             title="No badges yet"
-            body="Badges are earned, not given: a completed pod, a perfect fourteen, a rescue, a blocker found with reproduction steps."
+            body="Badges are earned, not given: a finished job, a streak held, a rescue, a blocker found with reproduction steps."
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -163,8 +163,8 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         {launches.length === 0 && helpedShip.length === 0 ? (
           <EmptyState
             title="No greenlights recorded"
-            body="A greenlight is logged when an app in a pod is approved for production access. They appear here for everyone who helped."
-            action={<Link href="/pods" className="btn btn-secondary">Find a pod <IconArrow size={15} /></Link>}
+            body="A greenlight is logged when an app tested here is approved for production access. They appear here for everyone who helped."
+            action={<Link href="/market" className="btn btn-secondary">Browse the feed <IconArrow size={15} /></Link>}
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

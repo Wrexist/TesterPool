@@ -3,9 +3,9 @@
  *
  * A card says four things and stops: what it is, which store it is for, whether
  * it is open to testers, and where you already stand with it. Everything a
- * previous draft also carried — focus areas, the category as a pill, the pod's
+ * previous draft also carried — focus areas, the category as a pill, the
  * seat count, the day number — either belongs on the app's own page or on
- * /pods, and putting it here made nine cards read as a wall.
+ * listing detail, and putting it here made nine cards read as a wall.
  *
  * The store is a logo, not a word. A developer recognises the robot and the
  * apple at a glance and reads "Android" a beat later, so the glyph is badged on
@@ -22,7 +22,7 @@ import { SaveButton } from '@/app/(app)/market/save-button';
 import { IconAndroid, IconApple } from '@/components/app/icons';
 import { RewardChip } from '@/components/app/app-row';
 import { cardChip, isListingOnly, rewardFor, type MarketApp } from '@/lib/market';
-import { n } from '@/lib/pods';
+import { n } from '@/lib/format';
 
 /** Deterministic tint from the name, so an app with no icon still looks like itself. */
 export function AppIcon({

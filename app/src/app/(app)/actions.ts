@@ -12,7 +12,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import type { ActionResult } from '@/lib/types';
-import { checkHandle, looksLikeEmail } from '@/lib/pods';
+import { checkHandle, looksLikeEmail } from '@/lib/format';
 import { CAPS } from '@/lib/economy';
 import { triageProof } from '@/lib/triage';
 import { normaliseCategory, parseAppLink, suggestFocusAreas } from '@/lib/store-links';
@@ -358,7 +358,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
   }
   // No opt-in link required here, deliberately. The app is saved as a draft,
   // and `app_needs_optin_to_queue` allows a draft without one; the link is
-  // demanded by `joinPod` below, at the point it first has to work. Requiring
+  // demanded before a tester can join, at the point it first has to work. Requiring
   // it at signup blocked every developer who has not created their closed
   // track yet — which is most of the people this product exists for.
 
@@ -411,7 +411,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
   }
 
   revalidatePath('/dashboard');
-  revalidatePath('/pods');
+  revalidatePath('/market');
   return { ok: true, data: { appId: app.id as string }, message: 'Your app is listed.' };
 }
 
@@ -421,7 +421,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
  * Saves the way testers reach a closed track, after the fact.
  *
  * Onboarding no longer demands this, so it has to be reachable later — from the
- * join button on /pods and from the dashboard. Ownership is enforced by RLS on
+ * feed listing and from the dashboard. Ownership is enforced by RLS on
  * `apps`; the `eq('owner_id')` is belt and braces, and makes the zero-row case
  * mean "not yours" rather than a silent no-op.
  */
@@ -458,61 +458,8 @@ export async function saveAppEntry(
   if (!data) return fail('That app is not yours.', 'not_found');
 
   revalidatePath('/dashboard');
-  revalidatePath('/pods');
+  revalidatePath('/market');
   return { ok: true, message: 'Saved. Testers can reach your track now.' };
-}
-
-/* ------------------------------------------------------------------ pods */
-
-export async function joinPod(appId: string): Promise<ActionResult> {
-  const auth = await requireUser();
-  if ('error' in auth) return fail(auth.error, 'no_session');
-
-  // `join_pod` moves the app to 'queued', which the `app_needs_optin_to_queue`
-  // constraint rejects without a way in. Caught here so the developer reads a
-  // sentence about their opt-in link rather than a raw constraint violation.
-  const { data: app } = await auth.supabase
-    .from('apps')
-    .select('opt_in_url, google_group')
-    .eq('id', appId)
-    .maybeSingle();
-
-  if (app && !app.opt_in_url && !app.google_group) {
-    return fail(
-      'Add your opt-in link first. It is how testers reach your closed track.',
-      'needs_optin'
-    );
-  }
-
-  const { data, error } = await auth.supabase.rpc('join_pod', { p_app: appId });
-  if (error) return fail(error.message, 'rpc_error');
-
-  const result = fromRpc(data, 'Could not join that pod.');
-  if (result.ok) {
-    revalidatePath('/pods');
-    revalidatePath('/dashboard');
-    result.message = 'You are in. The pod starts once the seats are full.';
-  }
-  return result;
-}
-
-export async function startPod(podId: string): Promise<ActionResult> {
-  const auth = await requireUser();
-  if ('error' in auth) return fail(auth.error, 'no_session');
-
-  const { data, error } = await auth.supabase.rpc('start_pod', { p_pod: podId });
-  if (error) return fail(error.message, 'rpc_error');
-
-  const result = fromRpc(data, 'Could not start that pod.');
-  if (result.ok) {
-    revalidatePath('/pods');
-    revalidatePath('/dashboard');
-    revalidatePath('/tests');
-    result.message = 'Pod started. Day 1 of 14 begins now.';
-  } else if (result.error === 'not_enough_members') {
-    result.message = 'A pod needs at least six members before the clock can start.';
-  }
-  return result;
 }
 
 /* ------------------------------------------------------------ activities */
@@ -520,9 +467,8 @@ export async function startPod(podId: string): Promise<ActionResult> {
 /**
  * Take one app's job: join its closed test, use it, send one report.
  *
- * The marketplace has shown what an app's work pays since it was built and has
- * never had a way to accept it — a seat existed only where pod matching made
- * one. This is the missing verb, and every guard that matters lives in
+ * This is the only way a seat is ever created, and every guard that matters
+ * lives in
  * `start_activity`: the owner's consent, their remaining seats, their balance,
  * the flag, and whether you already hold a seat here. The messages below only
  * translate the refusals into a sentence a developer can act on.
@@ -628,9 +574,6 @@ export async function submitCheckin(assignmentId: string, note?: string): Promis
   });
 
   if (error) {
-    if (/pod has not started/i.test(error.message)) {
-      return fail('This pod has not started yet. The clock begins when the last seat fills.', 'not_started');
-    }
     if (/not your assignment/i.test(error.message)) {
       return fail('That test is not assigned to you.', 'forbidden');
     }
@@ -876,7 +819,7 @@ export async function requestRescueSeat(appId: string): Promise<ActionResult> {
   const result = fromRpc(data, 'Could not request a rescue tester.');
   if (result.ok) {
     revalidatePath('/dashboard');
-    revalidatePath('/pods');
+    revalidatePath('/market');
     revalidatePath('/credits');
     const paidWith = (result.data as { paid_with?: string } | undefined)?.paid_with;
     result.message =

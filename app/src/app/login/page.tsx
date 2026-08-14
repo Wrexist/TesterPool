@@ -5,7 +5,7 @@ import { getFlags } from '@/lib/flags';
 export const metadata: Metadata = {
   title: 'Log in',
   description:
-    'Sign in to TesterPool with a magic link, Google, GitHub or Apple. Join a pod of 15 developers and get your 12 testers for 14 consecutive days.',
+    'Sign in to TesterPool with a magic link, Google, GitHub or Apple. List your app and get your 12 testers for 14 consecutive days.',
   alternates: { canonical: '/login' },
   robots: { index: false, follow: true },
 };

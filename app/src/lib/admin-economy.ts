@@ -151,7 +151,7 @@ export function configImpact(cfg: ConfigMap, key: string, nextValue: number): Co
   if (after.dropoutBite < 0.5 && key === 'penalty_dropout') {
     warnings.push({
       level: 'caution',
-      text: `The dropout penalty would fall to ${ONE_DP(after.dropoutBite)} of a cycle. Below half a cycle it is cheaper to abandon a pod than to finish it.`,
+      text: `The dropout penalty would fall to ${ONE_DP(after.dropoutBite)} of a cycle. Below half a cycle it is cheaper to abandon the work than to finish it.`,
     });
   }
 
@@ -177,7 +177,7 @@ export function configImpact(cfg: ConfigMap, key: string, nextValue: number): Co
     const delta = after.fullCycle - before.fullCycle;
     warnings.push({
       level: 'note',
-      text: `Every tester currently mid-pod finishes on the new rate. This ${delta > 0 ? 'mints' : 'removes'} roughly ${Math.abs(delta)} credits per in-flight cycle.`,
+      text: `Every tester currently mid-job finishes on the new rate. This ${delta > 0 ? 'mints' : 'removes'} roughly ${Math.abs(delta)} credits per in-flight cycle.`,
     });
   }
 

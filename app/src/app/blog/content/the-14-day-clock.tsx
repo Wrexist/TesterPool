@@ -65,7 +65,7 @@ export default function Body() {
       <ul>
         <li>
           <strong>Over-seat.</strong> Recruit meaningfully more than{' '}
-          {RULES.requiredTesters}. At {RULES.podSeats} you can lose three people
+          {RULES.requiredTesters}. At {RULES.cycleSize} you can lose three people
           and still clear the bar without the window resetting.
         </li>
         <li>
@@ -98,7 +98,7 @@ export default function Body() {
       </p>
       <p>
         That is what a pod is.{' '}
-        <Link href="/pool">See what is currently open to testers</Link>, or read{' '}
+        <Link href="/feed">See what is currently open to testers</Link>, or read{' '}
         <Link href="/blog/how-to-get-12-testers">
           the full comparison of ways to reach {RULES.requiredTesters}
         </Link>

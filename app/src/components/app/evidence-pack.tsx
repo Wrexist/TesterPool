@@ -98,7 +98,7 @@ export function EvidencePack({
         <p>
           {meetsBar
             ? `${appName} clears the tester count. Reviewers also read the engagement answer closely, so keep the daily check-ins running to the last day.`
-            : `Keep the pod running. Applying below 12 verified opt-ins is the most common rejection, and a rejection costs you another 14 days.`}
+            : `Keep collecting. Applying below 12 verified opt-ins is the most common rejection, and a rejection costs you another 14 days.`}
         </p>
       </div>
     </Card>

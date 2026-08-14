@@ -3,7 +3,7 @@
  *
  * This key bypasses RLS entirely. It exists because the `purchases`,
  * `entitlements` and `customers` tables have no insert policy for anyone: a
- * user who could write their own purchase row could grant themselves a Pro pod
+ * user who could write their own purchase row could grant themselves a Pro plan
  * for free. Only Stripe, having verified a signature, gets to write those rows.
  *
  * Never import this from a component, a Server Action, or anything reachable

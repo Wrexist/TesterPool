@@ -8,7 +8,7 @@
  */
 
 import Link from 'next/link';
-import { Card, Pill, Stat, Avatar, TierBadge, StreakStrip, streakFromCount } from '@/components/ui';
+import { Card, Pill, Stat, Avatar, TierBadge } from '@/components/ui';
 import { AppIcon } from '@/components/app/app-card';
 import { RewardChip } from '@/components/app/app-row';
 import { ActivitySteps, type Step } from '@/components/app/activity-steps';
@@ -19,9 +19,9 @@ import {
 } from '@/components/app/icons';
 import { EARN, RULES } from '@/lib/economy';
 import { marketHref, stageOf, isListingOnly, rewardFor, type MarketAppDetail } from '@/lib/market';
-import { fmtDate, n, tierOf } from '@/lib/pods';
+import { fmtDate, n, tierOf } from '@/lib/format';
 
-export function AppDetail({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean }) {
+export function AppDetail({ app }: { app: MarketAppDetail }) {
 
   const stage = stageOf(app);
   const focus = app.focus_areas ?? [];
@@ -56,7 +56,7 @@ export function AppDetail({ app, podsOpen }: { app: MarketAppDetail; podsOpen: b
             <span className="text-xs text-[var(--color-mute)]">
               Reliability <span className="num font-semibold text-[var(--color-dim)]">{Math.round(n(app.owner_reliability))}</span>
               {' · '}
-              <span className="num">{n(app.owner_pods_completed)}</span> pods completed
+              <span className="num">{n(app.owner_pods_completed)}</span> jobs completed
               {' · '}
               helped ship <span className="num">{n(app.owner_apps_helped_ship)}</span>
             </span>
@@ -130,7 +130,7 @@ export function AppDetail({ app, podsOpen }: { app: MarketAppDetail; podsOpen: b
 
         {/* -------------------------------------------------------- action */}
         <aside className="order-1 flex flex-col gap-4 lg:order-2 lg:sticky lg:top-6 lg:self-start">
-          <ActionCard app={app} podsOpen={podsOpen} />
+          <ActionCard app={app} />
 
           {app.store_url && (
             <a
@@ -188,20 +188,20 @@ function OwnerLine({ app }: { app: MarketAppDetail }) {
 /**
  * The one thing to do next, decided by where the viewer stands with this app.
  *
- * There is no "start testing" here for a stranger, and there cannot be. A seat
- * is created by pod matching, which is what escrows the install and report
- * charges against the owner's balance; a button in a directory that seated
- * someone directly would be a way to earn credits from a developer who never
- * agreed to pay them. So the CTA for a stranger points at the pod.
+ * Taking a seat here is the whole product, and the objection it has to answer
+ * is that it earns credits from a developer who never agreed to pay them.
+ * `start_activity` answers it in the database rather than on this page: the
+ * owner's consent, their remaining seats and their balance are all checked
+ * before the seat exists. When any of those says no, the button is not offered.
  */
-function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean }) {
+function ActionCard({ app }: { app: MarketAppDetail }) {
   if (isListingOnly(app)) {
     return (
       <Card className="flex flex-col gap-3 p-5">
         <h2 className="text-sm font-semibold">An iOS listing</h2>
         <p className="text-sm leading-relaxed text-[var(--color-dim)]">
-          Listing an iOS app is its own feature: it puts the app in front of the pool and nothing
-          else. Pods, credits and proof are Android, because Google Play is the store that gates
+          Listing an iOS app is its own feature: it puts the app in front of the network and nothing
+          else. Credits and proof are Android, because Google Play is the store that gates
           production access behind {RULES.requiredTesters} testers for {RULES.requiredDays}{' '}
           consecutive days and Apple has no equivalent gate to clear.
         </p>
@@ -229,7 +229,7 @@ function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean
         {app.status === 'draft' && (
           <p className="flex items-start gap-1.5 text-xs text-[var(--color-mute)]">
             <IconAlert size={13} className="mt-px shrink-0" />
-            A draft is private. Join a pod with it and it appears in the marketplace for everyone.
+            A draft is private. Open it to testers and it appears in the feed for everyone.
           </p>
         )}
       </Card>
@@ -237,12 +237,7 @@ function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean
   }
 
   if (app.relation === 'testing') {
-    const days = n(app.days_checked_in);
     const joined = !!app.opt_in_verified;
-    // An activity is one check-in and one report. Drawing the fourteen-day
-    // streak strip against it would promise a clock that does not exist and
-    // read as thirteen missed days from the moment it appeared.
-    const activity = !!app.is_activity;
 
     // Three steps, and the state of each is read from the assignment rather than
     // guessed: joined when the opt-in is verified, using it while days are still
@@ -263,12 +258,10 @@ function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean
         state: !joined ? 'locked' : app.report_due ? 'done' : 'current',
         detail:
           joined && !app.report_due
-            ? activity
-              ? 'Spend a few minutes in the app, then log it. One session is the whole of this step.'
-              : 'Open the app once a day and log it. Fourteen days keeps the clock intact.'
+            ? 'Spend a few minutes in the app, then log it. One session is the whole of this step.'
             : undefined,
         action: app.assignment_id
-          ? { href: `/tests#test-${app.assignment_id}`, label: activity ? 'Log your session' : 'Check in for today' }
+          ? { href: `/tests#test-${app.assignment_id}`, label: 'Log your session' }
           : undefined,
       },
       {
@@ -297,22 +290,9 @@ function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean
 
         <ActivitySteps steps={steps} />
 
-        {joined && !activity && (
-          <div className="border-t border-[var(--color-line)] pt-4">
-            <StreakStrip
-              days={streakFromCount(days, n(app.pod_day, days), RULES.requiredDays)}
-              total={RULES.requiredDays}
-            />
-            <p className="mt-2 text-xs text-[var(--color-mute)]">
-              <span className="num font-semibold text-[var(--color-dim)]">{days}</span> of{' '}
-              <span className="num">{RULES.requiredDays}</span> days logged
-            </p>
-          </div>
-        )}
-
-        {joined && activity && (
+        {joined && (
           <p className="border-t border-[var(--color-line)] pt-4 text-xs leading-relaxed text-[var(--color-mute)]">
-            No clock on this one. Take as long as you need over the app, then send the report
+            There is no clock on this. Take as long as you need over the app, then send the report
             whenever you have something worth saying.
           </p>
         )}
@@ -408,11 +388,11 @@ function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean
     );
   }
 
-  // Not open to activities, and not in a state a pod could help either. A
+  // Not open to testers, and not in a state that can change from this page. A
   // shipped app reaches here only when its developer has closed it to testers,
   // run out of credits or never added a closed track — so the copy says the app
   // is shut, not that shipped apps are finished with. They are not any more.
-  if (app.status !== 'queued' && app.status !== 'in_pod') {
+  if (app.status !== 'queued' && app.status !== 'in_pod') { // 'in_pod' is the legacy enum value for 'taking testers'
     return (
       <Card className="flex flex-col gap-3 p-5">
         <h2 className="text-sm font-semibold">
@@ -433,41 +413,24 @@ function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean
   return (
     <Card className="flex flex-col gap-3 p-5">
       <div className="flex items-start justify-between gap-3">
-        <h2 className="text-sm font-semibold">Want to test this?</h2>
+        <h2 className="text-sm font-semibold">Not taking testers right now</h2>
         {reward && <RewardChip amount={reward} />}
       </div>
       {/*
-        Reached when the app itself is shut to activities — the owner is out of
-        credits, has no seats left, or is not taking one-off testers — so the
-        only honest offer left is the group. With `pod_matching` off there is no
-        way to be seated at all, and this card must not pretend otherwise: a
-        primary button that lands on an "Upcoming" screen is a dead door, and
-        the first thing a new member would learn from it is that the product's
-        buttons cannot be trusted.
+        Reached when the app is listed but shut to new testers — the owner is
+        out of credits, has hit the number of testers they asked for, or has
+        switched intake off. There is no second route to a seat any more, so
+        this card offers the feed rather than pretending at one: a primary
+        button that lands on a dead door is the fastest way to teach a new
+        member that the product's buttons cannot be trusted.
       */}
-      {podsOpen ? (
-        <>
-          <p className="text-sm leading-relaxed text-[var(--color-dim)]">
-            Seats are handed out by the group, not by this page. Join a forming group with your own
-            app and you are seated as a tester for every other app in it — this one included, if it
-            is in the same one.
-          </p>
-          <Link href="/pods" className="btn btn-primary">
-            Browse forming groups <IconArrow size={15} />
-          </Link>
-        </>
-      ) : (
-        <>
-          <p className="text-sm leading-relaxed text-[var(--color-dim)]">
-            Matching opens once enough developers have joined to fill a full round. List your own
-            app now and you are in the first one — nothing to do after that but wait for the
-            start date.
-          </p>
-          <Link href="/apps" className="btn btn-primary">
-            List your app <IconArrow size={15} />
-          </Link>
-        </>
-      )}
+      <p className="text-sm leading-relaxed text-[var(--color-dim)]">
+        This one is listed but closed to new testers at the moment. That usually means the
+        developer has as many as they asked for, or their balance is too low to pay for another.
+      </p>
+      <Link href={marketHref({ scope: 'open' })} className="btn btn-primary">
+        Find an app you can start on <IconArrow size={15} />
+      </Link>
       <p className="text-xs text-[var(--color-mute)]">
         Each confirmed install pays you {EARN.optInVerified} and each approved report{' '}
         {EARN.feedbackApproved}, out of the balance of the developer whose app you tested.

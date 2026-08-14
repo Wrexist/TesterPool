@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Card, Pill, Stat, EmptyState } from '@/components/ui';
 import { Section, RowList, Row, WarnBox } from '@/components/admin/parts';
-import { fmtDateTime, fmtRelative } from '@/lib/pods';
+import { fmtDateTime, fmtRelative } from '@/lib/format';
 import { num } from '@/lib/admin';
 import { stripeConfigured, webhookConfigured, isLiveMode } from '@/lib/stripe';
 import {
@@ -359,7 +359,7 @@ export default async function AdminSystemPage() {
       {/* -------------------------------------------------------- the outbox */}
       <Section
         title="Notification outbox"
-        note="Rows written by clock-watch and pod-lifecycle, drained by the sender every 15 minutes. A queue that grows is only a problem if delivery is configured."
+        note="Rows written by the scheduled jobs, drained by the sender every 15 minutes. A queue that grows is only a problem if delivery is configured."
         right={<Pill tone={OUTBOX_TONE[outbox.state]}>{outbox.headline}</Pill>}
       >
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

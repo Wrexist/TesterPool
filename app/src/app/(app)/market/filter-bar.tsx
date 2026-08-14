@@ -238,7 +238,7 @@ export function FilterBar({
           {pending ? 'Updating…' : <><span className="num font-semibold text-[var(--color-dim)]">{total}</span> {total === 1 ? 'app' : 'apps'}</>}
         </span>
         {/* The only surviving hint. It is a policy, not a description of a
-            filter, and a developer who picks iOS deserves to know why the pod
+            filter, and a developer who picks iOS deserves to know why the work
             machinery is absent. */}
         {platformHint && <span>{platformHint}</span>}
         {active && (

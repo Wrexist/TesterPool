@@ -56,7 +56,7 @@ const ITEMS: Item[] = [
     hint: 'Opted in — meaning they accepted the invite and installed from the testing link. Being on the email list is not the same thing.',
     weight: 16,
     rejection: 'Fewer than 12 testers. The single most common rejection, and the easiest to miss because the console shows invitees rather than opt-ins.',
-    fix: `Get more testers, and get more than twelve. Aim for ${RULES.podSeats} so that three can disappear without breaking anything. Every tester needs the exact Google account email that will install the app.`,
+    fix: `Get more testers, and get more than twelve. Aim for ${RULES.cycleSize} so that three can disappear without breaking anything. Every tester needs the exact Google account email that will install the app.`,
     verify: 'Ask each tester to send you a screenshot of the app installed, or check your closed track opt-in count. An invitation sent is not an opt-in.',
   },
   {
@@ -426,14 +426,14 @@ export default function ReadinessChecker() {
                     <p className="mt-2 text-sm leading-relaxed text-[var(--color-dim)]">
                       Twelve opt-ins, fourteen unbroken days, real engagement, and
                       written feedback are the four hardest items here, and they
-                      are the four a TesterPool pod handles for you — {RULES.podSeats}{' '}
-                      seats, daily check-ins with proof, and an Evidence Pack on day
-                      15.
+                      are the four TesterPool handles for you — testers off a live
+                      feed, screenshot-verified opt-ins, and an Evidence Pack that
+                      fills itself in as they arrive.
                     </p>
                   </div>
                 </div>
                 <Link href="/login" className="btn btn-primary mt-5 w-full">
-                  Join a pod, free <Arrow />
+                  List your app, free <Arrow />
                 </Link>
                 <p className="mt-3 text-center text-xs text-[var(--color-mute)]">
                   Or keep this page bookmarked. It works fine without us.

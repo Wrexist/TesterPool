@@ -42,7 +42,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const tabs: AdminTab[] = [
     { href: '/admin', label: 'Overview' },
     { href: '/admin/users', label: 'Users' },
-    { href: '/admin/pods', label: 'Pods' },
     { href: '/admin/economy', label: 'Economy' },
     { href: '/admin/moderation', label: 'Moderation', badge: (proofCount ?? 0) + (disputeCount ?? 0) },
     { href: '/admin/fraud', label: 'Fraud' },
@@ -59,7 +58,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <IconShield size={22} /> Admin
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
-            Everything on this surface moves real balances, real pods and real people&apos;s 14-day clocks.
+            Everything on this surface moves real balances and real people&apos;s work.
             Every action here is written to an append-only audit log against your name.
           </p>
         </div>
@@ -92,7 +91,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <footer className="border-t border-[var(--color-line)] pt-4">
         <Pill tone="neutral">Audited</Pill>
         <span className="ml-2 text-xs text-[var(--color-mute)]">
-          Credit adjustments, role changes, bans, economy edits, flag toggles and pod interventions are all
+          Credit adjustments, role changes, bans, economy edits, flag toggles and seat interventions are all
           recorded in <code className="text-[var(--color-dim)]">admin_actions</code>, which has no update or
           delete path.
         </span>

@@ -24,9 +24,6 @@ export const IconDashboard = (p: P) => (
 export const IconTests = (p: P) => (
   <S {...p}><path d="M9 3h6v4l4.5 9.5A3 3 0 0 1 16.8 21H7.2a3 3 0 0 1-2.7-4.5L9 7V3Z" /><path d="M7.5 14h9" /></S>
 );
-export const IconPods = (p: P) => (
-  <S {...p}><circle cx="12" cy="12" r="3" /><circle cx="12" cy="4" r="1.8" /><circle cx="12" cy="20" r="1.8" /><circle cx="4" cy="12" r="1.8" /><circle cx="20" cy="12" r="1.8" /></S>
-);
 export const IconFeedback = (p: P) => (
   <S {...p}><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5Z" /><path d="M9 11h6M9 14h4" /></S>
 );
