@@ -33,9 +33,17 @@ export default function Body() {
         Google&rsquo;s Ratings, Reviews and Installs policy prohibits
         incentivising ratings, reviews and installs. A review exchanged for
         points is incentivised by definition &mdash; the trade is the incentive,
-        and the honesty of the opinion does not change that. A closed-track opt-in
-        exchanged for points is not covered by that policy at all, because no
-        public signal is being produced.
+        and the honesty of the opinion does not change that.
+      </p>
+      <p>
+        A closed-track opt-in is a materially weaker case against you, because no
+        public signal is produced: closed-track feedback does not affect your
+        store rating and closed-track installs are not production installs. It is
+        not, however, a stated exemption. The policy&rsquo;s language on
+        incentivised installs carries no closed-track carve-out, and Google
+        expects testers to be real people giving genuine feedback. Anyone
+        promising you that a closed track puts you outside the rules is
+        overstating a real distinction.
       </p>
       <p>
         There is a structural asymmetry in the risk, too. Store review exchanges

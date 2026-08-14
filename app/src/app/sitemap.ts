@@ -1,7 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { allPosts } from '@/lib/blog';
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+import { absoluteUrl } from '@/lib/site-url';
 
 /**
  * Only the public surface. Everything under `(app)` is behind auth and has
@@ -23,13 +22,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     ...staticPages.map((p) => ({
-      url: `${SITE_URL}${p.path}`,
+      url: absoluteUrl(p.path),
       lastModified: now,
       changeFrequency: p.freq,
       priority: p.priority,
     })),
     ...allPosts().map((p) => ({
-      url: `${SITE_URL}/blog/${p.slug}`,
+      url: absoluteUrl(`/blog/${p.slug}`),
       lastModified: new Date(`${p.published}T00:00:00Z`),
       changeFrequency: 'monthly' as const,
       priority: 0.7,

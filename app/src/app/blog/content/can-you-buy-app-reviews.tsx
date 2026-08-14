@@ -45,10 +45,11 @@ export default function Body() {
       <h2>What enforcement looks like</h2>
       <p>
         The failure people imagine is that the reviews get deleted. That does
-        happen, and it is the mildest outcome. Google removed over 2.3 million
-        apps and terminated hundreds of thousands of developer accounts across
-        its 2025 enforcement cycles. Termination is account-level: every app you
-        have published goes with it, and you cannot publish new ones.
+        happen, and it is the mildest outcome. In its 2024 report on Play
+        security, Google said it prevented more than 2.36 million
+        policy-violating apps from being published and banned over 158,000
+        developer accounts. Termination is account-level: every app you have
+        published goes with it, and you cannot publish new ones.
       </p>
       <p>
         The part that matters specifically for exchange networks is that risk
@@ -111,20 +112,34 @@ export default function Body() {
         that names what broke, on which device, and what they would change.
       </p>
 
-      <h2>The line to hold</h2>
+      <h2>The line, and where it actually runs</h2>
       <p>
-        Anything that touches the public store surface &mdash; ratings, reviews,
-        production install counts &mdash; is off limits if it was traded for.
-        Anything inside a closed testing track is not, because closed-track
-        activity does not affect store rankings, ratings or public install
-        counts. That distinction is not a technicality; it is the entire
-        difference between a growth tactic and a termination.
+        The clearest thing that can be said is about the store surface. Ratings,
+        reviews and production install counts are public signals, and trading for
+        any of them is squarely what the policy prohibits. Closed testing tracks
+        produce none of those signals: tester feedback there does not affect your
+        public rating, and closed-track installs are not production installs.
       </p>
       <p>
-        TesterPool sits entirely on the safe side of that line, which is why it
-        cannot get you a five-star review and will never offer to.{' '}
-        <Link href="/pool">See what is open to testers</Link> if you want to look
-        at what it does instead.
+        What that does <em>not</em> buy is a blanket exemption, and you should be
+        suspicious of anyone who tells you it does. Google&rsquo;s policy language
+        on incentivising installs is not written with a closed-track carve-out,
+        and Google expects testers to be real people giving genuine feedback
+        rather than metrics you assembled. A closed test is a much better place to
+        stand than a store listing; it is not a place the rules stop applying.
+      </p>
+      <p>
+        So the honest version is narrow rather than reassuring. TesterPool never
+        touches a public rating, review or install count, and it has no mechanism
+        that could. It cannot get you a five-star review and will never offer to.
+        Read the{' '}
+        <a href={POLICY} target="_blank" rel="noopener noreferrer">
+          policy
+        </a>{' '}
+        yourself before trusting anybody&rsquo;s summary of it, including this
+        one, and{' '}
+        <Link href="/pool">see what is open to testers</Link> if you want to look
+        at what we do instead.
       </p>
     </>
   );

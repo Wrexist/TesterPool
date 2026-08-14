@@ -69,14 +69,18 @@ export default function Body() {
           and still clear the bar without the window resetting.
         </li>
         <li>
-          <strong>Check the count daily, not weekly.</strong> A dropout you catch
-          on the same day can be replaced before the window breaks. One you catch
-          on day thirteen has already cost you the cycle.
+          <strong>Understand what a replacement does and does not fix.</strong> A
+          new tester does not inherit the departed one&rsquo;s history &mdash;
+          Google counts testers who have each been opted in continuously for the
+          last {RULES.requiredDays} days, so a replacement starts their own count
+          from zero. Replacing someone keeps your roster healthy for the next
+          window; it does not repair the one they broke. The buffer is what saves
+          the current cycle, which is why it matters more than the reaction time.
         </li>
         <li>
-          <strong>Have a replacement plan before you need it.</strong> &ldquo;I
-          will ask around&rdquo; takes three days, and three days is the whole
-          margin.
+          <strong>Check the count daily anyway.</strong> Knowing on day nine that
+          you have dropped to eleven means you restart deliberately, with a full
+          roster, instead of discovering it in a rejection email five weeks later.
         </li>
         <li>
           <strong>Collect written feedback as you go.</strong> You need it for

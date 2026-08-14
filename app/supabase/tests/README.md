@@ -54,17 +54,17 @@ psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/06-showcase.sql
 browsing the directory cannot read the opt-in link or package name of an app they hold
 no assignment on.
 
+`05` runs as `authenticated` rather than as the table
+owner, because the exploits it asserts against are only reachable from a signed-in
+session. It covers the two money printers found on 13 Aug 2026: writing your own
+`opt_in_verified_at`, and inserting your own pre-approved proof.
+
 `06` asserts the anonymous showcase behind the public `/pool` page: which apps a
 stranger is shown, that the `public_preview` opt-out withdraws one, that the limit is
 clamped, and — the half that matters — that the projection carries no package name,
 opt-in link, Google Group, tester instruction, id, owner or score. Its last assertions
 run as `anon` for real, because a grant test executed as the table owner would pass
 against a function `anon` cannot actually reach.
-
-`05` runs as `authenticated` rather than as the table
-owner, because the exploits it asserts against are only reachable from a signed-in
-session. It covers the two money printers found on 13 Aug 2026: writing your own
-`opt_in_verified_at`, and inserting your own pre-approved proof.
 
 All six files abort on the first failed assertion and print `ALL ... PASSED`
 at the end if nothing is wrong.
@@ -139,8 +139,9 @@ problem and prints what it wanted. Balances start at the signup grant, so assert
 payments as a delta from a baseline rather than an absolute — see the `baseline`
 temp table in 03.
 
-Run the three files in order: 01 clears the fixtures and creates the pod and the
-creator that 02 and 03 build on.
+Run all six files in order: 01 clears the fixtures and creates the pod and the
+creator that 02 and 03 build on, 04 creates the `Market %` apps that 06 reuses, and 05
+restores what it changes.
 
 ## Known gap: concurrency
 

@@ -1229,7 +1229,11 @@ export default function LandingPage() {
                 { l: 'Completed all 14 days', v: '14', s: '1 replaced on day 6' },
                 { l: 'Avg days active', v: '13.6', s: 'across all testers' },
                 { l: 'Daily engagement', v: '94%', s: 'sessions with proof' },
-                { l: 'Private reviews', v: '23', s: 'approved, on-rubric' },
+                // One review per tester per app, so this tracks the testers who
+                // finished rather than exceeding them. It read 23 while the
+                // label was "Feedback reports", which allowed several per
+                // tester; renaming it to reviews made the old number impossible.
+                { l: 'Private reviews', v: '14', s: 'approved, on-rubric' },
                 { l: 'Significant issues', v: '6', s: '2 blockers, 4 major' },
                 { l: 'Changes shipped', v: '9', s: 'in response to testing' },
                 { l: 'Devices covered', v: '11', s: 'Android 10 → 15' },

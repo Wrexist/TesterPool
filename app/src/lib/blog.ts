@@ -34,7 +34,7 @@ export interface PostMeta {
  * `src/app/blog/content/<slug>.tsx` — `generateStaticParams` reads this, so a
  * post with no entry is not routable and an entry with no file fails the build.
  */
-export const POSTS: PostMeta[] = [
+export const POSTS = [
   {
     slug: 'can-you-buy-app-reviews',
     title: 'Can you buy app reviews? What Google’s policy actually says',
@@ -80,7 +80,19 @@ export const POSTS: PostMeta[] = [
     minutes: 6,
     topic: 'Testing',
   },
-];
+] as const satisfies readonly PostMeta[];
+
+/**
+ * Every slug in the catalogue, as a literal union. `BODIES` is keyed by exactly
+ * this, so an indexed post with no body — or a body with no index entry — is a
+ * type error rather than a 404 somebody finds in production.
+ */
+export type PostSlug = (typeof POSTS)[number]['slug'];
+
+/** Narrows an arbitrary route param to a known slug. */
+export function isPostSlug(slug: string): slug is PostSlug {
+  return POSTS.some((p) => p.slug === slug);
+}
 
 export function allPosts(): PostMeta[] {
   return [...POSTS].sort((a, b) => b.published.localeCompare(a.published));

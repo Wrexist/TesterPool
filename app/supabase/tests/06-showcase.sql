@@ -58,10 +58,29 @@ select assert_eq(
   1,
   'and turning it back on restores it');
 
+-- The catalog, not the rows. `bool_and(public_preview) from apps` passes for as
+-- long as no fixture sets it false, which is a fact about the fixtures rather
+-- than about the schema, and would keep passing if the default were dropped.
 select assert_eq(
-  (select bool_and(public_preview) from apps),
-  true,
+  (select column_default from information_schema.columns
+    where table_name = 'apps' and column_name = 'public_preview'),
+  'true',
   'the column defaults to true, so listing is opt-out rather than opt-in');
+
+-- ------------------------------------------------------- cannot pay, not shown
+
+-- The RPC also excludes credits_paused apps. Nothing asserted it, so a later
+-- edit could drop that predicate and the suite would stay green — and an app
+-- whose owner cannot pay for a review should not be recruiting testers.
+update apps set credits_paused = true where name = 'Market Queued';
+
+select assert_eq(
+  (select count(*)::int from jsonb_array_elements(market_showcase() -> 'apps') a
+    where a ->> 'name' = 'Market Queued'),
+  0,
+  'a credits-paused app is not shown — it cannot pay for the review it would get');
+
+update apps set credits_paused = false where name = 'Market Queued';
 
 -- ------------------------------------------------- the projection, exactly
 
@@ -140,6 +159,35 @@ select assert_eq(
   has_function_privilege('anon', 'market_pulse()', 'execute'),
   false,
   'nor the authenticated pulse');
+
+-- The four trigger functions closed in 20260814150000. `create or replace`
+-- preserves privileges, but a later migration that DROPs and recreates any of
+-- them restores EXECUTE to PUBLIC — and two of these move credits. Asserted so
+-- that regression fails here rather than in production.
+select assert_eq(
+  has_function_privilege('anon', 'on_optin_confirmed()', 'execute'),
+  false,
+  'anon cannot call the opt-in payment trigger function');
+
+select assert_eq(
+  has_function_privilege('authenticated', 'on_optin_confirmed()', 'execute'),
+  false,
+  'and neither can a signed-in member');
+
+select assert_eq(
+  has_function_privilege('authenticated', 'unpause_on_topup()', 'execute'),
+  false,
+  'authenticated cannot call the unpause trigger function');
+
+select assert_eq(
+  has_function_privilege('authenticated', 'guard_daily_install_cap()', 'execute'),
+  false,
+  'authenticated cannot call the install-cap guard directly');
+
+select assert_eq(
+  has_function_privilege('authenticated', 'guard_daily_review_cap()', 'execute'),
+  false,
+  'authenticated cannot call the review-cap guard directly');
 
 -- ------------------------------------------- and as anon, for real this time
 

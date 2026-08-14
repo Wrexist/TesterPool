@@ -109,12 +109,21 @@ function AppTile({ app }: { app: ShowcaseApp }) {
   return (
     <Card className="flex gap-3 p-4">
       {app.icon_url ? (
+        /* `icon_url` is owner-supplied and this page needs no account, so every
+           anonymous visitor's browser would otherwise hand its IP and the /pool
+           referrer to whatever host an app owner nominated — enough to count and
+           fingerprint the people browsing the network. no-referrer is the floor;
+           proxying the icons through our own storage would close the IP
+           disclosure too. Plain <img> because next/image would fetch through our
+           optimiser, which is a different (and costed) decision. */
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={app.icon_url}
           alt=""
           width={44}
           height={44}
+          referrerPolicy="no-referrer"
+          loading="lazy"
           className="h-11 w-11 shrink-0 rounded-xl object-cover"
         />
       ) : (
@@ -148,13 +157,21 @@ function AppTile({ app }: { app: ShowcaseApp }) {
 export default async function PoolPage() {
   // A member has a better version of this screen. Send them to it rather than
   // showing them the stranger's view of their own network.
+  //
+  // The redirect is deliberately OUTSIDE the try/catch. `redirect()` works by
+  // throwing NEXT_REDIRECT, so a catch wrapped around it swallows the
+  // navigation and silently renders this page to a signed-in member instead —
+  // no error, no redirect, just the wrong page. Only the session lookup, which
+  // can genuinely fail, is guarded.
+  let signedIn = false;
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) redirect('/market');
+    signedIn = Boolean(user);
   } catch {
     // Not signed in, or auth unreachable. Either way, render the public page.
   }
+  if (signedIn) redirect('/market');
 
   const { data, ok } = await loadShowcase();
 

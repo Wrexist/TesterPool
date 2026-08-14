@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Card, Pill } from '@/components/ui';
 import { SiteNav, SiteFooter } from '@/components/SiteChrome';
-import { POSTS, postBySlug, otherPosts, formatPublished } from '@/lib/blog';
+import { POSTS, postBySlug, otherPosts, formatPublished, isPostSlug } from '@/lib/blog';
 import { BODIES } from '@/app/blog/content';
 
 /** Static at build time; the registry in lib/blog.ts is the only source. */
@@ -42,10 +42,11 @@ export default async function PostPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  // `isPostSlug` narrows the route param to a key `BODIES` is declared over, so
+  // the catalogue and the bodies cannot drift apart without a type error.
+  if (!isPostSlug(slug)) notFound();
   const post = postBySlug(slug);
   const Body = BODIES[slug];
-  // A registry entry with no body, or a URL with neither, is a 404 rather than
-  // a half-rendered page.
   if (!post || !Body) notFound();
 
   const more = otherPosts(slug);

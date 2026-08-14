@@ -109,7 +109,7 @@ made in a friendlier costume.
 The pod stops being the headline and becomes the **consequence**. The page now reads as
 one causal chain instead of a feature list —
 
-```
+```text
 you install an app      →  you file one report   →  you earn credits
         ↓                          ↓                       ↓
 someone installs yours  ←  you spend credits     ←  12 testers, 14 days  →  you ship
@@ -121,9 +121,15 @@ current page never says out loud.
 
 The credit symmetry is the proof, and it belongs high on the page, not buried in
 `#economy`: a confirmed install moves 10 from the app owner to the tester, a confirmed
-report moves 30. A full 15-seat pod costs 560 and pays 560. Do your share, break even.
-Credits move; they are never minted. That single fact answers "is this a scam", "will I
-get spammed with junk", and "what stops freeloaders" at once.
+review moves 30. A full 15-seat pod costs 560 and pays 560. Do your share, break even.
+
+Stated precisely, because the loose version is wrong: **the work loop never mints.** Every
+credit a reviewer earns came out of the balance of the developer whose app they reviewed,
+so no amount of activity can inflate the supply or be farmed. Two things sit outside that
+loop — `EARN.signupGrant` mints once per new member, and spends may burn — which is why
+`docs/GROWTH-BETS.md` §2 requires the mint/burn ratio before adding another sink. Public
+copy should say *credits move between members and are never minted by testing*, not the
+unqualified "never minted".
 
 ---
 
@@ -131,13 +137,13 @@ get spammed with junk", and "what stops freeloaders" at once.
 
 Section by section. The old order was
 
-```
+```text
 hero → problem → how → compare → compliance → reliability → evidence → economy → pricing → testimonials → faq
 ```
 
 and the shipped order is
 
-```
+```text
 hero → report → job → problem → how → compare → reliability → evidence → economy → compliance → pricing → testimonials → faq
 ```
 
@@ -280,8 +286,11 @@ cannot use it.
 
 **Proposal: a new `market_showcase()` RPC, callable by `anon`.**
 
-- Returns the same four pulse counts, plus the newest N open listings restricted to
-  `name, tagline, category, platform, icon_url, created_at`.
+- Returns four counts — `open_apps`, `active_testers`, `reviews`, `graduated` — plus the
+  newest N open listings restricted to `name, tagline, category, platform, icon_url,
+  created_at`. **Shipped, and deliberately not `market_pulse`'s exact set:** `installs`
+  and `reports` are internal work metrics, while `graduated` is the outcome a stranger is
+  actually weighing. `supabase/tests/06-showcase.sql` pins the shape.
 - Returns **nothing** else. No `opt_in_url`, no `google_group`, no `package_name`, no
   `tester_instructions`, no owner identity, no counts per app, and — per invariant 1 —
   no score and no average.
@@ -318,8 +327,8 @@ Until then it is settable only by an admin. That is the one loose end from phase
 
 `SiteChrome.NAV` becomes:
 
-```
-Browse the pool   → /apps        (new, first — the loop is the product)
+```text
+Browse the pool   → /pool        (the public preview)
 How it works      → /#how
 Pricing           → /#pricing
 Readiness check   → /readiness
@@ -338,10 +347,12 @@ the Product column.
 PostHog is already wired (`components/PostHogProvider.tsx`). Before shipping, instrument:
 
 - `hero_cta_click` with `{ variant, target }` — separates "browse" from "start free"
-- `apps_preview_view`, `apps_preview_scroll_depth`
+- `pool_view`, `pool_scroll_depth`
 - `signup_start` with `{ referrer_section }` — which section was last in view
-- Funnel: landing → `/apps` → `/login` → first listing created, and the second funnel
-  landing → `/apps` → `/login` → first report submitted
+- Funnel: landing → `/pool` → `/login` → first listing created, and the second funnel
+  landing → `/pool` → `/login` → first review submitted. A signed-in visitor never
+  reaches `/pool` — it redirects to `/market` — so the funnel is signed-out by
+  construction.
 
 The success criterion is not hero click-through. It is **signups that file a report
 within 7 days**, because that is the supply the pool runs on. Hold the current page as
@@ -427,7 +438,6 @@ options, in preference order:
 2. Retire the chip until there is something true and new to announce.
 3. Keep it, and accept that first sight opens on the rescue feature.
 
-**The secondary CTA** is still "Check if you're ready" → `/readiness`. That stays the
-right call until `/pool` exists, because it is the only thing on the site today that a
-stranger can use without signing up. At phase 4 the pair becomes *Browse the pool*
-(primary) and *Start free* (secondary), and the readiness check moves into the nav.
+**The CTA pair, as shipped:** *Browse the pool* → `/pool` is primary and *Start free* →
+`/login` is secondary, so the first ask is a look rather than a form. The readiness check
+moved into the nav, where it shows from `xl` up.

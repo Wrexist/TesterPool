@@ -1,6 +1,5 @@
 import type { MetadataRoute } from 'next';
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+import { absoluteUrl } from '@/lib/site-url';
 
 /**
  * The authenticated surface is disallowed rather than left to `noindex`: those
@@ -30,6 +29,6 @@ export default function robots(): MetadataRoute.Robots {
         '/auth/',
       ],
     },
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    sitemap: absoluteUrl('/sitemap.xml'),
   };
 }
