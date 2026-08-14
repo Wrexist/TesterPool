@@ -146,20 +146,25 @@ jobs:
             exit 0
           fi
 
-          echo "::group::What the token can see"
-          echo "Token identity:"
-          vercel whoami || echo "  the token is invalid, revoked, or expired — that is the whole problem"
-          echo "Projects visible under VERCEL_ORG_ID:"
-          vercel project ls || echo "  the org ID does not resolve for this token, or the token is not scoped to that team"
-          echo "::endgroup::"
+          # Not ::group::. GitHub renders a group collapsed, and diagnostics
+          # nobody expands are diagnostics nobody has.
+          echo "--- Token identity ------------------------------------------"
+          vercel whoami || echo "  FAILED: the token is invalid, revoked, or expired. That is the whole problem."
+          echo "--- Teams this token can enumerate --------------------------"
+          vercel teams ls || echo "  FAILED: the token cannot list teams."
+          echo "--- Projects visible under VERCEL_ORG_ID --------------------"
+          vercel project ls || echo "  FAILED: VERCEL_ORG_ID does not resolve for this token."
+          echo "-------------------------------------------------------------"
 
-          echo "The pull failed. In order of likelihood:"
-          echo "  1. The project does not exist yet — import the repo at vercel.com/new."
-          echo "  2. VERCEL_PROJECT_ID belongs to a different account than VERCEL_ORG_ID."
-          echo "  3. The token is scoped to a team that does not contain the project."
-          echo "     A token made under a personal account cannot read a team project."
-          echo "  4. The token was revoked or has expired."
-          echo "Compare the project list above against docs/DEPLOY.md."
+          echo "Read the three sections above in order — they narrow it to one cause:"
+          echo "  * 'Token identity' failed  -> the token is dead. Create a new one."
+          echo "  * 'Projects' failed        -> the token is not scoped to VERCEL_ORG_ID."
+          echo "                                Re-create it with that team selected."
+          echo "  * 'Projects' listed the project -> the org ID and token are fine, so"
+          echo "                                VERCEL_PROJECT_ID is the wrong value."
+          echo "  * 'Projects' was empty     -> the org has no projects. Import the repo"
+          echo "                                at vercel.com/new, root directory 'app'."
+          echo "docs/DEPLOY.md has where each value comes from."
           exit 1
 
       - name: Build
