@@ -142,6 +142,19 @@ keep saying which reviews we mean, at body size, above the fold.
 
 ---
 
+## 4a. Status
+
+| Action | State |
+| --- | --- |
+| 4.1 Content engine | **Shipped.** `/blog` with five posts, plus `sitemap.ts` and `robots.ts`. |
+| 4.2 iOS | **Scoped, not built** — see `docs/GROWTH-BETS.md` §1. Needs a focus decision. |
+| 4.3 Number next to the promise | **Shipped.** Hero stat strip: 15 seats, so 3 can vanish and you still clear 12. |
+| 4.4 Comparison row aimed at them | **Shipped.** "What happens if it works too well", unnamed. |
+| 4.5 Do not soften the disambiguation | **Held.** No change needed. |
+| Feed boost (§2 gap 3) | **Scoped, not built** — see `docs/GROWTH-BETS.md` §2. Needs a number from `/admin/economy`. |
+
+---
+
 ## 5. Open questions for someone with an unblocked browser
 
 - Actual prices for Testing Packs and star bundles. **[unverified]**
