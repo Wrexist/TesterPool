@@ -22,10 +22,17 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
  * The old copy also promised "no money", which the pricing page contradicts.
  * A claim the site itself disproves two clicks later is worse than no claim.
  */
-const TITLE = 'TesterPool — Test apps, earn testers, ship on Google Play';
+const TITLE = 'TesterPool — Get your Android app reviewed by 14 developers';
 
+/*
+ * The keyword list intentionally includes the store-review searches, because
+ * that is what a large share of this audience actually types. The page answers
+ * them honestly — see the first FAQ entry — rather than either ignoring the
+ * demand or pretending to serve it. The description has to carry the
+ * disambiguation on its own: in a search result it is all anyone reads.
+ */
 const DESCRIPTION =
-  'Install apps from a pool of indie Android developers, send one structured report, and earn the 12 testers Google Play requires you to hold for 14 consecutive days. Closed testing tracks only — no store reviews, no ratings, no policy risk.';
+  'List your Android app and 14 indie developers install it, use it for 14 days, and each send you one structured review — what broke, on which device, what they would change. Private reviews inside your closed testing track, never Play Store reviews or ratings. Google Play’s 12-tester requirement is satisfied on the way through.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -43,6 +50,9 @@ export const metadata: Metadata = {
     'closed testing track',
     'app testing exchange',
     'test apps for credits',
+    'get reviews for my app',
+    'app review exchange',
+    'Android app feedback',
   ],
   openGraph: {
     type: 'website',

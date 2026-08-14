@@ -1,7 +1,8 @@
 # First sight — repositioning the landing page around the loop
 
-Status: **phase 1 shipped** (hero, the job section, honest stat strip, site metadata).
-Phases 2–5 below are still proposals.
+Status: **phases 1–2 shipped** — hero repositioned around the reviews a developer
+receives, the review anchor section, the store-review FAQ conversion, honest stat strip,
+site metadata. Phases 3–5 below are still proposals.
 Owner: marketing surface (`app/src/app/page.tsx`, `SiteChrome`, `/launch`, `/readiness`).
 
 ---
@@ -27,46 +28,61 @@ both forms. A visitor cannot see a single real app, a single real report, or any
 evidence the network exists. The `1,247 / 38 / 9,318` strip is hardcoded and reads as
 decoration precisely because it is unattached to anything the visitor can click.
 
-Meanwhile the thing the product actually *is*, day to day — open the marketplace,
-install an app from the pool, use it, file one structured report, get paid in credits —
-appears nowhere above the fold. It is the loop that produces every pod outcome, it is
-what a member does in their first five minutes, and it is the only part of the product
-that is interesting to look at before you have committed to anything.
+Meanwhile the thing a developer actually wants — fourteen people who ship Android apps
+for a living, telling them what is wrong with theirs — appears nowhere above the fold.
+Neither does the loop that produces it. The page opens on the cost and never states the
+offer.
 
-**The reposition: lead with the loop, keep the pod as the payoff.**
+**The reposition: lead with the reviews a developer receives. The loop is how they pay
+for them; the pod is the shape the payment takes. Both are price, and price goes second.**
 
 ---
 
-## 2. The boundary this plan does not cross
+## 2. The boundary, and the demand on the other side of it
 
-The brief says "market the download and review feature". Read literally against a Google
-Play audience, "download and review" names the exact thing that gets developer accounts
-terminated: incentivised installs and incentivised store reviews, banned under the
+Two true things are in tension here, and the page has to hold both.
+
+**People arrive wanting store reviews.** That is the search they type and the thing they
+believe they need. Positioning that refuses to say the word "review" fails to meet them,
+and the earlier draft of this document over-corrected into exactly that.
+
+**We cannot sell them.** A review traded for anything — money, credits, a review back —
+is an incentivised review under the
 [Ratings, Reviews and Installs policy](https://support.google.com/googleplay/android-developer/answer/9898684).
-Our entire legal basis is that we do neither.
+Apps are removed and developer accounts terminated for it. Selling that to a solo
+developer who is four weeks behind schedule is selling them a risk they cannot price,
+and it is the failure this product was built as an alternative to.
 
-So the feature gets marketed hard — under wording that cannot be misread. The rules
-below are not stylistic; they are the product's compliance posture expressed as copy.
+So the site **leads with the word and converts the intent**. "Get your app reviewed by 14
+developers" is the headline. What follows immediately, above the fold and never below it,
+is which reviews we mean: private developer reviews inside a closed testing track, not
+Play Store reviews. The first FAQ entry does the same job at length — it names what the
+visitor came for, says plainly that no honest service sells it, and points at the two
+things actually underneath the request (*I can't publish yet* → the pod; *my app isn't
+good enough to earn reviews* → fourteen critical reviews).
+
+That conversion is the entire positioning. It is also better marketing than either
+extreme: refusing the word loses the search, and serving it loses the customer their
+account.
+
+### Copy rules
 
 | Never write on a public page | Write instead |
 | --- | --- |
-| "review", "leave a review", "rate" | **report**, **feedback report**, **write it up** |
+| "Play Store review", "store rating", "5-star", star glyphs | **review** used only with its qualifier: *private developer review*, *inside your closed testing track* |
+| "get reviews for your app" left unqualified | **get your app reviewed by developers** — plus the disambiguation in the same block |
 | "download" | **install**, **opt in**, **join the closed track** |
-| "get reviews for your app" | **get reports from real testers** |
-| "5-star", "ratings", stars anywhere | reliability, days held, reports delivered |
-| "paid to review" | **credits for testing work** |
+| any average, score-out-of-5, or aggregate beside an app | reliability, days held, reviews delivered |
+| "provably compliant" | *all activity happens inside closed testing tracks, which do not affect store rankings, ratings, or public install counts* |
 
-Internal identifiers stay as they are — `CHARGE.review`, `review_feedback()`,
-`/feedback/review-actions.tsx`. This is about the surface a stranger and a policy
-reviewer read, not a rename of the codebase.
+The disambiguation is load-bearing UI, not a disclaimer. It does not move below the fold,
+it does not shrink to fine print, and it does not get softened to "compliant" — a reader
+who cannot tell which kind of review we mean is a reader we may have just endangered.
 
-Two more standing rules the new sections must obey, inherited from `CLAUDE.md`:
-
-- No score, no average, no star, no rating anywhere in a public app listing. Members
-  see **activity** — testers holding, days held, reports delivered.
-- Never the phrase "provably compliant". The defensible sentence is: *all activity
-  happens inside closed testing tracks, which do not affect store rankings, ratings, or
-  public install counts.*
+Internal identifiers stay as they are: `CHARGE.review`, `review_feedback()`,
+`/feedback/review-actions.tsx` already say "review", which now matches the public surface.
+The in-app UI still says "report" in places (`(app)/feedback`, the submit form). Worth
+aligning to "review" in a later pass so the product and the pitch use one word.
 
 The public marketplace preview in §5 also inherits the withholding rule: `opt_in_url`,
 `google_group`, `package_name` and `tester_instructions` are never shown to a visitor
@@ -78,13 +94,19 @@ directory.
 
 ## 3. The new proposition
 
-> **Install real apps. Send one honest report. That is the whole job.**
+> **Get your app reviewed by 14 developers. Then ship it.**
 >
-> Every report you file buys a tester for your own app. Fourteen of them, held for
-> fourteen days, is exactly what Google Play asks for before it lets you publish.
+> They install it, use it for fourteen days, and each send one structured review — what
+> broke, on which device, what they would change. You pay for them by reviewing other
+> people's apps, and Google Play's 12-tester requirement is satisfied on the way through.
 
-The structural change: the pod stops being the headline and becomes the **consequence**.
-The page now reads as one causal chain instead of a feature list —
+Order matters: **offer first, price second.** The reviews are what a developer wants; the
+loop is what it costs. An earlier draft led with the loop ("install an app, write one
+report") and that was still the price before the product, the same mistake the pod hero
+made in a friendlier costume.
+
+The pod stops being the headline and becomes the **consequence**. The page now reads as
+one causal chain instead of a feature list —
 
 ```
 you install an app      →  you file one report   →  you earn credits
@@ -110,74 +132,77 @@ Section by section. Replaces the current order
 (`hero → problem → how → compare → compliance → reliability → evidence → economy →
 pricing → testimonials → faq`).
 
-### 4.1 Hero — the loop, running
+### 4.1 Hero — the offer (shipped)
 
 **Headline**
-> Install an app.
-> Write one report.
-> **Get tested back.**
+> Get your app reviewed
+> by 14 developers.
+> **Then ship it.**
+
+Three lines, sized so it stays three at every width. A headline that wraps to four owns
+the whole first screen and pushes the proof card below the fold.
 
 **Lede**
-> TesterPool is a pool of indie Android developers who test each other's apps inside
-> closed testing tracks. You install what other people built, use it for a few days,
-> and send one structured report. That work earns credits, and credits buy you the
-> twelve testers Google Play requires for fourteen consecutive days before it will
-> let you publish.
+> List your app and 14 indie developers install it, use it for 14 days, and each send you
+> one structured review — what broke, on which device, what they would change. You hear it
+> from people who ship Android apps before you hear it from your users, and Google Play's
+> 12-testers-for-14-days requirement is satisfied on the way through.
 
-**Sub-line** (keeps the compliance flag visible from the first screen)
-> Closed tracks only. No store reviews, no ratings, no public installs — nothing that
-> can get your app pulled.
+**The disambiguation block** — a bordered panel, not fine print, immediately under the lede:
+> **Private developer reviews, inside your own closed testing track.** Not Play Store
+> reviews — those are incentivised the moment they are traded, and Google removes apps for
+> it. That is the difference between the reviews you want and the ones that cost you the
+> account.
 
-**CTAs**
-- Primary: **Browse the pool** → `/apps` (the new public preview, §5). No signup wall.
-- Secondary: **List your app** → `/login`.
+Leads with what you *do* get, because a block that opens on a denial reads as a disclaimer
+and disclaimers get skipped. Links the policy directly. See §2 — this element does not move
+and does not shrink.
 
-Note the inversion: the primary CTA is now a *look*, not a *form*. The signup ask moves
-to the point where the visitor has already seen something worth signing up for.
+**CTAs.** Still `Start free` / `Check if you're ready`. At phase 4 the primary becomes
+**Browse the pool** → `/pool`, so the first ask is a look rather than a form.
 
-**Hero visual — replace `HeroVisual`.** The Ferndeck progress ring goes. In its place, a
-three-beat card that animates once on load and shows the loop as a single motion:
+**Hero visual — `ReviewsVisual`.** The Ferndeck progress ring is gone, and so is the
+intermediate draft that drew the work you do to earn reviews. The card is now the inbox:
+three incoming reviews on your app, each with handle, device, severity pill and the first
+line of the finding, over "11 of 14 in · day 11 of 14".
 
-1. a real-looking app row from the marketplace, with an **Install** button
-2. the report composer, one rubric prompt visible, one field being typed
-3. `+30` landing on the credit chip, and the balance ticking up
+No package name, no rubric scores, no aggregate of any kind — see the component's comment
+for why each is absent. Reuses `Card`, `Pill`, `Avatar`, `CreditChip`; inline SVG only,
+tokens only; stagger is CSS `animate-pop` and reduced motion renders it flat.
 
-Reuse `CreditChip`, `Pill`, `Avatar`, `Card`, `StreakStrip` — no new primitives, inline
-SVG only, tokens only. Respect `prefers-reduced-motion` by rendering beat 3 statically.
+**Stat strip.** `14 reviews on your app · 15 seats, so 3 can vanish · 600 credits to
+start`, all read from `lib/economy`. Replaced invented traffic figures — see §5.
 
-**Stat strip.** Keep the shape, kill the fiction — see §5.
+### 4.2 "What you get back" — the review anchor (shipped)
 
-### 4.2 "The job" — what testing actually involves
+The most persuasive thing this page can show, and the old page showed nothing of the kind.
+A redacted review rendered the way `(app)/feedback` renders a real one: handle, tier, device,
+paid chip, severity and status pills, then first impression / what worked / what broke /
+reproduction steps / one change they would make.
 
-Directly under the hero, because the first objection to any earn-credits network is
-*how much work is this actually*. Three cards, plain and unglamorous:
-
-| | |
-| --- | --- |
-| **Opt in** | One tap on a closed-track link. Confirmed by screenshot proof, not by your word. **+10 credits.** |
-| **Use it** | Open the app on the days the pod is running. Daily check-in, ten seconds. |
-| **Report** | One structured report against the developer's rubric — what broke, what confused you, what you would change. **+30 credits.** |
-
-Closing line under the cards: *A report takes about ten minutes. Fourteen of them over
-two weeks is the entire cost of getting your own app to production.*
-
-### 4.3 "What a report looks like" — the new anchor section
-
-The single most persuasive thing this page can show, and it currently shows nothing of
-the kind. A real, redacted report rendered exactly as it appears in the product:
-the rubric prompts, the tester's answers, the severity tag, the developer's response, the
-`approved · +30` stamp.
+One deliberate difference from the real card: **no 1–5 rubric scores.** Three numbers out
+of five beside an app name on a public page is a rating board, which is the shape invariant
+1 keeps the schema unable to represent. The written fields carry the argument anyway.
 
 Alongside it, three claims that separate this from every review-swap site:
 
-- **On-rubric.** The developer sets two or three things they want hammered. The report
-  answers those, not "looks nice".
-- **Paid the same whether it stings.** A blocker report pays exactly what a glowing one
-  pays, and the charge to the developer is flat.
-- **Critical feedback cannot be quietly buried.** A developer who flags a report as
-  low-effort opens a moderator dispute — it does not reject the report, and it does not
-  withhold the tester's credits. *(This is invariant 2 stated as marketing copy, and it
-  is our sharpest differentiator against the incumbent.)*
+- **Written against your rubric, not theirs.** A review that ignores the focus areas does
+  not get paid, which is why nobody sends "looks nice".
+- **A blocker costs you exactly what a compliment costs.** Flat charge, and the blocker
+  bounty is funded by us — finding your worst bug must never cost you most.
+- **You cannot quietly refuse to pay for it.** Low-effort opens a moderator dispute; it
+  does not reject the review or withhold credits. *(Invariant 2 as marketing copy, and our
+  sharpest line against the incumbent.)*
+
+### 4.3 "How you pay for them" — the loop (shipped)
+
+The price, stated after the offer. Three cards — **Opt in** (+10, screenshot-verified),
+**Use it** (pays nothing, and says so out loud, because blank reads as an omission when it
+is the deliberate part), **Review** (+30, plus a platform-funded blocker bounty).
+
+Closing line: *A review takes about ten minutes. 14 of them across two weeks is the entire
+cost of getting your own app to production — 560 credits out as a developer, 560 back in as
+a tester.*
 
 ### 4.4 "Why you get tested back" — the pod, demoted
 
@@ -207,13 +232,18 @@ list. Keep `PER_APP_EARNINGS`, `FULL_CYCLE_EARNINGS`, `FULL_POD_COST` sourced fr
 
 ### 4.8 Comparison, evidence, pricing, testimonials, FAQ
 
-Keep, in that order. Two edits:
+Keep, in that order. One edit shipped, two still open:
 
-- The comparison table's "Written feedback" row moves to the top — it is now the lead
-  claim, and against review-swap sites we win it outright.
-- FAQ gains three entries the new framing invites: *Do I have to test to get tested?*
-  *What if the app I'm given is terrible?* *Is this the same as paid reviews?* (The last
-  one gets the flat, specific answer — closed tracks, no store surface touched, ever.)
+- **Shipped.** The FAQ now opens with *"I came here to get reviews for my app. Is that
+  what this is?"* — the conversion described in §2, and the highest-traffic question this
+  page will ever be asked. It names what the visitor came for, states plainly that no
+  honest service sells store reviews, and points at the two things actually underneath the
+  request: *I can't publish yet* → the pod, *my app isn't good enough to earn reviews* →
+  fourteen critical reviews.
+- The comparison table's "Written feedback" row should move to the top — it is now the
+  lead claim, and against review-swap sites we win it outright.
+- FAQ still wants two more the new framing invites: *Do I have to review to get reviewed?*
+  and *What if the app I'm given is terrible?*
 
 ---
 
@@ -307,7 +337,7 @@ the new page and compare fortnight over fortnight.
 | Phase | Work | Files |
 | --- | --- | --- |
 | ~~**1 — copy + hero**~~ | ~~New headline, lede, CTAs, the "job" cards, the loop visual, stat strip wired or removed~~ **done** | `app/src/app/page.tsx`, `app/src/app/layout.tsx`, `app/src/app/globals.css` |
-| **2 — the report anchor** | §4.3 section, redacted sample report, the three claims | `page.tsx`, possibly one new marketing component |
+| ~~**2 — the review anchor**~~ | ~~§4.3 section, redacted sample review, the three claims~~ **done**, plus the store-review FAQ conversion | `app/src/app/page.tsx`, `app/src/app/layout.tsx` |
 | **3 — resequencing** | Demote pod section, retarget reliability, move compliance, rewrite economy around conservation | `page.tsx` |
 | **4 — public preview** | `market_showcase()` migration + test, `/apps` route, signed-in redirect, hero CTA points at it | `app/supabase/migrations/`, `app/supabase/tests/`, `app/src/app/apps/` |
 | **5 — instrumentation** | Events, funnels, then measure | `PostHogProvider`, `page.tsx` |
