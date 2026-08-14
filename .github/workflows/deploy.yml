@@ -87,6 +87,13 @@ jobs:
 
       # Fail with a sentence rather than a stack trace. A missing secret
       # otherwise surfaces as an opaque CLI error about linking a project.
+      #
+      # The shape check that follows catches the next mistake along: the two
+      # IDs are easy to swap, and easy to fill in with a project *name* or a
+      # deployment URL instead of an ID. Vercel does not distinguish those
+      # cases at pull time — every one of them is the same "Could not retrieve
+      # Project Settings". Only verdicts are printed, never the values: GitHub
+      # masks a whole secret in the log but not a substring of one.
       - name: Check secrets are set
         run: |
           missing=()
@@ -100,6 +107,23 @@ jobs:
             exit 1
           fi
 
+          wrong=()
+          case "$VERCEL_PROJECT_ID" in
+            prj_*) ;;
+            team_*|user_*) wrong+=("VERCEL_PROJECT_ID looks like an org ID (team_/user_) — the two are probably swapped") ;;
+            *) wrong+=("VERCEL_PROJECT_ID does not start with 'prj_' — it is probably a project name, not the Project ID") ;;
+          esac
+          case "$VERCEL_ORG_ID" in
+            team_*|user_*) ;;
+            prj_*) wrong+=("VERCEL_ORG_ID looks like a project ID (prj_) — the two are probably swapped") ;;
+            *) wrong+=("VERCEL_ORG_ID does not start with 'team_' or 'user_' — on a personal account this is the user ID from Account Settings, not a team slug") ;;
+          esac
+          if [ ${#wrong[@]} -gt 0 ]; then
+            printf '%s\n' "${wrong[@]}"
+            echo "docs/DEPLOY.md says where each value comes from."
+            exit 1
+          fi
+
       # Vercel's own CI guidance installs the current CLI rather than pinning.
       # Pin here if you would rather a deploy never change underneath you.
       - name: Install Vercel CLI
@@ -109,8 +133,34 @@ jobs:
       # `app` — and the environment variables. NEXT_PUBLIC_SUPABASE_URL and
       # NEXT_PUBLIC_SUPABASE_ANON_KEY are baked into the client bundle at build
       # time, so without this the build succeeds and every page renders empty.
+      #
+      # On failure, say what the token can actually see. "Could not retrieve
+      # Project Settings" is one message for several unrelated causes — a
+      # revoked token, a token scoped to the wrong team, a project ID from a
+      # different account — and its advice to remove the `.vercel` directory
+      # is written for a local checkout. There is no `.vercel` directory in
+      # CI; this step is what creates it.
       - name: Pull Vercel environment
-        run: vercel pull --yes --environment=${{ inputs.environment }}
+        run: |
+          if vercel pull --yes --environment=${{ inputs.environment }}; then
+            exit 0
+          fi
+
+          echo "::group::What the token can see"
+          echo "Token identity:"
+          vercel whoami || echo "  the token is invalid, revoked, or expired — that is the whole problem"
+          echo "Projects visible under VERCEL_ORG_ID:"
+          vercel project ls || echo "  the org ID does not resolve for this token, or the token is not scoped to that team"
+          echo "::endgroup::"
+
+          echo "The pull failed. In order of likelihood:"
+          echo "  1. The project does not exist yet — import the repo at vercel.com/new."
+          echo "  2. VERCEL_PROJECT_ID belongs to a different account than VERCEL_ORG_ID."
+          echo "  3. The token is scoped to a team that does not contain the project."
+          echo "     A token made under a personal account cannot read a team project."
+          echo "  4. The token was revoked or has expired."
+          echo "Compare the project list above against docs/DEPLOY.md."
+          exit 1
 
       - name: Build
         run: vercel build $PROD_FLAG

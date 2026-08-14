@@ -57,6 +57,19 @@ GitHub → Settings → Secrets and variables → Actions → New repository sec
 Both IDs are also written into `.vercel/project.json` if you ever run
 `vercel link` locally. That file is gitignored; the IDs are not secret, but
 keeping all three in one place is simpler than remembering which is which.
+Running `vercel link` once is the most reliable way to get all three right:
+whatever ends up in that file is by definition a combination that works.
+
+**On a personal account there is no "Team ID" field.** The org ID is your user
+ID, from Account Settings → General, and it starts with `user_`. A team ID
+starts with `team_` and a project ID starts with `prj_`; the workflow checks
+those three prefixes before it calls Vercel, because a swapped or mistyped ID
+otherwise surfaces as `Could not retrieve Project Settings`, which names
+neither of them.
+
+**Scope the token to whatever owns the project.** A token created under your
+personal account cannot read a team's project, and vice versa — same error
+again. If the token's scope selector offered you a choice, the choice matters.
 
 ### 4. Allow the deployment URLs in Supabase
 
