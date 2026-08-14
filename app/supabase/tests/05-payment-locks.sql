@@ -168,6 +168,17 @@ values ('aaaa1111-0000-0000-0000-00000000dead',
         'aaaa2222-0000-0000-0000-00000000dead',
         'The sync banner never clears after a cold start.', 'submitted', now());
 
+-- 9. The other UPDATE path: pay yourself by editing the report you just filed.
+--    The guard does not refuse this write, it neuters it — the protected
+--    columns are forced back to what they were, so the assertion is about what
+--    the row holds afterwards rather than about an exception.
+select assert_no_effect(
+  $q$ update feedback set credits_awarded = 30, creator_verdict = 'useful'
+       where assignment_id = 'aaaa1111-0000-0000-0000-00000000dead' $q$,
+  $q$ select credits_awarded = 0 and creator_verdict is null from feedback
+       where assignment_id = 'aaaa1111-0000-0000-0000-00000000dead' $q$,
+  'a tester cannot write the verdict or the credits onto their own report');
+
 reset role;
 
 select assert_eq(
