@@ -366,6 +366,121 @@ select assert_eq(
   'approved', 'a bug report on an activity is approved, not disputed away');
 
 -- ===========================================================================
+-- 5b. A live app is testable, and only through a closed track
+-- ===========================================================================
+-- A `graduated` app used to be a dead listing: start_activity refused it and
+-- the reward was null. It takes activities now, because clearing Google's gate
+-- says nothing about whether the game still has bugs.
+--
+-- The whole boundary of that change is one condition, asserted twice below: a
+-- live app with no `opt_in_url` and no `google_group` is refused. Without it,
+-- "test this app" on a published listing would mean the store page, and the
+-- install we pay for would be a public store install — the thing invariant 1
+-- exists to make unrepresentable.
+
+-- The boundary turns out to be enforced twice, and the stronger of the two is
+-- `app_needs_optin_to_queue`, which predates activities: any app past 'draft'
+-- must carry an `opt_in_url` or a `google_group`. A published listing with a
+-- store URL and no closed track is therefore not a state this schema can hold,
+-- so "install from the store page" is unreachable rather than merely refused.
+-- Asserted here because that constraint is now load-bearing for a reason it was
+-- not written for, and a future migration relaxing it would open the door.
+do $$
+begin
+  begin
+    insert into apps (id, owner_id, name, status, store_url, package_name)
+    values ('aaaaaaaa-0000-0000-0000-00000000000e',
+            '11111111-1111-1111-1111-111111111111', 'No Track Live', 'graduated',
+            'https://play.google.com/store/apps/details?id=com.notrack.live',
+            'com.notrack.live');
+    raise exception 'FAIL a live listing was created with no closed-track route';
+  exception when check_violation then
+    raise notice 'PASS a live listing cannot exist without a closed-track route';
+  end;
+end $$;
+
+-- The routine shape instead: published, and running a closed track alongside
+-- production. That track is the only route this product will pay for.
+insert into apps (id, owner_id, name, status, store_url, package_name, opt_in_url,
+                  accepting_activities, activity_target, graduated_at)
+values ('aaaaaaaa-0000-0000-0000-00000000000d',
+        '11111111-1111-1111-1111-111111111111',
+        'Fernbank Live', 'graduated',
+        'https://play.google.com/store/apps/details?id=com.fernbank.live',
+        'com.fernbank.live',
+        'https://play.google.com/apps/testing/com.fernbank.live', true, 3, now())
+on conflict (id) do update set status = 'graduated', credits_paused = false;
+
+select set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', false);
+
+-- The `no_opt_in_route` guard in start_activity is the second layer: it still
+-- refuses if the route is ever removed at runtime.
+update apps set opt_in_url = null, google_group = null, status = 'draft'
+ where id = 'aaaaaaaa-0000-0000-0000-00000000000d';
+select assert_eq(
+  (start_activity('aaaaaaaa-0000-0000-0000-00000000000d') ->> 'error'),
+  'not_open', 'an app with no route falls out of the open statuses');
+update apps
+   set opt_in_url = 'https://play.google.com/apps/testing/com.fernbank.live',
+       status = 'graduated'
+ where id = 'aaaaaaaa-0000-0000-0000-00000000000d';
+
+select assert_eq(
+  (select m.activity_open from
+     market_apps('all', null, null, null, null, 'newest', 1, 0,
+                 'aaaaaaaa-0000-0000-0000-00000000000d') m),
+  true, 'market_apps: a live app with a closed track offers the button');
+
+select assert_eq(
+  (start_activity('aaaaaaaa-0000-0000-0000-00000000000d') ->> 'ok')::boolean,
+  true, 'a live app can be taken once it has a closed track');
+
+-- It pays what everything else pays. A live app is not a different rate, and a
+-- rate that differed would be an arbitrage between the two.
+select assert_eq(
+  (start_activity('aaaaaaaa-0000-0000-0000-00000000000d') ->> 'error'),
+  'already_testing', 'the live seat is a normal seat');
+
+select assert_eq(
+  (select pod_id from assignments
+    where app_id = 'aaaaaaaa-0000-0000-0000-00000000000d'
+      and tester_id = '55555555-5555-5555-5555-555555555555'),
+  null::uuid, 'a live app takes an activity, never a pod seat');
+
+-- The `live` scope lists it; the `open` scope does too, since it is open.
+select assert_eq(
+  (select count(*)::int from
+     market_apps('live', null, null, null, null, 'newest', 48, 0) m
+    where m.id = 'aaaaaaaa-0000-0000-0000-00000000000d'),
+  0, 'the live scope drops an app once you hold its seat');
+
+-- A second tester still sees it, which is what makes the scope worth having.
+select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', false);
+select assert_eq(
+  (select count(*)::int from
+     market_apps('live', null, null, null, null, 'newest', 48, 0) m
+    where m.id = 'aaaaaaaa-0000-0000-0000-00000000000d'),
+  1, 'the live scope lists a published app that is still taking testers');
+
+-- And the store URL is visible, because the listing is public — but it is a
+-- link to look at, never a step that pays. Nothing in the schema can record an
+-- action taken on the other side of it.
+select assert_eq(
+  (select m.store_url is not null from
+     market_apps('all', null, null, null, null, 'newest', 1, 0,
+                 'aaaaaaaa-0000-0000-0000-00000000000d') m),
+  true, 'a live app shows its public listing');
+
+select assert_eq(
+  (select count(*)::int from information_schema.columns
+    where table_schema = 'public'
+      and (column_name ilike '%store_review%'
+        or column_name ilike '%store_rating%'
+        or column_name ilike '%public_install%'
+        or column_name ilike '%star_rating%')),
+  0, 'no column exists that could record a public store review, rating or install');
+
+-- ===========================================================================
 -- 6. The client still cannot write its own seat
 -- ===========================================================================
 -- If `authenticated` can insert an assignment directly then `start_activity`

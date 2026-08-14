@@ -103,7 +103,7 @@ export interface FilterOption<T extends string = string> {
   hint?: string;
 }
 
-export type Scope = 'all' | 'open' | 'testing' | 'due' | 'tested' | 'mine' | 'saved';
+export type Scope = 'all' | 'open' | 'live' | 'testing' | 'due' | 'tested' | 'mine' | 'saved';
 export type PlatformFilter = 'all' | 'android' | 'ios';
 export type StatusFilter = 'all' | 'needs_testers' | 'in_testing' | 'graduated';
 export type Sort = 'newest' | 'testers' | 'reports' | 'graduated' | 'name';
@@ -113,6 +113,10 @@ export const SCOPES: FilterOption<Scope>[] = [
   // First, and first for a reason: it is the only chip that answers "is there
   // anything here for me to do", which is the question a member arrives with.
   { value: 'open',    label: 'Open to me', hint: 'Apps you can start on right now. Join the closed test, use it, send one report.' },
+  // Live games are the half of the market that "Shipped" used to hide. The
+  // hint is explicit about the route in, because this is the one scope where a
+  // reader might reasonably assume they are being sent to a store page.
+  { value: 'live',    label: 'Live games', hint: 'Already on the store and still taking testers. You join the closed track the developer runs alongside it, and your report goes to them.' },
   { value: 'testing', label: 'Testing' },
   { value: 'due',     label: 'Report due' },
   { value: 'tested',  label: 'Tested' },
@@ -288,13 +292,21 @@ export interface MarketPulse {
  *
  * Null for your own app (you pay it, you do not earn it), for an app you have
  * already finished, and for an iOS listing, which is not seated at all yet.
+ *
+ * A `graduated` app still pays. It used to return null here, on the reasoning
+ * that an app which has cleared Google's gate has nothing left to gain from a
+ * tester — true of the *gate*, and wrong about everything else. A live game has
+ * players, bugs and a developer who wants to hear about both, and the work is
+ * the same work: join the closed track the app still runs, use it, report. What
+ * a shipped app cannot have is a pod seat, and that is decided by
+ * `start_activity` and `activity_open`, not here.
  */
 export function rewardFor(
   app: Pick<MarketApp, 'relation' | 'platform' | 'status'>
 ): number | null {
   if (app.relation === 'owner' || app.relation === 'tested') return null;
   if (app.platform === 'ios') return null;
-  if (app.status === 'graduated' || app.status === 'draft' || app.status === 'paused') return null;
+  if (app.status === 'draft' || app.status === 'paused') return null;
   return EARN.optInVerified + EARN.feedbackApproved;
 }
 

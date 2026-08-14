@@ -160,6 +160,17 @@ their remaining seats (`apps.activity_target`), and their balance, checked for t
 `activities` flag, enforced in the RPC and mirrored into `market_apps.activity_open`, so the
 button and the RPC move together.
 
+**A `graduated` app still takes activities.** Clearing Google's gate ends the *pod* — a
+shipped app has no production-access requirement left and takes no pod seat — but a live
+game still has bugs and a developer who wants to hear about them, and the `live` scope in
+`market_apps` is how they are browsed. The route in is unchanged and is the whole boundary
+of the feature: the tester joins the closed track the developer runs alongside production,
+never the public listing. `start_activity` refuses without `opt_in_url` or `google_group`,
+and `app_needs_optin_to_queue` — which predates all of this — already makes a non-draft app
+without one impossible, so "install from the store page" is unreachable rather than merely
+refused. That constraint is now load-bearing for a reason it was not written for; do not
+relax it.
+
 Every lifecycle job joins `assignments` to `pods` on an inner join, so activities are
 excluded from the 14-day clock, dropout detection and escrow release by construction. Any
 new code reading a pod off an assignment must handle null — `submit_checkin` and `/tests`

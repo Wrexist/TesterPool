@@ -343,36 +343,22 @@ function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean
 
   const reward = rewardFor(app);
 
-  // Only an app that can still take testers gets a call to action. A shipped,
-  // paused or removed app offering "Want to test this?" is an invitation to a
-  // door that is shut.
-  if (app.status !== 'queued' && app.status !== 'in_pod') {
-    return (
-      <Card className="flex flex-col gap-3 p-5">
-        <h2 className="text-sm font-semibold">
-          {app.status === 'graduated' ? 'This one shipped' : 'Not taking testers'}
-        </h2>
-        <p className="text-sm leading-relaxed text-[var(--color-dim)]">
-          {app.status === 'graduated'
-            ? 'It cleared production access and is out of closed testing, so there is nothing left to test here.'
-            : 'The developer has this app paused. It may open to testers again later.'}
-        </p>
-        <Link href={marketHref({ status: 'needs_testers' })} className="btn btn-secondary">
-          Find an app that needs testers <IconArrow size={15} />
-        </Link>
-      </Card>
-    );
-  }
-
-  // The seat this page can hand out itself. `activity_open` is computed in
-  // `market_apps` from every condition `start_activity` enforces — the owner's
-  // consent, their remaining seats, their balance, the flag — so the button
-  // appears exactly when the RPC behind it will say yes.
+  // The seat this page can hand out itself, and it is checked FIRST — before
+  // the status guard below, which used to turn every shipped app away. A live
+  // game is the one case where those two disagree: `status` says graduated and
+  // `activity_open` says the developer is still taking testers, and the second
+  // is the one that answers "can I work on this".
+  //
+  // `activity_open` is computed in `market_apps` from every condition
+  // `start_activity` enforces — the owner's consent, their remaining seats,
+  // their balance, the flag, and a closed track to join — so the button appears
+  // exactly when the RPC behind it will say yes.
   if (app.activity_open) {
+    const live = app.status === 'graduated';
     return (
       <Card className="flex flex-col gap-3 p-5">
         <div className="flex items-start justify-between gap-3">
-          <h2 className="text-sm font-semibold">Test this app</h2>
+          <h2 className="text-sm font-semibold">{live ? 'Play this and report back' : 'Test this app'}</h2>
           {reward && <RewardChip amount={reward} />}
         </div>
         <p className="text-sm leading-relaxed text-[var(--color-dim)]">
@@ -380,6 +366,20 @@ function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean
           one report on what broke and what you would change. No group and no fourteen-day
           commitment — this one is yours alone and you can finish it today.
         </p>
+        {/*
+          Said plainly on the one screen where a reader might assume otherwise.
+          This app is on the store; the job is not. Leaving it implicit would let
+          someone install from the public listing, leave a store review and
+          expect to be paid for it — which is the thing this product exists to
+          not be.
+        */}
+        {live && (
+          <p className="text-sm leading-relaxed text-[var(--color-dim)]">
+            This one is already published. You are joining the closed track the developer
+            runs alongside it, not installing from the store page, and your report goes to
+            them privately. Nothing here asks you to review or rate it publicly.
+          </p>
+        )}
 
         <StartActivityButton appId={app.id} reward={reward} />
 
@@ -404,6 +404,28 @@ function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean
           the balance of the developer whose app you tested. Specific criticism pays exactly
           what praise pays.
         </p>
+      </Card>
+    );
+  }
+
+  // Not open to activities, and not in a state a pod could help either. A
+  // shipped app reaches here only when its developer has closed it to testers,
+  // run out of credits or never added a closed track — so the copy says the app
+  // is shut, not that shipped apps are finished with. They are not any more.
+  if (app.status !== 'queued' && app.status !== 'in_pod') {
+    return (
+      <Card className="flex flex-col gap-3 p-5">
+        <h2 className="text-sm font-semibold">
+          {app.status === 'graduated' ? 'Not taking testers right now' : 'Not taking testers'}
+        </h2>
+        <p className="text-sm leading-relaxed text-[var(--color-dim)]">
+          {app.status === 'graduated'
+            ? 'This one is published and its developer is not running an open closed-track slot at the moment. Live games do take testers here — this one just is not, today.'
+            : 'The developer has this app paused. It may open to testers again later.'}
+        </p>
+        <Link href={marketHref({ scope: 'open' })} className="btn btn-secondary">
+          Find an app you can start on <IconArrow size={15} />
+        </Link>
       </Card>
     );
   }

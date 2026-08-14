@@ -20,6 +20,7 @@ import { n } from '@/lib/pods';
 const SECTION_TITLE: Record<MarketQuery['scope'], string> = {
   all: 'Apps to test',
   open: 'Open to you right now',
+  live: 'Live games still taking testers',
   testing: 'Testing now',
   due: 'Reports you owe',
   tested: 'Apps you have tested',
