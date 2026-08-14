@@ -957,8 +957,8 @@ export default function LandingPage() {
 
                 <p className="mt-4 text-[13px] leading-relaxed text-[var(--color-mute)]">
                   You pay for them by reviewing other people&rsquo;s apps. Credits
-                  move between members and are never minted, so the pool cannot be
-                  farmed and doing your share costs you nothing.
+                  move between members and testing never creates them, so the loop
+                  cannot be farmed and doing your share costs you nothing.
                 </p>
               </div>
 
@@ -1267,8 +1267,8 @@ export default function LandingPage() {
         <Section
           id="economy"
           eyebrow="The economy"
-          title="Credits move. They are never minted."
-          lede="This is the property the whole network rests on, so it is worth stating before the price list. Every credit a reviewer earns came out of the balance of the developer whose app they reviewed. Nothing creates credits, which means nothing can be farmed, the supply cannot inflate, and doing your share costs you exactly nothing."
+          title="Credits move. Testing never mints them."
+          lede="This is the property the whole network rests on, so it is worth stating before the price list. Every credit a reviewer earns came out of the balance of the developer whose app they reviewed — no amount of work creates one, which is why the loop cannot be farmed and why doing your share costs you exactly nothing. The only credits that appear from nowhere are the ones we hand you at signup."
         >
           <div className="mt-12 grid gap-4 lg:grid-cols-[1fr_1fr]">
             <Card className="p-6">
@@ -1298,8 +1298,9 @@ export default function LandingPage() {
                 The same number, because it is the same number. Credits move between
                 developers; nothing here mints them. A full pod earns you{' '}
                 {FULL_CYCLE_EARNINGS} and costs you {FULL_POD_COST}, so doing your
-                share breaks exactly even — and the currency cannot inflate, because
-                every credit anyone earns came out of somebody&rsquo;s balance.
+                share breaks exactly even &mdash; and no amount of testing can
+                inflate the supply, because every credit anyone earns came out of
+                somebody&rsquo;s balance.
               </p>
             </Card>
 
