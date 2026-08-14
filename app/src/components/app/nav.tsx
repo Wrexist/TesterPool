@@ -78,7 +78,8 @@ type Group = { label: string | null; items: Item[] };
 function groups(
   isModerator: boolean,
   isAdmin: boolean,
-  counts: { tests?: number; feedback?: number }
+  counts: { tests?: number; feedback?: number },
+  podsOpen: boolean
 ): Group[] {
   const out: Group[] = [
     {
@@ -93,7 +94,15 @@ function groups(
         { href: '/apps', label: 'My apps', short: 'Apps', Icon: IconDevice },
         { href: '/feedback', label: 'Feedback', Icon: IconFeedback, badge: counts.feedback },
         { href: '/dashboard', label: 'Dashboard', Icon: IconDashboard, mobile: false },
-        { href: '/pods', label: 'Pods', Icon: IconPods, mobile: false },
+        // Hidden while `pod_matching` is off. The route still resolves and says
+        // why it is closed for anyone holding a link, but a nav entry is an
+        // advertisement, and advertising a door that does not open is how a new
+        // product spends the trust it has not earned yet. The flag is the same
+        // one join_pod and start_pod enforce in the database, so the link and
+        // the RPC cannot disagree.
+        ...(podsOpen
+          ? [{ href: '/pods', label: 'Pods', Icon: IconPods, mobile: false } as Item]
+          : []),
       ],
     },
     {
@@ -137,13 +146,16 @@ function Badge({ value }: { value?: number }) {
 export function AppNav({
   profile,
   counts = {},
+  podsOpen = true,
 }: {
   profile: NavProfile;
   counts?: { tests?: number; feedback?: number };
+  /** Mirrors the `pod_matching` flag. Defaults open, matching the RPC. */
+  podsOpen?: boolean;
 }) {
   const pathname = usePathname() || '';
   const [sheet, setSheet] = React.useState(false);
-  const sections = groups(profile.isModerator, !!profile.isAdmin, counts);
+  const sections = groups(profile.isModerator, !!profile.isAdmin, counts, podsOpen);
   const [daily, ...rest] = sections;
   const primary = daily.items.filter((item) => item.mobile !== false);
   // Whatever the bar could not hold goes to the top of the sheet, badge and all.
