@@ -267,6 +267,6 @@ export function estimateStart(members: number, seats: number): string {
 }
 
 export function referralLink(code: string, origin?: string): string {
-  const base = origin || process.env.NEXT_PUBLIC_SITE_URL || 'https://testerpool.com';
+  const base = origin || process.env.NEXT_PUBLIC_SITE_URL || 'https://testerpool.dev';
   return `${base.replace(/\/$/, '')}/login?ref=${code}`;
 }
