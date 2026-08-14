@@ -10,7 +10,8 @@
  * function in this schema granted to `anon`. That function decides what a
  * stranger may see; this file only lays it out. In particular there is no app
  * detail link here, because there is no anonymous detail page to link to: for
- * an app in closed testing the way in is granted by a pod, not by a directory.
+ * an app in closed testing the way in is granted by being matched, not by a
+ * directory.
  *
  * Not `/apps` — `(app)/apps` already owns that URL as the authenticated
  * "my apps" screen.
@@ -53,6 +54,7 @@ type ShowcaseApp = {
 
 type Showcase = {
   open_apps: number;
+  members: number;
   active_testers: number;
   reviews: number;
   graduated: number;
@@ -61,6 +63,7 @@ type Showcase = {
 
 const EMPTY: Showcase = {
   open_apps: 0,
+  members: 0,
   active_testers: 0,
   reviews: 0,
   graduated: 0,
@@ -82,6 +85,7 @@ async function loadShowcase(): Promise<{ data: Showcase; ok: boolean }> {
     return {
       data: {
         open_apps: Number(d.open_apps ?? 0),
+        members: Number(d.members ?? 0),
         active_testers: Number(d.active_testers ?? 0),
         reviews: Number(d.reviews ?? 0),
         graduated: Number(d.graduated ?? 0),
@@ -175,11 +179,15 @@ export default async function PoolPage() {
 
   const { data, ok } = await loadShowcase();
 
+  const seats = RULES.podSeats;
+  const seatsLeft = Math.max(0, seats - data.members);
+  const filling = data.members < seats;
+
   const stats: Array<{ v: number; l: string; sub: string }> = [
+    { v: data.members, l: 'developers joined', sub: `first group fills at ${seats}` },
     { v: data.open_apps, l: 'apps open to testers', sub: 'right now' },
-    { v: data.active_testers, l: 'testers active', sub: 'last 24 hours' },
     { v: data.reviews, l: 'reviews delivered', sub: 'last 24 hours' },
-    { v: data.graduated, l: 'apps graduated', sub: 'all time' },
+    { v: data.graduated, l: 'apps shipped', sub: 'all time' },
   ];
 
   return (
@@ -198,14 +206,58 @@ export default async function PoolPage() {
               <p className="mt-5 text-lg leading-relaxed text-[var(--color-dim)]">
                 Every app below is in a closed testing track and looking for
                 testers. Install one, use it for the {RULES.requiredDays} days its
-                pod runs, send one structured review, and the credits you earn buy
-                the same treatment for yours.
+                round runs, send one structured review, and the credits you earn
+                buy the same treatment for yours.
               </p>
               <p className="mt-3 text-sm leading-relaxed text-[var(--color-mute)]">
                 Names and taglines only. The opt-in link and package name arrive
-                with a pod seat, never from a directory &mdash; that is what keeps a
-                closed track closed.
+                when you are matched with an app, never from a directory &mdash;
+                that is what keeps a closed track closed.
               </p>
+
+              {ok && filling && (
+                /*
+                 * The one number that is both true and rising on day one. A count
+                 * against a target gives a reason to act now; an empty grid gives
+                 * a reason to leave. It has to stay real — this reads the same
+                 * `market_showcase` count the stat strip does, and it disappears
+                 * of its own accord once the first group is full.
+                 */
+                <div className="mt-8 max-w-md">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-sm font-semibold">
+                      <span className="num">{data.members}</span> of{' '}
+                      <span className="num">{seats}</span> seats taken
+                    </span>
+                    <span className="text-xs text-[var(--color-mute)]">
+                      {seatsLeft === 1 ? '1 seat left' : `${seatsLeft} seats left`}
+                    </span>
+                  </div>
+                  <div
+                    className="mt-2 h-2 w-full overflow-hidden rounded-full"
+                    style={{ background: 'var(--color-surface-2)' }}
+                    role="progressbar"
+                    aria-valuenow={data.members}
+                    aria-valuemin={0}
+                    aria-valuemax={seats}
+                    aria-label={`${data.members} of ${seats} founding seats taken`}
+                  >
+                    <div
+                      className="h-full rounded-full transition-[width]"
+                      style={{
+                        width: `${Math.min(100, (data.members / seats) * 100)}%`,
+                        background: 'var(--color-accent)',
+                      }}
+                    />
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-[var(--color-dim)]">
+                    Reviewing starts when the first group is full. Everyone in it
+                    installs everyone else&rsquo;s app on the same day, so the{' '}
+                    {RULES.requiredDays}-day clock runs once rather than fifteen
+                    times.
+                  </p>
+                </div>
+              )}
             </div>
 
             <dl className="mt-10 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-[var(--color-line)] pt-8 sm:grid-cols-4">
@@ -245,10 +297,18 @@ export default async function PoolPage() {
 
             {data.apps.length === 0 ? (
               <EmptyState
-                title={ok ? 'Nothing open at this minute' : 'The pool could not be read'}
+                title={
+                  ok
+                    ? filling
+                      ? 'The first group is still filling'
+                      : 'Nothing open at this minute'
+                    : 'The pool could not be read'
+                }
                 body={
                   ok
-                    ? 'Every app in the network is mid-cycle. New listings open continuously — sign up and you will be matched with the next pod that forms.'
+                    ? filling
+                      ? `${seatsLeft} of ${seats} seats are still open. List your app now and it is in the first round of reviews — there is no queue ahead of you, which will not be true for long.`
+                      : 'Every app in the network is mid-cycle. New listings open continuously — sign up and you will be matched with the next round.'
                     : 'This page reads live from the network and the read failed. Rather than show you invented numbers, it shows you nothing. Try again shortly.'
                 }
                 action={
