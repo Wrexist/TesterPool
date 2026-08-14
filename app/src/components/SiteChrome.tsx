@@ -7,6 +7,10 @@ import Link from 'next/link';
 import { LogoMark, Wordmark } from '@/components/Logo';
 
 const NAV = [
+  // First, because it is the proof rather than a claim: a real review, in full.
+  // It is what a visitor is deciding about, and the one link on this bar that
+  // shows the product instead of describing it.
+  { href: '/#report', label: 'See a review' },
   { href: '/#how', label: 'How it works' },
   { href: '/#pricing', label: 'Pricing' },
   { href: '/readiness', label: 'Readiness check' },
@@ -51,6 +55,7 @@ const FOOTER_COLS: Array<{ title: string; links: Array<{ label: string; href: st
   {
     title: 'Product',
     links: [
+      { label: 'See a review', href: '/#report' },
       { label: 'How it works', href: '/#how' },
       { label: 'Pricing', href: '/#pricing' },
       { label: 'Credits & economy', href: '/#economy' },

@@ -1,8 +1,8 @@
-# First sight — repositioning the landing page around the loop
+# First sight — repositioning the landing page around the reviews
 
-Status: **phases 1–2 shipped** — hero repositioned around the reviews a developer
+Status: **phases 1–3 shipped** — hero repositioned around the reviews a developer
 receives, the review anchor section, the store-review FAQ conversion, honest stat strip,
-site metadata. Phases 3–5 below are still proposals.
+site metadata, and the resequencing. Phases 4–5 below are still proposals.
 Owner: marketing surface (`app/src/app/page.tsx`, `SiteChrome`, `/launch`, `/readiness`).
 
 ---
@@ -128,9 +128,23 @@ get spammed with junk", and "what stops freeloaders" at once.
 
 ## 4. New page architecture
 
-Section by section. Replaces the current order
-(`hero → problem → how → compare → compliance → reliability → evidence → economy →
-pricing → testimonials → faq`).
+Section by section. The old order was
+
+```
+hero → problem → how → compare → compliance → reliability → evidence → economy → pricing → testimonials → faq
+```
+
+and the shipped order is
+
+```
+hero → report → job → problem → how → compare → reliability → evidence → economy → compliance → pricing → testimonials → faq
+```
+
+Two things moved for a reason. The **review anchor and the loop come before the pod**, so
+the page states the offer and its price before it explains the mechanism. **Compliance
+moved down to sit immediately before pricing**: under a hero that already names both kinds
+of review, the compliance section is a confirmation someone reads just before deciding to
+pay, not an argument that has to be won mid-page.
 
 ### 4.1 Hero — the offer (shipped)
 
@@ -338,7 +352,7 @@ the new page and compare fortnight over fortnight.
 | --- | --- | --- |
 | ~~**1 — copy + hero**~~ | ~~New headline, lede, CTAs, the "job" cards, the loop visual, stat strip wired or removed~~ **done** | `app/src/app/page.tsx`, `app/src/app/layout.tsx`, `app/src/app/globals.css` |
 | ~~**2 — the review anchor**~~ | ~~§4.3 section, redacted sample review, the three claims~~ **done**, plus the store-review FAQ conversion | `app/src/app/page.tsx`, `app/src/app/layout.tsx` |
-| **3 — resequencing** | Demote pod section, retarget reliability, move compliance, rewrite economy around conservation | `page.tsx` |
+| ~~**3 — resequencing**~~ | ~~Demote pod section, retarget reliability, move compliance, rewrite economy around conservation~~ **done**, plus the comparison row and nav | `app/src/app/page.tsx`, `app/src/components/SiteChrome.tsx` |
 | **4 — public preview** | `market_showcase()` migration + test, `/apps` route, signed-in redirect, hero CTA points at it | `app/supabase/migrations/`, `app/supabase/tests/`, `app/src/app/apps/` |
 | **5 — instrumentation** | Events, funnels, then measure | `PostHogProvider`, `page.tsx` |
 

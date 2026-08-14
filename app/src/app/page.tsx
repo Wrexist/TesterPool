@@ -463,6 +463,16 @@ const COMPARISON: Array<{
   cells: Array<{ verdict: Verdict; text: string }>;
 }> = [
   {
+    criterion: 'Written reviews you can act on',
+    note: 'The reason you came',
+    cells: [
+      { verdict: 'good', text: `One structured, on-rubric review per tester, privately — ${RULES.podSeats - 1} of them` },
+      { verdict: 'bad', text: 'A five-star string you did not want, and cannot use' },
+      { verdict: 'mixed', text: 'Occasionally a paragraph; rarely actionable' },
+      { verdict: 'mixed', text: '“Looks nice”' },
+    ],
+  },
+  {
     criterion: 'Policy risk',
     note: 'The one that ends your account',
     cells: [
@@ -488,15 +498,6 @@ const COMPARISON: Array<{
       { verdict: 'bad', text: 'Not offered' },
       { verdict: 'mixed', text: 'Re-order and wait, if the seller is still online' },
       { verdict: 'bad', text: 'You start asking again' },
-    ],
-  },
-  {
-    criterion: 'Written feedback',
-    cells: [
-      { verdict: 'good', text: 'One structured, on-rubric review per tester, privately' },
-      { verdict: 'bad', text: 'A five-star string you did not want' },
-      { verdict: 'mixed', text: 'Occasionally a paragraph; rarely actionable' },
-      { verdict: 'mixed', text: '“Looks nice”' },
     ],
   },
   {
@@ -774,7 +775,7 @@ const FAQ: Array<{ q: string; a: React.ReactNode }> = [
         The numbers Google&rsquo;s production access form actually asks for:
         how many testers you had, how many completed all {RULES.requiredDays}{' '}
         days, average days active, daily engagement rate, the number of approved
-        feedback reports, how many raised significant issues, and a written
+        reviews, how many raised significant issues, and a written
         digest of what testers said and what you changed in response. It exports
         as a document you can paste from. Pro plans get it reviewed by a human
         before you submit.
@@ -1019,7 +1020,7 @@ export default function LandingPage() {
         {/* --------------------------------------------------------- problem */}
         <Section
           id="problem"
-          eyebrow="The bottleneck"
+          eyebrow="Why they all arrive at once"
           title={
             <>
               Twelve testers. Fourteen consecutive days.
@@ -1028,11 +1029,14 @@ export default function LandingPage() {
           }
           lede={
             <>
-              Every personal developer account created after 13 November 2023 has
-              to run a closed test with at least {RULES.requiredTesters} testers
-              opted in continuously for {RULES.requiredDays} days before Google
-              will even consider production access. Miss it by one tester on one
-              day and the count starts over.
+              The reviews come {RULES.podSeats - 1} at a time because the rule
+              does. Every personal developer account created after 13 November
+              2023 has to run a closed test with at least {RULES.requiredTesters}{' '}
+              testers opted in continuously for {RULES.requiredDays} days before
+              Google will even consider production access. Miss it by one tester
+              on one day and the count starts over &mdash; which is why a pod is{' '}
+              {RULES.podSeats} people on one shared clock rather than a queue you
+              dip into.
             </>
           }
         >
@@ -1126,94 +1130,12 @@ export default function LandingPage() {
           </p>
         </Section>
 
-        {/* ------------------------------------------------------ compliance */}
-        <section
-          id="compliance"
-          className="scroll-mt-20 border-y border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-20 sm:px-6 sm:py-24"
-        >
-          <div className="mx-auto max-w-6xl">
-            <div className="grid gap-10 lg:grid-cols-[1fr_360px] lg:gap-14">
-              <div>
-                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-accent)]">
-                  Why this is safe
-                </div>
-                <h2 className="text-3xl font-bold leading-[1.1] tracking-tight sm:text-4xl">
-                  Nothing TesterPool does ever touches the public store
-                </h2>
-                <div className="mt-6 space-y-4 text-base leading-relaxed text-[var(--color-dim)]">
-                  <p>
-                    All activity happens inside your closed testing track. Closed
-                    track installs and usage do not affect store rankings, public
-                    ratings, or public install counts — they are invisible to the
-                    store surface entirely. There is nothing here for Google&rsquo;s
-                    anti-manipulation systems to object to, because there is no
-                    public signal being manufactured.
-                  </p>
-                  <p>
-                    Google&rsquo;s developer community guidance is explicit that
-                    using a third-party service to find testers for a closed test
-                    does not violate policy. What Google prohibits is incentivising{' '}
-                    <strong className="font-semibold text-[var(--color-ink)]">
-                      ratings, reviews and installs
-                    </strong>{' '}
-                    — and that is precisely the thing TesterPool refuses to sell. We
-                    have no product to offer you there. The database schema behind
-                    this site has no column that can hold a store review or a public
-                    rating; it was designed that way on purpose.
-                  </p>
-                  <p>
-                    Feedback on TesterPool is private, structured and delivered to you
-                    — never posted anywhere public. If a tester tried to trade a
-                    five-star review for credits, there would be no mechanism to
-                    pay them.
-                  </p>
-                </div>
-                <a
-                  href={POLICY_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-secondary mt-7"
-                >
-                  Read the Google Play policy yourself <Arrow />
-                </a>
-              </div>
-
-              <div className="space-y-3">
-                {[
-                  { ok: true, t: 'Closed testing track activity', s: 'Invisible to store rankings and ratings' },
-                  { ok: true, t: 'Private structured feedback', s: 'On a rubric, arbitrated, never published' },
-                  { ok: true, t: 'Daily engagement proof', s: 'Screenshot-backed, for your own application' },
-                  { ok: false, t: 'Public store reviews', s: 'No mechanism exists in the product' },
-                  { ok: false, t: 'Public ratings', s: 'No mechanism exists in the product' },
-                  { ok: false, t: 'Production installs', s: 'Not part of any pod, ever' },
-                ].map((r) => (
-                  <div
-                    key={r.t}
-                    className="flex items-start gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-bg)] px-4 py-3"
-                  >
-                    <span
-                      className="mt-0.5 shrink-0"
-                      style={{ color: r.ok ? 'var(--color-accent)' : 'var(--color-mute)' }}
-                    >
-                      {r.ok ? <Check /> : <Cross />}
-                    </span>
-                    <div>
-                      <div className="text-sm font-medium leading-tight">{r.t}</div>
-                      <div className="mt-0.5 text-xs text-[var(--color-mute)]">{r.s}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* ---------------------------------------------------- reliability */}
         <Section
           id="reliability"
-          eyebrow="Why nobody ghosts"
+          eyebrow="Why the reviews are worth reading"
           title="The Reliability Score is the whole trick"
-          lede="Every other free tester scheme dies the same way: people opt in, collect what they need, and disappear on day four. TesterPool makes disappearing the most expensive thing you can do."
+          lede="Every other free tester scheme dies the same way: people opt in, collect what they need, disappear on day four, and the reviews you do get are four words long. TesterPool makes both of those the most expensive things you can do."
         >
           <div className="mt-12 grid gap-4 lg:grid-cols-[320px_1fr]">
             <Card className="flex flex-col items-center justify-center gap-4 p-8">
@@ -1310,8 +1232,8 @@ export default function LandingPage() {
         <Section
           id="economy"
           eyebrow="The economy"
-          title="Credits price the edges, never the core"
-          lede="Credits move between developers, they are never minted. What a tester earns comes out of the balance of the developer whose app they tested — so doing your share costs nothing, and skipping it costs exactly what it should."
+          title="Credits move. They are never minted."
+          lede="This is the property the whole network rests on, so it is worth stating before the price list. Every credit a reviewer earns came out of the balance of the developer whose app they reviewed. Nothing creates credits, which means nothing can be farmed, the supply cannot inflate, and doing your share costs you exactly nothing."
         >
           <div className="mt-12 grid gap-4 lg:grid-cols-[1fr_1fr]">
             <Card className="p-6">
@@ -1384,6 +1306,88 @@ export default function LandingPage() {
             </div>
           </div>
         </Section>
+
+        {/* ------------------------------------------------------ compliance */}
+        <section
+          id="compliance"
+          className="scroll-mt-20 border-y border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-20 sm:px-6 sm:py-24"
+        >
+          <div className="mx-auto max-w-6xl">
+            <div className="grid gap-10 lg:grid-cols-[1fr_360px] lg:gap-14">
+              <div>
+                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-accent)]">
+                  Why this is safe
+                </div>
+                <h2 className="text-3xl font-bold leading-[1.1] tracking-tight sm:text-4xl">
+                  Nothing TesterPool does ever touches the public store
+                </h2>
+                <div className="mt-6 space-y-4 text-base leading-relaxed text-[var(--color-dim)]">
+                  <p>
+                    All activity happens inside your closed testing track. Closed
+                    track installs and usage do not affect store rankings, public
+                    ratings, or public install counts — they are invisible to the
+                    store surface entirely. There is nothing here for Google&rsquo;s
+                    anti-manipulation systems to object to, because there is no
+                    public signal being manufactured.
+                  </p>
+                  <p>
+                    Google&rsquo;s developer community guidance is explicit that
+                    using a third-party service to find testers for a closed test
+                    does not violate policy. What Google prohibits is incentivising{' '}
+                    <strong className="font-semibold text-[var(--color-ink)]">
+                      ratings, reviews and installs
+                    </strong>{' '}
+                    — and that is precisely the thing TesterPool refuses to sell. We
+                    have no product to offer you there. The database schema behind
+                    this site has no column that can hold a store review or a public
+                    rating; it was designed that way on purpose.
+                  </p>
+                  <p>
+                    Feedback on TesterPool is private, structured and delivered to you
+                    — never posted anywhere public. If a tester tried to trade a
+                    five-star review for credits, there would be no mechanism to
+                    pay them.
+                  </p>
+                </div>
+                <a
+                  href={POLICY_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-secondary mt-7"
+                >
+                  Read the Google Play policy yourself <Arrow />
+                </a>
+              </div>
+
+              <div className="space-y-3">
+                {[
+                  { ok: true, t: 'Closed testing track activity', s: 'Invisible to store rankings and ratings' },
+                  { ok: true, t: 'Private structured reviews', s: 'On a rubric, arbitrated, never published' },
+                  { ok: true, t: 'Daily engagement proof', s: 'Screenshot-backed, for your own application' },
+                  { ok: false, t: 'Public store reviews', s: 'No mechanism exists in the product' },
+                  { ok: false, t: 'Public ratings', s: 'No mechanism exists in the product' },
+                  { ok: false, t: 'Production installs', s: 'Not part of any pod, ever' },
+                ].map((r) => (
+                  <div
+                    key={r.t}
+                    className="flex items-start gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-bg)] px-4 py-3"
+                  >
+                    <span
+                      className="mt-0.5 shrink-0"
+                      style={{ color: r.ok ? 'var(--color-accent)' : 'var(--color-mute)' }}
+                    >
+                      {r.ok ? <Check /> : <Cross />}
+                    </span>
+                    <div>
+                      <div className="text-sm font-medium leading-tight">{r.t}</div>
+                      <div className="mt-0.5 text-xs text-[var(--color-mute)]">{r.s}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* --------------------------------------------------------- pricing */}
         <Section
