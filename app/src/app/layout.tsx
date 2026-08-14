@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { PostHogProvider } from '@/components/PostHogProvider';
 import './globals.css';
 
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
     >
       <body className="flex min-h-full flex-col">
         <PostHogProvider>{children}</PostHogProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
