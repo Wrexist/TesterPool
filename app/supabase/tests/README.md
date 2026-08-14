@@ -48,6 +48,7 @@ psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/03-proof-intake.sql
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/04-marketplace.sql
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/05-payment-locks.sql
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/06-showcase.sql
+psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/07-activities.sql
 ```
 
 `04` asserts the marketplace projection: what is listed to whom, and that a member
@@ -66,7 +67,17 @@ opt-in link, Google Group, tester instruction, id, owner or score. Its last asse
 run as `anon` for real, because a grant test executed as the table owner would pass
 against a function `anon` cannot actually reach.
 
-All six files abort on the first failed assertion and print `ALL ... PASSED`
+`07` asserts activities — a seat with no pod. The happy path and, more to the point,
+the five refusals, because `start_activity` seats a member against a developer's
+balance without pod matching having checked that balance first: your own app, a
+duplicate seat, a listing past its `activity_target`, an owner who cannot cover the
+whole 40, and the flag. It also asserts the two transfers are the identical 10 and 30
+a pod seat moves, that `submit_checkin` works on a pod-less seat, and — as
+`authenticated`, for the reason `05` gives — that a direct insert into `assignments`
+is still refused. Run it after `01`; it uses `01`'s fixtures and clears the daily
+report cap `02` deliberately fills.
+
+All seven files abort on the first failed assertion and print `ALL ... PASSED`
 at the end if nothing is wrong.
 
 ## What the stub provides
@@ -139,7 +150,7 @@ problem and prints what it wanted. Balances start at the signup grant, so assert
 payments as a delta from a baseline rather than an absolute — see the `baseline`
 temp table in 03.
 
-Run all six files in order: 01 clears the fixtures and creates the pod and the
+Run all seven files in order: 01 clears the fixtures and creates the pod and the
 creator that 02 and 03 build on, 04 creates the `Market %` apps that 06 reuses, and 05
 restores what it changes.
 

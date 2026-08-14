@@ -12,6 +12,7 @@ import { Card, Pill, Stat, Avatar, TierBadge, StreakStrip, streakFromCount } fro
 import { AppIcon } from '@/components/app/app-card';
 import { RewardChip } from '@/components/app/app-row';
 import { ActivitySteps, type Step } from '@/components/app/activity-steps';
+import { StartActivityButton } from '@/components/app/start-activity-button';
 import { SaveButton } from '../save-button';
 import {
   IconArrow, IconExternal, IconFeedback, IconAlert,
@@ -238,6 +239,10 @@ function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean
   if (app.relation === 'testing') {
     const days = n(app.days_checked_in);
     const joined = !!app.opt_in_verified;
+    // An activity is one check-in and one report. Drawing the fourteen-day
+    // streak strip against it would promise a clock that does not exist and
+    // read as thirteen missed days from the moment it appeared.
+    const activity = !!app.is_activity;
 
     // Three steps, and the state of each is read from the assignment rather than
     // guessed: joined when the opt-in is verified, using it while days are still
@@ -256,9 +261,14 @@ function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean
       {
         label: 'Use it',
         state: !joined ? 'locked' : app.report_due ? 'done' : 'current',
-        detail: joined && !app.report_due ? 'Open the app once a day and log it. Fourteen days keeps the clock intact.' : undefined,
+        detail:
+          joined && !app.report_due
+            ? activity
+              ? 'Spend a few minutes in the app, then log it. One session is the whole of this step.'
+              : 'Open the app once a day and log it. Fourteen days keeps the clock intact.'
+            : undefined,
         action: app.assignment_id
-          ? { href: `/tests#test-${app.assignment_id}`, label: 'Check in for today' }
+          ? { href: `/tests#test-${app.assignment_id}`, label: activity ? 'Log your session' : 'Check in for today' }
           : undefined,
       },
       {
@@ -287,7 +297,7 @@ function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean
 
         <ActivitySteps steps={steps} />
 
-        {joined && (
+        {joined && !activity && (
           <div className="border-t border-[var(--color-line)] pt-4">
             <StreakStrip
               days={streakFromCount(days, n(app.pod_day, days), RULES.requiredDays)}
@@ -298,6 +308,13 @@ function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean
               <span className="num">{RULES.requiredDays}</span> days logged
             </p>
           </div>
+        )}
+
+        {joined && activity && (
+          <p className="border-t border-[var(--color-line)] pt-4 text-xs leading-relaxed text-[var(--color-mute)]">
+            No clock on this one. Take as long as you need over the app, then send the report
+            whenever you have something worth saying.
+          </p>
         )}
 
         {app.opt_in_url && joined && (
@@ -326,22 +343,88 @@ function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean
 
   const reward = rewardFor(app);
 
-  // Only an app that can still take testers gets a call to action. A shipped,
-  // paused or removed app offering "Want to test this?" is an invitation to a
-  // door that is shut.
+  // The seat this page can hand out itself, and it is checked FIRST — before
+  // the status guard below, which used to turn every shipped app away. A live
+  // game is the one case where those two disagree: `status` says graduated and
+  // `activity_open` says the developer is still taking testers, and the second
+  // is the one that answers "can I work on this".
+  //
+  // `activity_open` is computed in `market_apps` from every condition
+  // `start_activity` enforces — the owner's consent, their remaining seats,
+  // their balance, the flag, and a closed track to join — so the button appears
+  // exactly when the RPC behind it will say yes.
+  if (app.activity_open) {
+    const live = app.status === 'graduated';
+    return (
+      <Card className="flex flex-col gap-3 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-sm font-semibold">{live ? 'Play this and report back' : 'Test this app'}</h2>
+          {reward && <RewardChip amount={reward} />}
+        </div>
+        <p className="text-sm leading-relaxed text-[var(--color-dim)]">
+          Three steps: join the developer&rsquo;s closed testing track, use the app, then send
+          one report on what broke and what you would change. No group and no fourteen-day
+          commitment — this one is yours alone and you can finish it today.
+        </p>
+        {/*
+          Said plainly on the one screen where a reader might assume otherwise.
+          This app is on the store; the job is not. Leaving it implicit would let
+          someone install from the public listing, leave a store review and
+          expect to be paid for it — which is the thing this product exists to
+          not be.
+        */}
+        {live && (
+          <p className="text-sm leading-relaxed text-[var(--color-dim)]">
+            This one is already published. You are joining the closed track the developer
+            runs alongside it, not installing from the store page, and your report goes to
+            them privately. Nothing here asks you to review or rate it publicly.
+          </p>
+        )}
+
+        <StartActivityButton appId={app.id} reward={reward} />
+
+        {typeof app.activity_seats_left === 'number' && app.activity_seats_left <= 3 && (
+          <p className="text-xs text-[var(--color-mute)]">
+            <span className="num font-semibold text-[var(--color-dim)]">
+              {app.activity_seats_left}
+            </span>{' '}
+            {app.activity_seats_left === 1 ? 'seat' : 'seats'} left on this app.
+          </p>
+        )}
+
+        {/*
+          Said here rather than in a footnote, because this is the screen where
+          someone who arrived looking for the other kind of exchange decides
+          what this is. The distinction is the product.
+        */}
+        <p className="text-xs leading-relaxed text-[var(--color-mute)]">
+          The install is an opt-in to a closed testing track and the report goes to the
+          developer, not to a store. {EARN.optInVerified} credits when your opt-in is verified
+          from a screenshot, {EARN.feedbackApproved} when your report is approved, both out of
+          the balance of the developer whose app you tested. Specific criticism pays exactly
+          what praise pays.
+        </p>
+      </Card>
+    );
+  }
+
+  // Not open to activities, and not in a state a pod could help either. A
+  // shipped app reaches here only when its developer has closed it to testers,
+  // run out of credits or never added a closed track — so the copy says the app
+  // is shut, not that shipped apps are finished with. They are not any more.
   if (app.status !== 'queued' && app.status !== 'in_pod') {
     return (
       <Card className="flex flex-col gap-3 p-5">
         <h2 className="text-sm font-semibold">
-          {app.status === 'graduated' ? 'This one shipped' : 'Not taking testers'}
+          {app.status === 'graduated' ? 'Not taking testers right now' : 'Not taking testers'}
         </h2>
         <p className="text-sm leading-relaxed text-[var(--color-dim)]">
           {app.status === 'graduated'
-            ? 'It cleared production access and is out of closed testing, so there is nothing left to test here.'
+            ? 'This one is published and its developer is not running an open closed-track slot at the moment. Live games do take testers here — this one just is not, today.'
             : 'The developer has this app paused. It may open to testers again later.'}
         </p>
-        <Link href={marketHref({ status: 'needs_testers' })} className="btn btn-secondary">
-          Find an app that needs testers <IconArrow size={15} />
+        <Link href={marketHref({ scope: 'open' })} className="btn btn-secondary">
+          Find an app you can start on <IconArrow size={15} />
         </Link>
       </Card>
     );
@@ -354,10 +437,13 @@ function ActionCard({ app, podsOpen }: { app: MarketAppDetail; podsOpen: boolean
         {reward && <RewardChip amount={reward} />}
       </div>
       {/*
-        With `pod_matching` off there is no way to be seated, so this card must
-        not offer one. A primary button that lands on an "Upcoming" screen is a
-        dead door, and the first thing a new member would learn from it is that
-        the product's buttons cannot be trusted.
+        Reached when the app itself is shut to activities — the owner is out of
+        credits, has no seats left, or is not taking one-off testers — so the
+        only honest offer left is the group. With `pod_matching` off there is no
+        way to be seated at all, and this card must not pretend otherwise: a
+        primary button that lands on an "Upcoming" screen is a dead door, and
+        the first thing a new member would learn from it is that the product's
+        buttons cannot be trusted.
       */}
       {podsOpen ? (
         <>

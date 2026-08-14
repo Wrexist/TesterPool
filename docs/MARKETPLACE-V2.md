@@ -8,6 +8,38 @@ It is written to be handed to a coding session. Every screen names the files it
 touches, every schema change names the migration it needs, and the decisions
 that were yours are recorded in §3, already answered.
 
+**Status, 14 Aug 2026: the activity itself is built.** The presentation layer
+landed first — `app-row.tsx`, `RewardChip`, `activity-steps.tsx` — and left the
+marketplace showing what every app's work paid with no way to accept it, because
+a seat still came only from pod matching and `pod_matching` is off for launch. A
+directory of jobs nobody could take.
+
+`20260814180000_activities.sql` and `20260814181000_market_activities.sql` close
+that: `assignments.pod_id` is nullable, `start_activity` is the door, and
+`market_apps` gained `activity_open` / `activity_seats_left` / `is_activity` plus
+an `open` scope. `supabase/tests/07-activities.sql` is the regression test.
+
+The owner-facing controls from §6.3 landed too: `set_activity_intake` and
+`ActivityIntake` on `/apps`, stated as money rather than as settings — "5
+testers, 200 credits" is the decision being made.
+
+Applied to `yudcncvarndslyyajflr`: `20260814180000_activities.sql`,
+`20260814181000_market_activities.sql`, `20260814190000_live_app_activities.sql`
+and `20260814200000_activity_intake_controls.sql`, plus
+`20260814210000_activity_obligation_guard.sql` which closes two holes review
+found — see its header.
+
+**Two deviations from §7 below, which still describes the plan rather than the
+build.** There is no `assignments.kind` column: `market_apps` derives
+`is_activity` from `assignment_id` and `pod_id` instead, so there is no second
+place for the two to disagree. And §7 condition 1 limits an activity to a
+`queued` or `in_pod` app; the shipped contract also allows `graduated`, which is
+the entire point of `20260814190000_live_app_activities.sql`.
+
+Still outstanding from this plan: the bottom tab bar (§5), `/u/[handle]` as a
+Profile tab (§6.4), the rest of the My apps rework (§6.3), and chat (§6.5),
+which was already deferred.
+
 ---
 
 ## 1. What the reference gets right
