@@ -21,7 +21,7 @@ import { cx, Avatar, TierBadge, ReliabilityGauge } from '@/components/ui';
 import { CreditBalance } from '@/components/app/credit-balance';
 import {
   IconDashboard, IconTests, IconPods, IconFeedback, IconCredits,
-  IconTrophy, IconShield, IconMenu, IconUser, IconMarket,
+  IconTrophy, IconShield, IconMenu, IconUser, IconMarket, IconDevice,
 } from '@/components/app/icons';
 import type { Tier } from '@/lib/types';
 
@@ -84,13 +84,16 @@ function groups(
     {
       label: null,
       items: [
-        { href: '/dashboard', label: 'Dashboard', Icon: IconDashboard },
-        { href: '/market', label: 'Marketplace', short: 'Market', Icon: IconMarket },
-        { href: '/tests', label: 'My tests', Icon: IconTests, badge: counts.tests },
-        // The bar holds four and a menu. Pods is the one daily surface reachable
-        // from inside two of the others, so it is the one that gives up its slot.
-        { href: '/pods', label: 'Pods', Icon: IconPods, mobile: false },
+        // The phone bar holds four: where the work is, what you owe, what you
+        // own, and you. Everything else is one tap further into the sheet,
+        // which is the right cost for a screen you visit weekly rather than
+        // daily. The desktop rail still shows all of them.
+        { href: '/market', label: 'Marketplace', short: 'Home', Icon: IconMarket },
+        { href: '/tests', label: 'My tests', short: 'Tests', Icon: IconTests, badge: counts.tests },
+        { href: '/apps', label: 'My apps', short: 'Apps', Icon: IconDevice },
         { href: '/feedback', label: 'Feedback', Icon: IconFeedback, badge: counts.feedback },
+        { href: '/dashboard', label: 'Dashboard', Icon: IconDashboard, mobile: false },
+        { href: '/pods', label: 'Pods', Icon: IconPods, mobile: false },
       ],
     },
     {

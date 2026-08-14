@@ -69,6 +69,9 @@ export const IconInbox = (p: P) => (
 export const IconUser = (p: P) => (
   <S {...p}><circle cx="12" cy="8.5" r="3.5" /><path d="M4.5 20a7.5 7.5 0 0 1 15 0" /></S>
 );
+export const IconDevice = (p: P) => (
+  <S {...p}><rect x="6" y="2.5" width="12" height="19" rx="2.5" /><path d="M10.5 18.5h3" /></S>
+);
 export const IconMarket = (p: P) => (
   <S {...p}><path d="M4 9.5 5.5 5h13L20 9.5" /><path d="M4 9.5a2.6 2.6 0 0 0 4 0 2.6 2.6 0 0 0 4 0 2.6 2.6 0 0 0 4 0 2.6 2.6 0 0 0 4 0" /><path d="M5.5 11.5V19h13v-7.5" /><path d="M10 19v-4h4v4" /></S>
 );

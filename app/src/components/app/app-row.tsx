@@ -19,6 +19,7 @@ import { Pill, cx } from '@/components/ui';
 import { AppIcon } from '@/components/app/app-card';
 import { IconArrow, IconAndroid, IconApple } from '@/components/app/icons';
 import { cardChip, isListingOnly, rewardFor, type MarketApp } from '@/lib/market';
+import { n } from '@/lib/pods';
 
 /** What one app's work pays a tester, as the chip that ends every row. */
 export function RewardChip({ amount, size = 'md' }: { amount: number; size?: 'sm' | 'md' }) {
@@ -63,13 +64,20 @@ export function PlatformChip({ ios }: { ios: boolean }) {
   );
 }
 
-export function AppRow({ app }: { app: MarketApp }) {
+export function AppRow({
+  app, href, counts = false,
+}: {
+  app: MarketApp;
+  href?: string;
+  /** Ends the row with what the app has received rather than what it pays. */
+  counts?: boolean;
+}) {
   const chip = cardChip(app);
   const reward = rewardFor(app);
 
   return (
     <Link
-      href={`/market/${app.id}`}
+      href={href ?? `/market/${app.id}`}
       className="flex items-center gap-3.5 rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-3.5 transition-colors hover:border-[var(--color-line-hi)]"
     >
       <AppIcon name={app.name} src={app.icon_url} size={52} />
@@ -85,7 +93,13 @@ export function AppRow({ app }: { app: MarketApp }) {
         </div>
       </div>
 
-      {reward ? (
+      {counts ? (
+        <span className="shrink-0 text-right text-[11px] text-[var(--color-mute)]">
+          <span className="num font-semibold text-[var(--color-dim)]">{n(app.testers_active)}</span> installs
+          <br />
+          <span className="num font-semibold text-[var(--color-dim)]">{n(app.reports)}</span> reports
+        </span>
+      ) : reward ? (
         <RewardChip amount={reward} />
       ) : (
         <IconArrow size={16} className="shrink-0 text-[var(--color-mute)]" />

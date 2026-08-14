@@ -5,6 +5,7 @@ import { Card, Pill, Avatar, EmptyState, ProgressRing } from '@/components/ui';
 import { JoinPodButton, StartPodButton, type JoinableApp } from './pod-actions';
 import { IconArrow, IconPlus } from '@/components/app/icons';
 import { RULES } from '@/lib/economy';
+import { getFlags } from '@/lib/flags';
 import { estimateStart, fmtDate, n, podDay, POD_STATUS_COPY } from '@/lib/pods';
 import type { AppRow, PodHealthRow, PodMember, Profile } from '@/lib/types';
 
@@ -16,6 +17,9 @@ type MemberRow = Pick<PodMember, 'pod_id' | 'user_id' | 'app_id' | 'status'> & {
 };
 
 export default async function PodsPage() {
+  const flags = await getFlags();
+  const podsOpen = flags.pods_open;
+
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   const user = auth?.user;
@@ -95,6 +99,8 @@ export default async function PodsPage() {
         </section>
       )}
 
+      {!podsOpen && <PodsUpcoming />}
+
       <section>
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
@@ -102,12 +108,14 @@ export default async function PodsPage() {
               Forming pods
             </h2>
             <p className="mt-1 text-sm text-[var(--color-dim)]">
-              Join the fullest one. It starts sooner.
+              {podsOpen
+                ? 'Join the fullest one. It starts sooner.'
+                : 'Opening once the pool is deep enough to fill one.'}
             </p>
           </div>
         </div>
 
-        {forming.length === 0 ? (
+        {!podsOpen ? null : forming.length === 0 ? (
           <EmptyState
             title="No pods are forming right now"
             body="Join anyway and we open one for you. It fills as other developers arrive, usually within a few days."
@@ -132,6 +140,47 @@ export default async function PodsPage() {
         )}
       </section>
     </div>
+  );
+}
+
+/**
+ * Said plainly, and without pretending the feature is broken.
+ *
+ * A pod is a promise about fourteen specific days. Offering one before there
+ * are enough testers to fill it is how a developer loses a month, so the honest
+ * move while the pool is small is to say what is coming and point at the work
+ * that exists today.
+ */
+function PodsUpcoming() {
+  return (
+    <Card
+      className="flex flex-col gap-3 p-5"
+      style={{
+        borderColor: 'color-mix(in oklab, var(--color-violet) 30%, transparent)',
+        background: 'color-mix(in oklab, var(--color-violet) 7%, transparent)',
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <Pill tone="violet">Upcoming</Pill>
+        <h2 className="text-sm font-semibold">Pods open when the pool is deep enough</h2>
+      </div>
+      <p className="max-w-2xl text-sm leading-relaxed text-[var(--color-dim)]">
+        A pod is a promise about {RULES.requiredDays} specific days: {RULES.podSeats} developers
+        holding each other&apos;s clocks so {RULES.requiredTesters} of you clear Google&apos;s
+        production-access gate together. Opening one before there are enough testers to fill it
+        is how a developer loses a month, so we are not doing that yet.
+      </p>
+      <p className="max-w-2xl text-sm leading-relaxed text-[var(--color-dim)]">
+        In the meantime the marketplace is live: install an app, use it, send the developer a
+        report, and earn credits for it. Every tester who does that is one seat closer to the
+        first pod.
+      </p>
+      <div>
+        <Link href="/market?status=needs_testers" className="btn btn-primary">
+          Find an app to test <IconArrow size={15} />
+        </Link>
+      </div>
+    </Card>
   );
 }
 

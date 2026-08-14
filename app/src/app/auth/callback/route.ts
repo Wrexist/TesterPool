@@ -41,7 +41,7 @@ export async function GET(request: Request) {
   const next =
     requested && requested.startsWith('/') && !requested.startsWith('//')
       ? requested
-      : '/dashboard';
+      : '/market';
 
   // The user closed the Apple, Google or GitHub dialog, or declined to share
   // their details. Nothing broke. Send them back without an alarm.

@@ -12,7 +12,7 @@ import { AppCard } from '@/components/app/app-card';
 import { AppRow } from '@/components/app/app-row';
 import { FilterBar, type ScopeCounts } from './filter-bar';
 import { IconArrow, IconPlus } from '@/components/app/icons';
-import { EARN, RULES } from '@/lib/economy';
+import { EARN } from '@/lib/economy';
 import { marketHref, PAGE_SIZE, type MarketApp, type MarketPulse, type MarketQuery } from '@/lib/market';
 import { n } from '@/lib/pods';
 
@@ -155,8 +155,12 @@ function Empty({ query }: { query: MarketQuery }) {
     return (
       <EmptyState
         title="You are not testing anything yet"
-        body={`Join a pod with your own app and you are seated as a tester for everyone else in it. ${RULES.podSeats} developers, fourteen days, each holding the clock for the others.`}
-        action={<Link href="/pods" className="btn btn-primary">Browse forming pods <IconArrow size={15} /></Link>}
+        body="Pick an app that is open to testers, join its closed test, use it, and send the developer a report. That is one job, start to finish."
+        action={
+          <Link href={marketHref({ status: 'needs_testers' })} className="btn btn-primary">
+            Find an app to test <IconArrow size={15} />
+          </Link>
+        }
       />
     );
   }

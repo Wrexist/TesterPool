@@ -25,6 +25,18 @@ export const FLAG_DEFAULTS = {
   apple_login: false,
   github_login: false,
   signups_open: true,
+  /**
+   * Whether a developer may join a pod today.
+   *
+   * Off until activities are producing enough testers to fill one. A pod that
+   * forms and never fills is worse than a pod that has not opened yet: it burns
+   * the fourteen days the developer was counting on. Fails closed for the same
+   * reason — if we cannot confirm there is supply, we do not promise a cohort.
+   *
+   * Flip it in /admin/flags when the pool is deep enough. Nothing else changes:
+   * pods already in flight keep running, and the cron keeps advancing them.
+   */
+  pods_open: false,
 } as const;
 
 export type FlagKey = keyof typeof FLAG_DEFAULTS;
