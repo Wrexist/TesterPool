@@ -86,7 +86,7 @@ function Select({
   return (
     <select
       aria-label={label}
-      className="input h-9 w-auto py-0 text-[13px] font-medium text-[var(--color-ink)]"
+      className="input h-9 w-auto shrink-0 py-0 text-[13px] font-medium text-[var(--color-ink)]"
       value={value}
       onChange={(e) => onChange(e.target.value)}
     >
@@ -158,8 +158,12 @@ export function FilterBar({
       </div>
 
       {/* ------------------------------------------------------- narrow it */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[13rem] flex-1">
+      {/* Search on its own line on a phone, sharing one from md up. Every other
+          control lives in a single sideways-scrolling row: an earlier pass let
+          them wrap and a phone got five stacked rows of chrome above the first
+          app, which is more furniture than content. */}
+      <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
+        <div className="relative md:min-w-[13rem] md:flex-1">
           <IconSearch
             size={15}
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-mute)]"
@@ -174,52 +178,53 @@ export function FilterBar({
           />
         </div>
 
-        <div className="flex items-center rounded-lg border border-[var(--color-line)] p-0.5">
-          {PLATFORMS.map((p) => {
-            const on = query.platform === p.value;
-            return (
-              <button
-                key={p.value}
-                type="button"
-                onClick={() => go({ platform: p.value })}
-                aria-pressed={on}
-                aria-label={p.label}
-                title={p.label}
-                className={cx(
-                  'inline-flex h-8 items-center gap-1.5 rounded-[7px] px-3 text-[13px] font-semibold transition-colors',
-                  on ? 'text-[var(--color-ink)]' : 'text-[var(--color-mute)] hover:text-[var(--color-dim)]'
-                )}
-                style={on ? { background: 'var(--color-surface-2)' } : undefined}
-              >
-                {PLATFORM_MARK[p.value] ?? p.label}
-              </button>
-            );
-          })}
-        </div>
+        <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-0.5 md:mx-0 md:contents md:overflow-visible md:px-0 md:pb-0">
+          <div className="flex shrink-0 items-center rounded-lg border border-[var(--color-line)] p-0.5">
+            {PLATFORMS.map((p) => {
+              const on = query.platform === p.value;
+              return (
+                <button
+                  key={p.value}
+                  type="button"
+                  onClick={() => go({ platform: p.value })}
+                  aria-pressed={on}
+                  aria-label={p.label}
+                  title={p.label}
+                  className={cx(
+                    'inline-flex h-8 items-center gap-1.5 rounded-[7px] px-3 text-[13px] font-semibold transition-colors',
+                    on ? 'text-[var(--color-ink)]' : 'text-[var(--color-mute)] hover:text-[var(--color-dim)]'
+                  )}
+                  style={on ? { background: 'var(--color-surface-2)' } : undefined}
+                >
+                  {PLATFORM_MARK[p.value] ?? p.label}
+                </button>
+              );
+            })}
+          </div>
 
-        <Select label="Status" value={query.status} onChange={(v) => go({ status: v as MarketQuery['status'] })}>
-          {STATUSES.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </Select>
-
-        {categories.length > 0 && (
-          <Select label="Category" value={query.category} onChange={(v) => go({ category: v })}>
-            <option value="all">All categories</option>
-            {categories.map((c) => (
-              <option key={c.category} value={c.category}>
-                {c.category} ({c.apps})
-              </option>
+          <Select label="Status" value={query.status} onChange={(v) => go({ status: v as MarketQuery['status'] })}>
+            {STATUSES.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </Select>
-        )}
 
-        <Select label="Sort" value={query.sort} onChange={(v) => go({ sort: v as MarketQuery['sort'] })}>
-          {SORTS.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </Select>
+          {categories.length > 0 && (
+            <Select label="Category" value={query.category} onChange={(v) => go({ category: v })}>
+              <option value="all">All categories</option>
+              {categories.map((c) => (
+                <option key={c.category} value={c.category}>
+                  {c.category} ({c.apps})
+                </option>
+              ))}
+            </Select>
+          )}
 
+          <Select label="Sort" value={query.sort} onChange={(v) => go({ sort: v as MarketQuery['sort'] })}>
+            {SORTS.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </Select>
+        </div>
       </div>
 
       {/* --------------------------------------------------- what you are seeing */}

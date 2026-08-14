@@ -9,19 +9,31 @@
 import Link from 'next/link';
 import { EmptyState } from '@/components/ui';
 import { AppCard } from '@/components/app/app-card';
+import { AppRow } from '@/components/app/app-row';
 import { FilterBar, type ScopeCounts } from './filter-bar';
 import { IconArrow, IconPlus } from '@/components/app/icons';
 import { EARN, RULES } from '@/lib/economy';
-import { marketHref, PAGE_SIZE, type MarketApp, type MarketQuery } from '@/lib/market';
+import { marketHref, PAGE_SIZE, type MarketApp, type MarketPulse, type MarketQuery } from '@/lib/market';
 import { n } from '@/lib/pods';
 
+/** Named for why you are looking, not for what the filter is called. */
+const SECTION_TITLE: Record<MarketQuery['scope'], string> = {
+  all: 'Apps to test',
+  testing: 'Testing now',
+  due: 'Reports you owe',
+  tested: 'Apps you have tested',
+  mine: 'Your apps',
+  saved: 'Saved for later',
+};
+
 export function MarketView({
-  query, apps, categories, counts, error,
+  query, apps, categories, counts, pulse, error,
 }: {
   query: MarketQuery;
   apps: MarketApp[];
   categories: { category: string; apps: number }[];
   counts: ScopeCounts;
+  pulse?: MarketPulse | null;
   error?: { message: string } | null;
 }) {
   const total = n(apps[0]?.total_count, apps.length);
@@ -47,6 +59,8 @@ export function MarketView({
         </Link>
       </header>
 
+      <PulseStrip pulse={pulse} />
+
       <FilterBar query={query} categories={categories} counts={counts} total={total} />
 
       {error ? (
@@ -59,11 +73,25 @@ export function MarketView({
         <Empty query={query} />
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {apps.map((app) => (
-              <AppCard key={app.id} app={app} />
-            ))}
-          </div>
+          <section>
+            <h2 className="mb-3 text-[15px] font-semibold tracking-tight">
+              {SECTION_TITLE[query.scope]}
+            </h2>
+
+            {/* Rows on a phone, cards from md up. Same data, and the row is not
+                a shrunken card — it is the shape that fits six apps on a screen
+                instead of two. */}
+            <div className="flex flex-col gap-2.5 md:hidden">
+              {apps.map((app) => (
+                <AppRow key={app.id} app={app} />
+              ))}
+            </div>
+            <div className="hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-3">
+              {apps.map((app) => (
+                <AppCard key={app.id} app={app} />
+              ))}
+            </div>
+          </section>
 
           {lastPage > 1 && (
             <nav className="flex items-center justify-between gap-3 border-t border-[var(--color-line)] pt-4">
@@ -156,5 +184,43 @@ function Empty({ query }: { query: MarketQuery }) {
       body="Nothing in the pool fits this combination right now. Widen the filters, or check back — apps arrive daily and pods form within a few days."
       action={cleared}
     />
+  );
+}
+
+/**
+ * Three numbers and a count of open work.
+ *
+ * A first-time visitor cannot tell whether this network has fifteen members or
+ * fifteen hundred, and silence reads as zero. Rendering nothing when the pulse
+ * is unavailable is deliberate — a strip of zeroes is worse than no strip.
+ */
+function PulseStrip({ pulse }: { pulse?: MarketPulse | null }) {
+  if (!pulse) return null;
+
+  // Only genuine 24-hour counts sit under the 24H marker. `open_apps` is a
+  // right-now number and belongs to the filters, not here.
+  const items = [
+    { value: n(pulse.active_testers), label: 'testers' },
+    { value: n(pulse.installs), label: 'installs' },
+    { value: n(pulse.reports), label: 'reports' },
+  ];
+  if (items.every((i) => i.value === 0)) return null;
+
+  return (
+    <div className="-mx-1 flex items-center gap-3 overflow-x-auto rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-2.5">
+      <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-mute)]">
+        <span
+          className="inline-block h-1.5 w-1.5 rounded-full"
+          style={{ background: 'var(--color-accent)' }}
+        />
+        24h
+      </span>
+      {items.map((item) => (
+        <span key={item.label} className="flex shrink-0 items-baseline gap-1.5 text-xs">
+          <span className="num font-bold text-[var(--color-ink)]">{item.value}</span>
+          <span className="text-[var(--color-mute)]">{item.label}</span>
+        </span>
+      ))}
+    </div>
   );
 }

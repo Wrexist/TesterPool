@@ -20,7 +20,8 @@ import Link from 'next/link';
 import { Card, Pill } from '@/components/ui';
 import { SaveButton } from '@/app/(app)/market/save-button';
 import { IconAndroid, IconApple } from '@/components/app/icons';
-import { cardChip, isListingOnly, type MarketApp } from '@/lib/market';
+import { RewardChip } from '@/components/app/app-row';
+import { cardChip, isListingOnly, rewardFor, type MarketApp } from '@/lib/market';
 import { n } from '@/lib/pods';
 
 /** Deterministic tint from the name, so an app with no icon still looks like itself. */
@@ -78,6 +79,7 @@ export function AppIcon({
 
 export function AppCard({ app }: { app: MarketApp }) {
   const chip = cardChip(app);
+  const reward = rewardFor(app);
 
   return (
     <Card hover className="relative flex flex-col p-5">
@@ -103,8 +105,11 @@ export function AppCard({ app }: { app: MarketApp }) {
           </div>
         </div>
 
-        <div>
+        {/* Status on the left, what the work pays on the right — the same pair
+            the phone row ends with, so a card and a row say the same thing. */}
+        <div className="flex items-center justify-between gap-2">
           <Pill tone={chip.tone}>{chip.label}</Pill>
+          {reward && <RewardChip amount={reward} size="sm" />}
         </div>
 
         {/* mt-auto: cards in a row end their numbers on the same line whatever

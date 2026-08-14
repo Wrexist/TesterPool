@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { MarketView } from './market-view';
 import type { ScopeCounts } from './filter-bar';
-import { parseQuery, PAGE_SIZE, type MarketApp } from '@/lib/market';
+import { parseQuery, PAGE_SIZE, type MarketApp, type MarketPulse } from '@/lib/market';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
@@ -31,7 +31,7 @@ export default async function MarketPage({
 
   const query = parseQuery(await searchParams);
 
-  const [{ data: rows, error }, { data: categoryRows }, { data: countRow }] = await Promise.all([
+  const [{ data: rows, error }, { data: categoryRows }, { data: countRow }, { data: pulseRow }] = await Promise.all([
     supabase.rpc('market_apps', {
       p_scope: query.scope,
       p_platform: query.platform,
@@ -44,6 +44,7 @@ export default async function MarketPage({
     }),
     supabase.rpc('market_categories'),
     supabase.rpc('market_counts'),
+    supabase.rpc('market_pulse'),
   ]);
 
   return (
@@ -52,6 +53,7 @@ export default async function MarketPage({
       apps={(rows ?? []) as MarketApp[]}
       categories={(categoryRows ?? []) as { category: string; apps: number }[]}
       counts={(countRow ?? {}) as ScopeCounts}
+      pulse={(pulseRow ?? null) as MarketPulse | null}
       error={error}
     />
   );

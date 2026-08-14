@@ -25,6 +25,7 @@
  */
 
 import type { Tone } from '@/components/ui';
+import { EARN } from '@/lib/economy';
 
 /* -------------------------------------------------------------- the row */
 
@@ -72,6 +73,8 @@ export interface MarketAppDetail extends MarketApp {
   tester_instructions: string | null;
   opt_in_url: string | null;
   package_name: string | null;
+  /** True once the viewer's own opt-in screenshot has been accepted. */
+  opt_in_verified: boolean | null;
   owner_apps: number | null;
   owner_pods_completed: number | null;
   owner_apps_helped_ship: number | null;
@@ -205,9 +208,11 @@ export function stageOf(
   // chip, because a card with an empty chip row reads as a card missing data.
   if (app.platform === 'ios') return { label: 'Listed', tone: 'neutral' };
 
-  if (app.status === 'queued') return { label: 'Open to testers', tone: 'green' };
+  // "Open", not "Open to testers": on a 390px row the longer label wrapped to
+  // two lines and made that row taller than its neighbours.
+  if (app.status === 'queued') return { label: 'Open', tone: 'green' };
   if (app.status === 'in_pod' && coalescePodStatus(app.pod_status) === 'forming') {
-    return { label: 'Open to testers', tone: 'green' };
+    return { label: 'Open', tone: 'green' };
   }
   // Neutral, and worded differently from the tester's own "You're testing":
   // colour carries who a chip is about, and two violet chips a word apart made
@@ -227,7 +232,7 @@ function coalescePodStatus(status: string | null): string {
 export function relationCopy(app: Pick<MarketApp, 'relation' | 'report_due'>): { label: string; tone: Tone } | null {
   if (app.relation === 'owner') return { label: 'Yours', tone: 'green' };
   if (app.report_due) return { label: 'Report due', tone: 'amber' };
-  if (app.relation === 'testing') return { label: "You're testing", tone: 'violet' };
+  if (app.relation === 'testing') return { label: 'Your test', tone: 'violet' };
   return null;
 }
 
@@ -245,6 +250,35 @@ export function relationCopy(app: Pick<MarketApp, 'relation' | 'report_due'>): {
  */
 export function isListingOnly(app: Pick<MarketApp, 'platform'>): boolean {
   return app.platform === 'ios';
+}
+
+/** The three numbers at the top of the marketplace. `market_pulse()`. */
+export interface MarketPulse {
+  active_testers: number | null;
+  installs: number | null;
+  reports: number | null;
+  open_apps: number | null;
+}
+
+/**
+ * What testing this app pays, or null when there is nothing to earn on it.
+ *
+ * A marketplace row that does not say what the work pays is a listing; one that
+ * does is a job. The number is the sum of the two transfers a tester earns —
+ * the confirmed install and the approved report — and it is read from the
+ * economy constants rather than typed into the component, so the day the rate
+ * changes there is one place to change it.
+ *
+ * Null for your own app (you pay it, you do not earn it), for an app you have
+ * already finished, and for an iOS listing, which is not seated at all yet.
+ */
+export function rewardFor(
+  app: Pick<MarketApp, 'relation' | 'platform' | 'status'>
+): number | null {
+  if (app.relation === 'owner' || app.relation === 'tested') return null;
+  if (app.platform === 'ios') return null;
+  if (app.status === 'graduated' || app.status === 'draft' || app.status === 'paused') return null;
+  return EARN.optInVerified + EARN.feedbackApproved;
 }
 
 /**

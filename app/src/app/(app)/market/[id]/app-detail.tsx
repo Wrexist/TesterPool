@@ -10,12 +10,14 @@
 import Link from 'next/link';
 import { Card, Pill, Stat, Avatar, TierBadge, StreakStrip, streakFromCount } from '@/components/ui';
 import { AppIcon } from '@/components/app/app-card';
+import { RewardChip } from '@/components/app/app-row';
+import { ActivitySteps, type Step } from '@/components/app/activity-steps';
 import { SaveButton } from '../save-button';
 import {
-  IconArrow, IconExternal, IconFeedback, IconAlert, IconUpload,
+  IconArrow, IconExternal, IconFeedback, IconAlert,
 } from '@/components/app/icons';
 import { EARN, RULES } from '@/lib/economy';
-import { marketHref, stageOf, isListingOnly, type MarketAppDetail } from '@/lib/market';
+import { marketHref, stageOf, isListingOnly, rewardFor, type MarketAppDetail } from '@/lib/market';
 import { fmtDate, n, tierOf } from '@/lib/pods';
 
 export function AppDetail({ app }: { app: MarketAppDetail }) {
@@ -25,16 +27,22 @@ export function AppDetail({ app }: { app: MarketAppDetail }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Link href="/market" className="text-xs font-semibold text-[var(--color-mute)] hover:text-[var(--color-ink)]">
-        ← Marketplace
-      </Link>
+      {/* Save sits up here rather than in the header: in the header it took a
+          column of its own on a phone, squeezed the title block to about 150px,
+          and forced the status and category chips onto separate lines. */}
+      <div className="flex items-center justify-between gap-3">
+        <Link href="/market" className="text-xs font-semibold text-[var(--color-mute)] hover:text-[var(--color-ink)]">
+          ← Marketplace
+        </Link>
+        <SaveButton appId={app.id} initial={!!app.watching} variant="full" />
+      </div>
 
       {/* ------------------------------------------------------------ head */}
       <header className="flex flex-wrap items-start gap-5">
         <AppIcon name={app.name} src={app.icon_url} size={72} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">{app.name}</h1>
+            <h1 className="w-full text-2xl font-semibold tracking-tight sm:w-auto">{app.name}</h1>
             {stage && <Pill tone={stage.tone}>{stage.label}</Pill>}
             {app.category && <Pill tone="neutral">{app.category}</Pill>}
           </div>
@@ -59,14 +67,16 @@ export function AppDetail({ app }: { app: MarketAppDetail }) {
             </span>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <SaveButton appId={app.id} initial={!!app.watching} variant="full" />
-        </div>
       </header>
 
+      {/* On a phone the activity comes first and the reading matter second: the
+          job and its button were landing below About, the focus areas and the
+          instructions, which is two screens of scrolling to reach the only thing
+          on the page you can act on. From lg up the aside is a sticky column and
+          the natural order is right again. */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* --------------------------------------------------------- body */}
-        <div className="flex flex-col gap-6">
+        <div className="order-2 flex flex-col gap-6 lg:order-1">
           <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="Testers" value={n(app.testers_active)} sub="seated now" />
             <Stat label="Full 14" value={n(app.testers_full)} sub={`of ${RULES.requiredTesters} needed`} />
@@ -124,7 +134,7 @@ export function AppDetail({ app }: { app: MarketAppDetail }) {
         </div>
 
         {/* -------------------------------------------------------- action */}
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
+        <aside className="order-1 flex flex-col gap-4 lg:order-2 lg:sticky lg:top-6 lg:self-start">
           <ActionCard app={app} />
 
           {app.store_url && (
@@ -203,30 +213,73 @@ function ActionCard({ app }: { app: MarketAppDetail }) {
 
   if (app.relation === 'testing') {
     const days = n(app.days_checked_in);
-    return (
-      <Card className="flex flex-col gap-3 p-5">
-        <h2 className="text-sm font-semibold">You are testing this</h2>
-        <StreakStrip days={streakFromCount(days, n(app.pod_day, days), RULES.requiredDays)} total={RULES.requiredDays} />
-        <p className="text-sm text-[var(--color-dim)]">
-          <span className="num font-semibold text-[var(--color-ink)]">{days}</span> of{' '}
-          <span className="num">{RULES.requiredDays}</span> days logged.
-        </p>
+    const joined = !!app.opt_in_verified;
 
-        {app.opt_in_url && (
+    // Three steps, and the state of each is read from the assignment rather than
+    // guessed: joined when the opt-in is verified, using it while days are still
+    // being logged, reporting once there is something to report on.
+    const steps: Step[] = [
+      {
+        label: 'Join',
+        state: joined ? 'done' : 'current',
+        detail: joined
+          ? undefined
+          : 'Open the closed track, install from it, then upload the screenshot that proves you are in.',
+        action: app.assignment_id
+          ? { href: `/tests/${app.assignment_id}/optin`, label: 'Join and upload proof' }
+          : undefined,
+      },
+      {
+        label: 'Use it',
+        state: !joined ? 'locked' : app.report_due ? 'done' : 'current',
+        detail: joined && !app.report_due ? 'Open the app once a day and log it. Fourteen days keeps the clock intact.' : undefined,
+        action: app.assignment_id
+          ? { href: `/tests#test-${app.assignment_id}`, label: 'Check in for today' }
+          : undefined,
+      },
+      {
+        label: 'Report',
+        state: app.report_due ? 'current' : joined ? 'locked' : 'locked',
+        detail: app.report_due
+          ? 'Tell the developer what broke and what worked. Specific criticism pays the same as praise.'
+          : undefined,
+        action: app.assignment_id
+          ? { href: `/tests/${app.assignment_id}/feedback`, label: `Write your report  +${EARN.feedbackApproved}` }
+          : undefined,
+      },
+    ];
+
+    return (
+      <Card className="flex flex-col gap-4 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold">Your activity</h2>
+            <p className="mt-0.5 text-xs text-[var(--color-mute)]">
+              Complete all steps to earn the reward
+            </p>
+          </div>
+          <RewardChip amount={EARN.optInVerified + EARN.feedbackApproved} />
+        </div>
+
+        <ActivitySteps steps={steps} />
+
+        {joined && (
+          <div className="border-t border-[var(--color-line)] pt-4">
+            <StreakStrip
+              days={streakFromCount(days, n(app.pod_day, days), RULES.requiredDays)}
+              total={RULES.requiredDays}
+            />
+            <p className="mt-2 text-xs text-[var(--color-mute)]">
+              <span className="num font-semibold text-[var(--color-dim)]">{days}</span> of{' '}
+              <span className="num">{RULES.requiredDays}</span> days logged
+            </p>
+          </div>
+        )}
+
+        {app.opt_in_url && joined && (
           <a href={app.opt_in_url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
             <IconExternal size={15} /> Open the closed track
           </a>
-        )}
-
-        {app.report_due ? (
-          <Link href={`/tests/${app.assignment_id}/feedback`} className="btn btn-primary">
-            <IconFeedback size={15} /> Write your report{' '}
-            <span className="num">+{EARN.feedbackApproved}</span>
-          </Link>
-        ) : (
-          <Link href={`/tests#test-${app.assignment_id}`} className="btn btn-primary">
-            <IconUpload size={15} /> Check in for today
-          </Link>
         )}
       </Card>
     );
@@ -247,9 +300,14 @@ function ActionCard({ app }: { app: MarketAppDetail }) {
     );
   }
 
+  const reward = rewardFor(app);
+
   return (
     <Card className="flex flex-col gap-3 p-5">
-      <h2 className="text-sm font-semibold">Want to test this?</h2>
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="text-sm font-semibold">Want to test this?</h2>
+        {reward && <RewardChip amount={reward} />}
+      </div>
       <p className="text-sm leading-relaxed text-[var(--color-dim)]">
         Seats are handed out by the pod, not by this page. Join a forming pod with your own app and
         you are seated as a tester for every other app in it — this one included, if it is in the
