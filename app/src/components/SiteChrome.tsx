@@ -7,20 +7,23 @@ import Link from 'next/link';
 import { LogoMark, Wordmark } from '@/components/Logo';
 
 /**
- * Ordered by what a first-time visitor needs. The two links that show the
- * product rather than describe it come first: the pool is what is actually in
- * the network, and the review is what you get out of it.
+ * Ordered by what a first-time visitor needs, and deliberately short.
  *
- * `wide` holds the last two back until `lg`. Six links do fit across the bar at
- * 768px, but only by wrapping each one onto three lines — which is invisible to
- * an overflow check, because wrapped text does not overflow anything. The four
- * that stay are the four a stranger is choosing between.
+ * Four links show at `md`, all six at `xl`. The bar has a hard budget: the
+ * logo, the links and two buttons have to fit one line at 1024px, and seven
+ * links did not — `whitespace-nowrap` turned that into a visible overflow
+ * rather than each label quietly stacking into a three-line column, which is
+ * what an earlier version did and what a `scrollWidth` check never catches.
+ *
+ * "See a review" came out rather than being hidden behind a breakpoint: it is
+ * an anchor on the home page, and it is already reachable from the hero, the
+ * footer and every post. A nav link is not the only way to reach something.
  */
 const NAV: Array<{ href: string; label: string; wide?: boolean }> = [
   { href: '/pool', label: 'Browse the pool' },
-  { href: '/#report', label: 'See a review' },
   { href: '/#how', label: 'How it works' },
   { href: '/#pricing', label: 'Pricing' },
+  { href: '/blog', label: 'Writing' },
   { href: '/readiness', label: 'Readiness check', wide: true },
   { href: '/launch', label: 'Launch feed', wide: true },
 ];
@@ -43,7 +46,7 @@ export function SiteNav() {
                 // whitespace-nowrap so a bar that no longer fits overflows
                 // visibly instead of quietly stacking each label into a column.
                 'whitespace-nowrap text-[13px] font-medium text-[var(--color-dim)] transition-colors hover:text-[var(--color-ink)]',
-                n.wide ? 'hidden lg:inline' : '',
+                n.wide ? 'hidden xl:inline' : '',
               ].join(' ')}
             >
               {n.label}
@@ -75,6 +78,7 @@ const FOOTER_COLS: Array<{ title: string; links: Array<{ label: string; href: st
       { label: 'Credits & economy', href: '/#economy' },
       { label: 'Evidence Pack', href: '/#evidence' },
       { label: 'Launch feed', href: '/launch' },
+      { label: 'Writing', href: '/blog' },
     ],
   },
   {
@@ -120,8 +124,8 @@ export function SiteFooter() {
               <Wordmark />
             </Link>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-[var(--color-dim)]">
-              Get your 12. Keep them 14 days. Ship. The tester network that
-              won&rsquo;t get your app pulled.
+              Get your app reviewed by developers who ship, inside your own closed
+              testing track. Never a store review, so never a reason to pull it.
             </p>
             <p className="mt-5 text-xs text-[var(--color-mute)]">
               TesterPool is not affiliated with Google LLC. Android and Google Play

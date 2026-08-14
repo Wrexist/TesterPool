@@ -120,6 +120,74 @@
   .disclosure > summary::marker { content: ''; }
   .disclosure[open] > summary .disclosure-chevron { transform: rotate(90deg); }
 
+  /*
+   * Long-form article body. Written as element selectors under one class so a
+   * post file stays plain semantic HTML — a post should not have to remember a
+   * utility string for every paragraph, and a writer editing one should not
+   * need to know Tailwind at all.
+   *
+   * Measure is capped at 68ch rather than by a container width: the comfortable
+   * line length is a property of the text, not of the viewport.
+   */
+  .prose { max-width: 68ch; color: var(--color-dim); }
+  .prose > * + * { margin-top: 1.25em; }
+  .prose p { font-size: 1.0625rem; line-height: 1.75; }
+  .prose strong { color: var(--color-ink); font-weight: 600; }
+  .prose em { font-style: italic; }
+  .prose a {
+    color: var(--color-ink);
+    text-decoration: underline;
+    text-decoration-color: var(--color-line-hi);
+    text-underline-offset: 2px;
+  }
+  .prose a:hover { text-decoration-color: var(--color-accent); }
+
+  .prose h2 {
+    color: var(--color-ink);
+    font-size: 1.5rem; font-weight: 700; line-height: 1.25;
+    letter-spacing: -0.01em;
+    margin-top: 2.5em; scroll-margin-top: 5rem;
+  }
+  .prose h3 {
+    color: var(--color-ink);
+    font-size: 1.125rem; font-weight: 600; line-height: 1.35;
+    margin-top: 2em; scroll-margin-top: 5rem;
+  }
+
+  .prose ul, .prose ol { padding-left: 1.25rem; }
+  .prose li { font-size: 1.0625rem; line-height: 1.7; }
+  .prose li + li { margin-top: .5em; }
+  .prose ul > li { list-style: disc; }
+  .prose ol > li { list-style: decimal; }
+  .prose li::marker { color: var(--color-mute); }
+
+  .prose blockquote {
+    border-left: 2px solid color-mix(in oklab, var(--color-accent) 45%, transparent);
+    padding-left: 1rem;
+    color: var(--color-ink);
+  }
+
+  .prose code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .9em;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-line);
+    border-radius: 5px;
+    padding: .1em .35em;
+  }
+
+  .prose hr { border-top: 1px solid var(--color-line); margin-top: 2.5em; }
+
+  /* Wide things scroll inside themselves; the page never scrolls sideways. */
+  .prose table { display: block; overflow-x: auto; width: 100%; font-size: .9375rem; }
+  .prose th, .prose td {
+    border-top: 1px solid var(--color-line);
+    padding: .625rem .75rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  .prose th { color: var(--color-ink); font-weight: 600; white-space: nowrap; }
+
   .dotgrid {
     background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.045) 1px, transparent 0);
     background-size: 22px 22px;

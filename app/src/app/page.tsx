@@ -473,6 +473,23 @@ const COMPARISON: Array<{
     ],
   },
   {
+    // The row a review-swap site cannot answer. Enforcement against traded
+    // public reviews does not stop at deleting the review: reporting through
+    // early 2026 describes risk travelling between linked accounts — shared
+    // device fingerprints, IP subnets, payment methods. A network built on
+    // trading public reviews is a graph of exactly those signals, so its
+    // downside is correlated across everyone in it. Deliberately unnamed; we
+    // win the row on the mechanism without picking a fight with anyone.
+    criterion: 'What happens if it works too well',
+    note: 'The downside nobody prices',
+    cells: [
+      { verdict: 'good', text: 'Nothing. Closed tracks are invisible to the store surface' },
+      { verdict: 'bad', text: 'A cluster of accounts trading public reviews is the pattern enforcement looks for, and termination travels between linked accounts' },
+      { verdict: 'bad', text: 'You are one of many buyers of the same seller’s accounts' },
+      { verdict: 'good', text: 'Nothing' },
+    ],
+  },
+  {
     criterion: 'Policy risk',
     note: 'The one that ends your account',
     cells: [
@@ -918,8 +935,16 @@ export default function LandingPage() {
                 */}
                 <dl className="mt-10 grid grid-cols-3 gap-x-4 gap-y-3 border-t border-[var(--color-line)] pt-6">
                   {[
+                    // The promise, with numbers on it. A competitor selling the
+                    // same shape says "up to 14 guaranteed"; ours is the better
+                    // deal — three people can disappear and you still clear
+                    // Google's bar — and it was the worse sentence until it had
+                    // its numbers stated this plainly.
                     { v: `${RULES.podSeats - 1}`, l: 'reviews on your app' },
-                    { v: `${RULES.podSeats}`, l: `seats, so ${RULES.podSeats - RULES.requiredTesters} can vanish` },
+                    {
+                      v: `${RULES.podSeats}`,
+                      l: `seats, so ${RULES.podSeats - RULES.requiredTesters} can vanish and you still clear ${RULES.requiredTesters}`,
+                    },
                     { v: EARN.signupGrant.toLocaleString(), l: 'credits to start' },
                   ].map((s) => (
                     <div key={s.l}>
