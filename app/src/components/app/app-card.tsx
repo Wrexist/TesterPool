@@ -51,7 +51,7 @@ export function AppIcon({
           className="inline-flex items-center justify-center rounded-xl font-bold"
           style={{
             width: size, height: size, fontSize: size * 0.42,
-            background: `oklch(0.33 0.07 ${hue})`, color: `oklch(0.9 0.12 ${hue})`,
+            background: `oklch(0.93 0.05 ${hue})`, color: `oklch(0.45 0.12 ${hue})`,
           }}
         >
           {name.trim()[0]?.toUpperCase() ?? '?'}

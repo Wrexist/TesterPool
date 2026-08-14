@@ -3,24 +3,26 @@
 /**
  * TESTERPOOL — app navigation.
  *
- * One component, two shapes: a fixed left rail on desktop, a bottom tab bar on
- * mobile. The tab bar carries the four surfaces a tester touches daily; the
- * rest live behind a sheet, because the loop lives or dies on how fast the
- * next app is reachable with a thumb.
+ * Four tabs, and they are the four nouns of the product: the feed you browse,
+ * the packs you can buy into, the apps you own, and you. Everything else —
+ * credits, billing, the leaderboard, staff tools — hangs off Profile, because a
+ * fifth tab would be the one nobody can name from memory.
  *
- * The rail is grouped rather than flat. Nine equally-weighted links read as
- * nine equally-important places; three of them — Feed, My tests and My apps —
- * are the whole exchange, and the grouping says so without hiding anything.
+ * One component, two shapes: a bottom tab bar on a phone and a left rail on
+ * desktop, both driven by the same list. The bar is the primary shape; this is
+ * a product used on the device the apps are installed on.
+ *
+ * The active tab is a filled pill behind the icon rather than a colour change
+ * alone. At 24px an icon that only changes hue is ambiguous against a light
+ * ground, and the pill reads at a glance from across a room.
  */
 
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { cx, Avatar, TierBadge, ReliabilityGauge } from '@/components/ui';
-import { CreditBalance } from '@/components/app/credit-balance';
+import { cx } from '@/components/ui';
 import {
-  IconDashboard, IconTests, IconFeedback, IconCredits,
-  IconTrophy, IconShield, IconMenu, IconUser, IconMarket, IconDevice,
+  IconHome, IconPacks, IconDevice, IconUser,
 } from '@/components/app/icons';
 import type { Tier } from '@/lib/types';
 
@@ -36,100 +38,46 @@ export interface NavProfile {
   isAdmin?: boolean;
 }
 
-type Item = {
+type Tab = {
   href: string;
   label: string;
-  Icon: (p: { size?: number; className?: string }) => React.ReactElement;
+  Icon: (p: { size?: number; className?: string; filled?: boolean }) => React.ReactElement;
   badge?: number;
-  /** Shorter label for the phone bar, where a 10px slot is four characters wide. */
-  short?: string;
-  /** False keeps a daily item off the phone bar; it moves to the sheet instead. */
-  mobile?: boolean;
+  /** Extra paths that should light this tab up. */
+  also?: string[];
 };
 
-/** Local to the rail: billing is the only surface that needs a card glyph. */
-const IconBilling = ({ size = 18, className }: { size?: number; className?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-    <rect x="2.75" y="5.25" width="18.5" height="13.5" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
-    <path d="M2.75 9.75h18.5" stroke="currentColor" strokeWidth="1.7" />
-    <path d="M6.5 14.75h3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-  </svg>
-);
-
-/** Local to the rail: Launch feed is the only surface that needs a rocket glyph. */
-const IconLaunch = ({ size = 18, className }: { size?: number; className?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-    <path
-      d="M12 2.5c2.8 1.8 4.5 4.9 4.5 8.5 0 2-.5 3.8-1.5 5.3l-3-1.2-3 1.2C7.9 14.8 7.5 13 7.5 11c0-3.6 1.7-6.7 4.5-8.5Z"
-      stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"
-    />
-    <circle cx="12" cy="9.5" r="1.6" stroke="currentColor" strokeWidth="1.7" />
-    <path d="M9 15.5 7 21l3.5-2M15 15.5 17 21l-3.5-2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-type Group = { label: string | null; items: Item[] };
-
-/**
- * Daily work first, unlabelled — it needs no heading to be found. Everything
- * occasional sits under a heading below it, and staff tools below that.
- */
-function groups(
-  isModerator: boolean,
-  isAdmin: boolean,
-  counts: { tests?: number; feedback?: number }
-): Group[] {
-  const out: Group[] = [
+function tabs(counts: { tests?: number; feedback?: number }): Tab[] {
+  return [
+    // Home is the feed. `/tests` lives under it because the work you have taken
+    // on is the same object as the listing you took it from, one step later.
     {
-      label: null,
-      items: [
-        // The phone bar holds four: where the work is, what you owe, what you
-        // own, and you. Everything else is one tap further into the sheet,
-        // which is the right cost for a screen you visit weekly rather than
-        // daily. The desktop rail still shows all of them.
-        { href: '/market', label: 'Feed', short: 'Feed', Icon: IconMarket },
-        { href: '/tests', label: 'My tests', short: 'Tests', Icon: IconTests, badge: counts.tests },
-        { href: '/apps', label: 'My apps', short: 'Apps', Icon: IconDevice },
-        { href: '/feedback', label: 'Feedback', Icon: IconFeedback, badge: counts.feedback },
-        { href: '/dashboard', label: 'Dashboard', Icon: IconDashboard, mobile: false },
-      ],
+      href: '/market',
+      label: 'Home',
+      Icon: IconHome,
+      also: ['/tests'],
+      badge: counts.tests,
+    },
+    { href: '/packs', label: 'Packs', Icon: IconPacks },
+    {
+      href: '/apps',
+      label: 'My Apps',
+      Icon: IconDevice,
+      also: ['/dashboard', '/feedback'],
+      badge: counts.feedback,
     },
     {
-      label: 'Account',
-      items: [
-        { href: '/credits', label: 'Credits', Icon: IconCredits },
-        { href: '/billing', label: 'Billing', Icon: IconBilling },
-        { href: '/leaderboard', label: 'Leaderboard', Icon: IconTrophy },
-        { href: '/launch', label: 'Launch feed', Icon: IconLaunch },
-      ],
+      href: '/profile',
+      label: 'Profile',
+      Icon: IconUser,
+      also: ['/credits', '/billing', '/leaderboard', '/u'],
     },
   ];
-
-  const staff: Item[] = [];
-  if (isModerator) staff.push({ href: '/mod', label: 'Moderation', Icon: IconShield });
-  if (isAdmin) staff.push({ href: '/admin', label: 'Admin', Icon: IconShield });
-  if (staff.length) out.push({ label: 'Staff', items: staff });
-
-  return out;
 }
 
-function isActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-function Badge({ value }: { value?: number }) {
-  if (!value) return null;
-  return (
-    <span
-      className="num ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold"
-      style={{
-        background: 'color-mix(in oklab, var(--color-accent) 16%, transparent)',
-        color: 'var(--color-accent)',
-      }}
-    >
-      {value}
-    </span>
-  );
+function isActive(pathname: string, tab: Tab): boolean {
+  const hit = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  return hit(tab.href) || (tab.also ?? []).some(hit);
 }
 
 export function AppNav({
@@ -140,200 +88,131 @@ export function AppNav({
   counts?: { tests?: number; feedback?: number };
 }) {
   const pathname = usePathname() || '';
-  const [sheet, setSheet] = React.useState(false);
-  const sections = groups(profile.isModerator, !!profile.isAdmin, counts);
-  const [daily, ...rest] = sections;
-  const primary = daily.items.filter((item) => item.mobile !== false);
-  // Whatever the bar could not hold goes to the top of the sheet, badge and all.
-  const overflow = daily.items.filter((item) => item.mobile === false);
-
-  // Navigating closes the sheet. Reconciled during render: an effect here
-  // would leave the overlay on screen for a frame after the route changed.
-  const [lastPath, setLastPath] = React.useState(pathname);
-  if (lastPath !== pathname) {
-    setLastPath(pathname);
-    if (sheet) setSheet(false);
-  }
+  const items = tabs(counts);
 
   return (
     <>
       {/* ------------------------------------------------------ desktop rail */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[238px] flex-col border-r border-[var(--color-line)] bg-[var(--color-surface)] md:flex">
-        <div className="flex h-16 items-center gap-2 px-5">
-          <Link href="/dashboard" className="flex items-center gap-2">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[232px] flex-col border-r border-[var(--color-line)] bg-[var(--color-surface)] md:flex">
+        <div className="flex h-[72px] items-center px-5">
+          <Link href="/market" className="flex items-center gap-2.5">
             <span
-              className="inline-flex h-7 w-7 items-center justify-center rounded-lg"
-              style={{ background: 'color-mix(in oklab, var(--color-accent) 16%, transparent)' }}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl"
+              style={{ background: 'var(--color-accent)' }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7L12 2.5Z" stroke="var(--color-accent)" strokeWidth="1.9" strokeLinejoin="round" />
-                <path d="M8.5 12.2l2.4 2.4 4.6-5" stroke="var(--color-accent)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7L12 2.5Z" stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
+                <path d="M8.5 12.2l2.4 2.4 4.6-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </span>
-            <span className="text-[15px] font-semibold tracking-tight">TesterPool</span>
+            <span className="text-[16px] font-bold tracking-tight">TesterPool</span>
           </Link>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-2">
-          {sections.map((group, i) => (
-            <div key={group.label ?? 'daily'} className={cx(i > 0 && 'mt-5')}>
-              {group.label && (
-                <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-mute)]">
-                  {group.label}
-                </div>
-              )}
-              <ul className="flex flex-col gap-0.5">
-                {group.items.map(({ href, label, Icon, badge }) => {
-                  const active = isActive(pathname, href);
-                  return (
-                    <li key={href}>
-                      <Link
-                        href={href}
-                        aria-current={active ? 'page' : undefined}
-                        className={cx(
-                          'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                          active
-                            ? 'bg-[var(--color-surface-2)] text-[var(--color-ink)]'
-                            : 'text-[var(--color-dim)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]'
-                        )}
-                        style={active ? { boxShadow: 'inset 2px 0 0 var(--color-accent)' } : undefined}
+        <nav className="flex-1 px-3 py-2">
+          <ul className="flex flex-col gap-1">
+            {items.map((tab) => {
+              const active = isActive(pathname, tab);
+              return (
+                <li key={tab.href}>
+                  <Link
+                    href={tab.href}
+                    aria-current={active ? 'page' : undefined}
+                    className={cx(
+                      'flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-semibold transition-colors',
+                      active
+                        ? 'text-[var(--color-accent)]'
+                        : 'text-[var(--color-dim)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]'
+                    )}
+                    style={active ? { background: 'var(--color-accent-soft)' } : undefined}
+                  >
+                    <tab.Icon size={21} filled={active} />
+                    {tab.label}
+                    {!!tab.badge && (
+                      <span
+                        className="num ml-auto rounded-full px-2 py-0.5 text-[11px] font-bold"
+                        style={{ background: 'var(--color-accent)', color: '#fff' }}
                       >
-                        <Icon size={17} />
-                        {label}
-                        <Badge value={badge} />
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-        </nav>
+                        {tab.badge}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
 
-        <ProfileFooter profile={profile} />
+          <div className="mt-6 border-t border-[var(--color-line)] pt-4">
+            <div className="px-3 pb-2 text-[11px] font-bold uppercase tracking-wider text-[var(--color-mute)]">
+              More
+            </div>
+            <ul className="flex flex-col gap-0.5">
+              {[
+                { href: '/credits', label: 'Credits' },
+                { href: '/billing', label: 'Billing' },
+                { href: '/leaderboard', label: 'Leaderboard' },
+                ...(profile.isModerator ? [{ href: '/mod', label: 'Moderation' }] : []),
+                ...(profile.isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
+              ].map((l) => (
+                <li key={l.href}>
+                  <Link
+                    href={l.href}
+                    className="block rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-dim)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]"
+                  >
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </nav>
       </aside>
 
       {/* ------------------------------------------------------- mobile bar */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--color-line)] bg-[var(--color-surface)]/95 backdrop-blur md:hidden">
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--color-line)] bg-[var(--color-surface)] md:hidden"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         <ul className="flex items-stretch">
-          {primary.map(({ href, label, short, Icon, badge }) => {
-            const active = isActive(pathname, href);
+          {items.map((tab) => {
+            const active = isActive(pathname, tab);
             return (
-              <li key={href} className="flex-1">
+              <li key={tab.href} className="flex-1">
                 <Link
-                  href={href}
+                  href={tab.href}
                   aria-current={active ? 'page' : undefined}
-                  className="relative flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold"
-                  style={{ color: active ? 'var(--color-accent)' : 'var(--color-mute)' }}
+                  className="flex flex-col items-center gap-1 pb-2 pt-2.5"
                 >
-                  <Icon size={19} />
-                  {short ?? label}
-                  {!!badge && (
-                    <span
-                      className="absolute right-1/2 top-1.5 translate-x-3.5 rounded-full px-1 text-[9px] font-bold"
-                      style={{ background: 'var(--color-accent)', color: '#04150C' }}
-                    >
-                      {badge}
-                    </span>
-                  )}
+                  <span
+                    className="relative inline-flex h-8 w-14 items-center justify-center rounded-full transition-colors"
+                    style={active ? { background: 'var(--color-accent-soft)' } : undefined}
+                  >
+                    <tab.Icon
+                      size={22}
+                      filled={active}
+                      className={active ? 'text-[var(--color-accent)]' : 'text-[var(--color-mute)]'}
+                    />
+                    {!!tab.badge && (
+                      <span
+                        className="num absolute right-2 top-0 rounded-full px-1.5 text-[10px] font-bold leading-[15px]"
+                        style={{ background: 'var(--color-danger)', color: '#fff' }}
+                      >
+                        {tab.badge > 9 ? '9+' : tab.badge}
+                      </span>
+                    )}
+                  </span>
+                  <span
+                    className="text-[11px] font-semibold"
+                    style={{ color: active ? 'var(--color-accent)' : 'var(--color-mute)' }}
+                  >
+                    {tab.label}
+                  </span>
                 </Link>
               </li>
             );
           })}
-          <li className="flex-1">
-            <button
-              type="button"
-              onClick={() => setSheet((v) => !v)}
-              aria-expanded={sheet}
-              className="flex w-full flex-col items-center gap-1 py-2.5 text-[10px] font-semibold"
-              style={{ color: sheet ? 'var(--color-accent)' : 'var(--color-mute)' }}
-            >
-              <IconMenu size={19} />
-              More
-            </button>
-          </li>
         </ul>
       </nav>
-
-      {sheet && (
-        <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-label="More navigation">
-          <button
-            type="button"
-            aria-label="Close menu"
-            className="absolute inset-0 bg-black/60"
-            onClick={() => setSheet(false)}
-          />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-[var(--color-line)] bg-[var(--color-surface)] p-4 pb-24">
-            {overflow.length > 0 && (
-              <ul className="mb-2 flex flex-col gap-1">
-                {overflow.map(({ href, label, Icon, badge }) => (
-                  <li key={href}>
-                    <Link href={href} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-[var(--color-dim)]">
-                      <Icon size={18} />
-                      {label}
-                      <Badge value={badge} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {rest.map((group) => (
-              <div key={group.label ?? 'more'} className="mb-2">
-                {group.label && (
-                  <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-mute)]">
-                    {group.label}
-                  </div>
-                )}
-                <ul className="flex flex-col gap-1">
-                  {group.items.map(({ href, label, Icon }) => (
-                    <li key={href}>
-                      <Link href={href} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-[var(--color-dim)]">
-                        <Icon size={18} />
-                        {label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-            <ul className="flex flex-col gap-1">
-              <li>
-                <Link href={`/u/${profile.handle}`} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-[var(--color-dim)]">
-                  <IconUser size={18} />
-                  My public profile
-                </Link>
-              </li>
-            </ul>
-            <div className="mt-3 border-t border-[var(--color-line)] pt-3">
-              <ProfileFooter profile={profile} compact />
-            </div>
-          </div>
-        </div>
-      )}
     </>
-  );
-}
-
-function ProfileFooter({ profile, compact = false }: { profile: NavProfile; compact?: boolean }) {
-  return (
-    <div className={cx('px-3 py-3', !compact && 'border-t border-[var(--color-line)]')}>
-      <Link
-        href={`/u/${profile.handle}`}
-        className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--color-surface-2)]"
-      >
-        <Avatar name={profile.displayName || profile.handle} src={profile.avatarUrl} size={34} />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold leading-tight">{profile.displayName || profile.handle}</div>
-          <div className="truncate text-xs text-[var(--color-mute)]">@{profile.handle}</div>
-        </div>
-        <ReliabilityGauge score={profile.reliability} size={38} label={false} />
-      </Link>
-      <div className="mt-1 flex items-center justify-between px-2">
-        <TierBadge tier={profile.tier} size="sm" />
-        <Link href="/credits" className="transition-opacity hover:opacity-80">
-          <CreditBalance userId={profile.id} initial={profile.credits} />
-        </Link>
-      </div>
-    </div>
   );
 }

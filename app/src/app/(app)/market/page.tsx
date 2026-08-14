@@ -1,12 +1,13 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { MarketView } from './market-view';
+import { MarketView, type ViewerSummary } from './market-view';
 import type { ScopeCounts } from './filter-bar';
 import { parseQuery, PAGE_SIZE, type MarketApp, type MarketPulse } from '@/lib/market';
+import { n } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
-  title: 'Marketplace — TesterPool',
+  title: 'Home — TesterPool',
   description: 'Every app taking testers: what is open, what you are working on, and what graduated.',
 };
 
@@ -31,7 +32,23 @@ export default async function MarketPage({
 
   const query = parseQuery(await searchParams);
 
-  const [{ data: rows, error }, { data: categoryRows }, { data: countRow }, { data: pulseRow }] = await Promise.all([
+  /*
+   * The header needs four things the feed query does not carry: who you are,
+   * what you hold, and the two counts the round buttons badge. They are read
+   * here rather than in the layout because the greeting only appears on this
+   * screen, and a layout-wide read would cost every other screen the round
+   * trip for a header they do not render.
+   */
+  const [
+    { data: rows, error },
+    { data: categoryRows },
+    { data: countRow },
+    { data: pulseRow },
+    { data: profileRow },
+    { count: inbox },
+    { count: openWork },
+    { count: ownedApps },
+  ] = await Promise.all([
     supabase.rpc('market_apps', {
       p_scope: query.scope,
       p_platform: query.platform,
@@ -45,7 +62,31 @@ export default async function MarketPage({
     supabase.rpc('market_categories'),
     supabase.rpc('market_counts'),
     supabase.rpc('market_pulse'),
+    supabase.from('profiles').select('display_name, handle, credits').eq('id', auth.user.id).maybeSingle(),
+    supabase
+      .from('feedback')
+      .select('id, apps!inner(owner_id)', { count: 'exact', head: true })
+      .eq('status', 'submitted')
+      .eq('apps.owner_id', auth.user.id),
+    supabase
+      .from('assignments')
+      .select('id', { count: 'exact', head: true })
+      .eq('tester_id', auth.user.id)
+      .in('status', ['opt_in_pending', 'active']),
+    supabase
+      .from('apps')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', auth.user.id),
   ]);
+
+  const me = (profileRow ?? null) as { display_name: string | null; handle: string; credits: number | null } | null;
+  const viewer: ViewerSummary = {
+    displayName: me?.display_name || me?.handle || 'there',
+    credits: n(me?.credits, 0),
+    messages: inbox ?? 0,
+    alerts: openWork ?? 0,
+    ownsApps: (ownedApps ?? 0) > 0,
+  };
 
   return (
     <MarketView
@@ -54,6 +95,7 @@ export default async function MarketPage({
       categories={(categoryRows ?? []) as { category: string; apps: number }[]}
       counts={(countRow ?? {}) as ScopeCounts}
       pulse={(pulseRow ?? null) as MarketPulse | null}
+      viewer={viewer}
       error={error}
     />
   );

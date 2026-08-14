@@ -2,29 +2,44 @@
 
 /* ==========================================================================
    TESTERPOOL — design tokens
-   Dark-first. Thin borders, no shadow soup, tabular numerals everywhere it
-   matters. The 14-day clock is the emotional centre of the product, so green
-   is reserved for progress and approval and never used decoratively.
+
+   Light, on a faintly blue-grey ground with white cards floating on it. Purple
+   carries every action; nothing else is allowed to. Amber is reserved for the
+   one thing that stops a developer working — an empty balance — so it keeps its
+   alarm value. Green means Android and nothing else, which is why it is its own
+   token rather than a second accent.
+
+   Radii are large on purpose: 16px on cards and full rounds on chips is what
+   makes a dense list of apps read as browsable rather than tabular.
    ========================================================================== */
 
 @theme {
-  --color-bg:        #0B0C0E;
-  --color-surface:   #131519;
-  --color-surface-2: #1A1D23;
-  --color-line:      #252932;
-  --color-line-hi:   #333947;
+  --color-bg:        #F4F5FA;
+  --color-surface:   #FFFFFF;
+  --color-surface-2: #F0F1F7;
+  --color-line:      #E6E8F1;
+  --color-line-hi:   #D5D8E6;
 
-  --color-ink:       #F2F4F7;
-  --color-dim:       #98A1B2;
-  --color-mute:      #6B7482;
+  --color-ink:       #14161F;
+  --color-dim:       #626A7C;
+  --color-mute:      #969DAE;
 
-  --color-accent:     #2BD97C;
-  --color-accent-dim: #1FA85E;
-  --color-credit:     #F5B544;
-  --color-violet:     #7C6CFF;
-  --color-danger:     #FF5C5C;
+  --color-accent:      #6C4EE8;
+  --color-accent-dim:  #573DC7;
+  /* The wash behind a purple chip, an active tab, or a selected filter. */
+  --color-accent-soft: #EDE9FD;
 
-  --radius-card: 14px;
+  --color-credit:      #F0A020;
+  --color-credit-soft: #FDF1DF;
+
+  /* Android, and success generally. Never an action colour. */
+  --color-android:     #1DB954;
+  --color-android-soft:#E4F8EC;
+
+  --color-violet:    #7C6CFF;
+  --color-danger:    #E5484D;
+
+  --radius-card: 16px;
 
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
@@ -32,7 +47,7 @@
 @layer base {
   * { border-color: var(--color-line); }
 
-  html { color-scheme: dark; }
+  html { color-scheme: light; }
 
   body {
     background: var(--color-bg);
@@ -50,7 +65,7 @@
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: var(--color-line); border-radius: 99px;
+    background: var(--color-line-hi); border-radius: 99px;
     border: 3px solid var(--color-bg);
   }
   ::-webkit-scrollbar-thumb:hover { background: var(--color-line-hi); }
@@ -63,11 +78,28 @@
     border-radius: var(--radius-card);
   }
   .card-hover {
-    transition: transform .16s cubic-bezier(.2,.8,.2,1), border-color .16s;
+    transition: transform .16s cubic-bezier(.2,.8,.2,1), border-color .16s, box-shadow .16s;
   }
   .card-hover:hover {
     transform: translateY(-1px);
     border-color: var(--color-line-hi);
+    box-shadow: 0 6px 20px -12px rgba(20, 22, 31, .28);
+  }
+
+  /*
+   * The dashed invitation. Used once per screen at most, for the thing the
+   * screen wants you to add — an app, a screenshot. Dashed means "this space is
+   * empty and you can fill it", which a solid card cannot say.
+   */
+  .card-dashed {
+    background: transparent;
+    border: 1.5px dashed color-mix(in oklab, var(--color-accent) 38%, transparent);
+    border-radius: var(--radius-card);
+    transition: border-color .16s, background .16s;
+  }
+  .card-dashed:hover {
+    border-color: color-mix(in oklab, var(--color-accent) 60%, transparent);
+    background: color-mix(in oklab, var(--color-accent) 4%, transparent);
   }
 
   .btn {
@@ -79,14 +111,18 @@
   }
   .btn:disabled { opacity: .45; cursor: not-allowed; }
 
-  .btn-primary { background: var(--color-accent); color: #04150C; }
-  .btn-primary:hover:not(:disabled) { background: #4AE592; transform: translateY(-1px); }
+  .btn-primary { background: var(--color-accent); color: #FFFFFF; }
+  .btn-primary:hover:not(:disabled) { background: var(--color-accent-dim); transform: translateY(-1px); }
 
   .btn-secondary {
-    background: var(--color-surface-2); color: var(--color-ink);
+    background: var(--color-surface); color: var(--color-ink);
     border-color: var(--color-line);
   }
-  .btn-secondary:hover:not(:disabled) { border-color: var(--color-line-hi); background: #21252C; }
+  .btn-secondary:hover:not(:disabled) { border-color: var(--color-line-hi); background: var(--color-surface-2); }
+
+  /* The one amber button: it only ever means "your balance is empty". */
+  .btn-credit { background: var(--color-credit); color: #FFFFFF; }
+  .btn-credit:hover:not(:disabled) { background: #D98D14; transform: translateY(-1px); }
 
   .btn-ghost { background: transparent; color: var(--color-dim); }
   .btn-ghost:hover:not(:disabled) { background: var(--color-surface-2); color: var(--color-ink); }
@@ -101,8 +137,27 @@
     text-transform: uppercase;
   }
 
+  /*
+   * A filter chip. Bigger than a pill and not shouty: this is a control, and
+   * the row of them is the first thing a thumb reaches on a phone.
+   */
+  .chip {
+    display: inline-flex; align-items: center; gap: .375rem;
+    font-size: .875rem; font-weight: 600; white-space: nowrap;
+    padding: .5rem .9rem; border-radius: 999px;
+    border: 1px solid var(--color-line);
+    background: var(--color-surface); color: var(--color-dim);
+    transition: all .14s cubic-bezier(.2,.8,.2,1);
+  }
+  .chip:hover { border-color: var(--color-line-hi); color: var(--color-ink); }
+  .chip-on {
+    background: var(--color-accent); border-color: var(--color-accent);
+    color: #FFFFFF;
+  }
+  .chip-on:hover { background: var(--color-accent-dim); color: #FFFFFF; }
+
   .input {
-    width: 100%; background: var(--color-bg); color: var(--color-ink);
+    width: 100%; background: var(--color-surface); color: var(--color-ink);
     border: 1px solid var(--color-line); border-radius: 10px;
     padding: .625rem .75rem; font-size: .875rem;
     transition: border-color .14s, box-shadow .14s;
@@ -189,7 +244,13 @@
   .prose th { color: var(--color-ink); font-weight: 600; white-space: nowrap; }
 
   .dotgrid {
-    background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.045) 1px, transparent 0);
+    background-image: radial-gradient(circle at 1px 1px, rgba(20,22,31,.055) 1px, transparent 0);
+    background-size: 22px 22px;
+  }
+
+  /* The same grid over a purple field, where the ink dots would disappear. */
+  .dotgrid-on-accent {
+    background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.14) 1px, transparent 0);
     background-size: 22px 22px;
   }
 }

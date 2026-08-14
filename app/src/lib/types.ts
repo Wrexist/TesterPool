@@ -218,6 +218,29 @@ export interface LeaderboardRow {
   approved_reports: number;
 }
 
+/**
+ * `pod_health` — one row per pack, with its fill and its progress.
+ *
+ * Back because Packs is back. `PodStatus` is inlined rather than restored as a
+ * shared alias: this view is the only thing in the app that reads a pod's
+ * status now, and a top-level type would invite a second reader.
+ */
+export interface PodHealthRow {
+  id: string;
+  code: string;
+  name: string;
+  status: 'forming' | 'locked' | 'active' | 'completed' | 'failed';
+  core_seats: number;
+  required_testers: number;
+  starts_at: string | null;
+  ends_at: string | null;
+  day_index: number | null;
+  members: number;
+  dropouts: number;
+  verified_optins: number;
+  avg_days: number;
+}
+
 export interface ProductionEvidenceRow {
   app_id: string;
   owner_id: string;

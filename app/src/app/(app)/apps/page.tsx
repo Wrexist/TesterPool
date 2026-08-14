@@ -64,16 +64,11 @@ export default async function MyAppsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">My apps</h1>
-          <p className="mt-1 text-sm text-[var(--color-dim)]">
-            List an app, get installs and reports from other developers.
-          </p>
-        </div>
-        <Link href="/onboarding" className="btn btn-secondary shrink-0">
-          <IconPlus size={15} /> Add app
-        </Link>
+      <header>
+        <h1 className="text-[30px] font-bold leading-tight tracking-tight">My Apps</h1>
+        <p className="mt-1 max-w-lg text-[16px] leading-snug text-[var(--color-dim)]">
+          List your apps, get installs and feedback from other developers
+        </p>
       </header>
 
       {short && apps.length > 0 && <CreditGate balance={balance} />}
@@ -89,15 +84,44 @@ export default async function MyAppsPage() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-3">
           {apps.map((app) => {
             const row = intake.get(app.id);
             // An iOS listing takes no testers at all yet, so it gets no
             // controls — a switch that governs nothing is worse than no switch.
             const seated = app.platform === 'android';
+            // Inactive means one of two things and a developer needs to know
+            // which: their balance ran out, or they switched intake off. Both
+            // stop testers arriving; only one of them costs money to fix.
+            const paused = seated && (short || row?.accepting_activities === false);
             return (
               <Card key={app.id} className="overflow-hidden p-0">
                 <AppRow app={app} href={`/dashboard?app=${app.id}`} counts bare />
+                {paused && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-[var(--color-line)] px-4 py-2.5">
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold"
+                      style={{ background: 'var(--color-credit-soft)', color: '#9A6510' }}
+                    >
+                      <span
+                        className="inline-block h-1.5 w-1.5 rounded-full"
+                        style={{ background: 'var(--color-credit)' }}
+                      />
+                      Inactive
+                    </span>
+                    <span className="text-[13px] text-[var(--color-mute)]">
+                      {short ? 'Your balance is too low' : 'You switched intake off'}
+                    </span>
+                    {short && (
+                      <Link
+                        href={marketHref({ status: 'needs_testers' })}
+                        className="ml-auto text-[13px] font-semibold text-[var(--color-accent)]"
+                      >
+                        Earn credits to reactivate
+                      </Link>
+                    )}
+                  </div>
+                )}
                 {seated && (
                   <ActivityIntake
                     // Remounts when the server's values change, which is how
@@ -114,6 +138,18 @@ export default async function MyAppsPage() {
           })}
         </div>
       )}
+      {/*
+        A floating button rather than one in the header. On a phone the header
+        scrolls away, and "add another app" is the one action on this screen a
+        developer takes from anywhere in the list.
+      */}
+      <Link
+        href="/onboarding"
+        className="btn btn-primary fixed bottom-24 right-4 z-20 gap-2 px-5 py-3.5 text-[15px] shadow-lg md:bottom-8 md:right-8"
+        style={{ boxShadow: '0 10px 30px -8px color-mix(in oklab, var(--color-accent) 55%, transparent)' }}
+      >
+        <IconPlus size={18} /> Add App
+      </Link>
     </div>
   );
 }
@@ -132,28 +168,37 @@ function CreditGate({ balance }: { balance: number }) {
     <Card
       className="flex flex-col gap-3 p-5"
       style={{
-        borderColor: 'color-mix(in oklab, var(--color-credit) 30%, transparent)',
-        background: 'color-mix(in oklab, var(--color-credit) 7%, transparent)',
+        borderColor: 'color-mix(in oklab, var(--color-credit) 45%, transparent)',
+        background: 'var(--color-credit-soft)',
       }}
     >
-      <h2 className="flex items-center gap-2 text-sm font-semibold">
-        <IconAlert size={15} className="text-[var(--color-credit)]" />
+      <h2 className="flex items-center gap-2 text-[17px] font-bold">
+        <IconAlert size={18} className="text-[var(--color-credit)]" />
         You need more credits
       </h2>
-      <p className="text-sm leading-relaxed text-[var(--color-dim)]">
-        You have <CreditChip amount={balance} size="sm" />, and one tester&apos;s full run —
-        the confirmed install and the report — costs <span className="num font-semibold text-[var(--color-ink)]">{ACTIVITY_COST}</span>.
-        Testing on your apps pauses until you are above that, and resumes by itself the moment
-        you are.
+      <p className="text-[15px] leading-relaxed text-[var(--color-dim)]">
+        You have <CreditChip amount={balance} size="sm" />, but one tester&apos;s full run —
+        the confirmed install and the report — costs{' '}
+        <span className="num font-semibold text-[var(--color-ink)]">{ACTIVITY_COST}</span>. Testing
+        on your apps pauses until you are above that, and resumes by itself the moment you are.
+        Complete one job to earn{' '}
+        <span className="num font-semibold text-[var(--color-ink)]">+{ACTIVITY_COST}</span>.
       </p>
-      <div className="flex flex-wrap gap-2">
-        <Link href={marketHref({ status: 'needs_testers' })} className="btn btn-primary">
-          Earn <span className="num">{ACTIVITY_COST}</span> credits
-        </Link>
-        <Link href="/billing" className="btn btn-secondary">
-          Buy credits
-        </Link>
-      </div>
+      <Link href={marketHref({ status: 'needs_testers' })} className="btn btn-credit w-full py-3 text-[15px]">
+        <IconBolt size={17} /> Earn <span className="num">{ACTIVITY_COST}</span> credits
+      </Link>
+      <Link href="/billing" className="text-center text-[14px] font-semibold text-[var(--color-dim)] hover:text-[var(--color-ink)]">
+        Or buy a credit pack
+      </Link>
     </Card>
+  );
+}
+
+/** Only used on the amber button. Earning is the fast path, and it looks it. */
+function IconBolt({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M13.2 2 4.6 13.1a.7.7 0 0 0 .55 1.13h4.4l-1.75 7.02a.7.7 0 0 0 1.23.6l8.6-11.1a.7.7 0 0 0-.55-1.13h-4.4l1.75-7.02A.7.7 0 0 0 13.2 2Z" />
+    </svg>
   );
 }

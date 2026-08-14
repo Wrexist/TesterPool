@@ -10,6 +10,7 @@
  */
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type { ActionResult } from '@/lib/types';
 import { checkHandle, looksLikeEmail } from '@/lib/format';
@@ -460,6 +461,68 @@ export async function saveAppEntry(
   revalidatePath('/dashboard');
   revalidatePath('/market');
   return { ok: true, message: 'Saved. Testers can reach your track now.' };
+}
+
+/* ------------------------------------------------------------- session */
+
+/**
+ * Sign out.
+ *
+ * There has never been a way to do this from inside the product, which on a
+ * shared or borrowed phone is a real problem and not a cosmetic one. Supabase
+ * clears the session cookie; the redirect is what stops the next render being
+ * served from a cache that still believes there is a user.
+ */
+export async function signOut(): Promise<void> {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  revalidatePath('/', 'layout');
+  redirect('/login');
+}
+
+/* ----------------------------------------------------------------- packs */
+
+/**
+ * Claim a seat in a forming pack for one of your apps.
+ *
+ * `join_pod` answers with named error states rather than throwing, so each one
+ * is translated into a sentence a developer can act on. Every guard that
+ * matters is inside the RPC — the `pod_matching` flag, ownership, the
+ * reliability floor, the concurrent-assignment cap and the seat filter — and
+ * this only decides the wording.
+ */
+export async function joinPack(appId: string): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+
+  const { data, error } = await auth.supabase.rpc('join_pod', { p_app: appId });
+  if (error) return fail(error.message, 'rpc_error');
+
+  const result = fromRpc(data, 'Could not claim that seat.');
+  if (result.ok) {
+    revalidatePath('/packs');
+    revalidatePath('/market');
+    revalidatePath('/dashboard');
+    result.message = 'Seat claimed. The pack starts the moment the last one fills.';
+  }
+  return result;
+}
+
+/** Start a pack you are in, once it has enough members to be worth starting. */
+export async function startPack(podId: string): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+
+  const { data, error } = await auth.supabase.rpc('start_pod', { p_pod: podId });
+  if (error) return fail(error.message, 'rpc_error');
+
+  const result = fromRpc(data, 'Could not start that pack.');
+  if (result.ok) {
+    revalidatePath('/packs');
+    revalidatePath('/tests');
+    result.message = 'Pack started. Day 1 of 14 begins now.';
+  }
+  return result;
 }
 
 /* ------------------------------------------------------------ activities */

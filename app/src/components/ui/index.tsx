@@ -25,10 +25,10 @@ export function Card({
 /* ------------------------------------------------------------------- pill */
 const PILL_TONES = {
   neutral: 'color:var(--color-dim);border-color:var(--color-line);background:var(--color-surface-2)',
-  green:   'color:var(--color-accent);border-color:color-mix(in oklab,var(--color-accent) 32%,transparent);background:color-mix(in oklab,var(--color-accent) 10%,transparent)',
-  amber:   'color:var(--color-credit);border-color:color-mix(in oklab,var(--color-credit) 32%,transparent);background:color-mix(in oklab,var(--color-credit) 10%,transparent)',
+  green:   'color:var(--color-android);border-color:color-mix(in oklab,var(--color-android) 30%,transparent);background:var(--color-android-soft)',
+  amber:   'color:#9A6510;border-color:color-mix(in oklab,var(--color-credit) 40%,transparent);background:var(--color-credit-soft)',
   red:     'color:var(--color-danger);border-color:color-mix(in oklab,var(--color-danger) 32%,transparent);background:color-mix(in oklab,var(--color-danger) 10%,transparent)',
-  violet:  'color:var(--color-violet);border-color:color-mix(in oklab,var(--color-violet) 32%,transparent);background:color-mix(in oklab,var(--color-violet) 10%,transparent)',
+  violet:  'color:var(--color-accent);border-color:transparent;background:var(--color-accent-soft)',
 } as const;
 
 export type Tone = keyof typeof PILL_TONES;
@@ -237,7 +237,7 @@ export function Avatar({
       className="inline-flex items-center justify-center rounded-full font-semibold"
       style={{
         width: size, height: size, fontSize: size * 0.36,
-        background: `oklch(0.32 0.06 ${hue})`, color: `oklch(0.88 0.10 ${hue})`,
+        background: `oklch(0.93 0.045 ${hue})`, color: `oklch(0.44 0.11 ${hue})`,
         boxShadow: ring ? `0 0 0 2px ${ring}` : undefined,
       }}
     >

@@ -1,5 +1,4 @@
 import * as React from 'react';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppNav, type NavProfile } from '@/components/app/nav';
@@ -13,10 +12,11 @@ export const dynamic = 'force-dynamic';
  * so both are resolved once here and nothing downstream has to defend against
  * an anonymous request.
  *
- * There is no cohort in the header any more. The exchange is one app at a time:
- * you take a listing off the feed, install it, file the report, get paid. What
- * belongs at the top of every screen is therefore the count of work you have
- * open, not the day-number of a fourteen-day clock nobody is on.
+ * The shell owns the navigation and nothing else. There is no global page
+ * header: Home opens with a greeting, My Apps with its own title, an app detail
+ * with a back arrow — three different headers, and a shared one would have to
+ * be blanked out on two of the three screens to get there. Each screen brings
+ * its own.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -68,52 +68,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Every open seat is a piece of work: either the install is unconfirmed or
   // the report is unwritten. Both are one tap from /tests, so both count.
   const assignments = (assignmentRows ?? []) as Assignment[];
-  const openWork = assignments.length;
-  const toInstall = assignments.filter((a) => !a.opt_in_verified_at).length;
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col md:pl-[238px]">
-      <AppNav profile={nav} counts={{ tests: openWork, feedback: inboxCount ?? 0 }} />
+    <div className="flex min-h-screen flex-1 flex-col md:pl-[232px]">
+      <AppNav
+        profile={nav}
+        counts={{ tests: assignments.length, feedback: inboxCount ?? 0 }}
+      />
 
-      <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-[var(--color-line)] bg-[var(--color-bg)]/90 px-4 backdrop-blur md:h-16 md:px-8">
-        <Link href="/market" className="flex items-center gap-2 md:hidden">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7L12 2.5Z" stroke="var(--color-accent)" strokeWidth="1.9" strokeLinejoin="round" />
-          </svg>
-          <span className="text-sm font-semibold tracking-tight">TesterPool</span>
-        </Link>
-
-        <span className="truncate text-xs text-[var(--color-dim)]">
-          {openWork === 0 ? (
-            <>Nothing open. Pick an app from the feed.</>
-          ) : toInstall > 0 ? (
-            <>
-              <span className="num">{openWork}</span> open — <span className="num">{toInstall}</span> waiting on an install
-            </>
-          ) : (
-            <>
-              <span className="num">{openWork}</span> open — reports left to write
-            </>
-          )}
-        </span>
-
-        <div className="ml-auto flex items-center gap-2">
-          {nav.isAdmin && (
-            <Link href="/admin" className="btn btn-ghost hidden sm:inline-flex">Admin</Link>
-          )}
-          {openWork > 0 ? (
-            <Link href="/tests" className="btn btn-primary hidden sm:inline-flex">
-              <span className="num">{openWork}</span> to finish
-            </Link>
-          ) : (
-            <Link href="/market" className="btn btn-primary hidden sm:inline-flex">
-              Browse the feed
-            </Link>
-          )}
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-[1180px] flex-1 px-4 pb-28 pt-6 md:px-8 md:pb-14">
+      <main
+        className="mx-auto w-full max-w-[860px] flex-1 px-4 pb-28 pt-4 md:px-8 md:pb-14 md:pt-6"
+        style={{ paddingBottom: 'calc(7rem + env(safe-area-inset-bottom))' }}
+      >
         {children}
       </main>
     </div>

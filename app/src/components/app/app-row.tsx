@@ -21,26 +21,35 @@ import { IconArrow, IconAndroid, IconApple } from '@/components/app/icons';
 import { cardChip, isListingOnly, rewardFor, type MarketApp } from '@/lib/market';
 import { n } from '@/lib/format';
 
-/** What one app's work pays a tester, as the chip that ends every row. */
+/**
+ * What one app's work pays a tester, as the chip that ends every row.
+ *
+ * Purple and filled-star, matching the balance pill in the header — a developer
+ * scanning the list is comparing these against the number they hold, and two
+ * different colours for the same currency makes that a translation step.
+ */
 export function RewardChip({ amount, size = 'md' }: { amount: number; size?: 'sm' | 'md' }) {
   return (
     <span
       className={cx(
         'num inline-flex shrink-0 items-center gap-1 rounded-full font-bold',
-        size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-[12px]'
+        size === 'sm' ? 'px-2 py-1 text-[11px]' : 'px-3 py-1.5 text-[13px]'
       )}
-      style={{
-        color: 'var(--color-credit)',
-        background: 'color-mix(in oklab, var(--color-credit) 12%, transparent)',
-        border: '1px solid color-mix(in oklab, var(--color-credit) 28%, transparent)',
-      }}
+      style={{ color: 'var(--color-accent)', background: 'var(--color-accent-soft)' }}
       title={`Testing this app pays ${amount} credits`}
     >
-      <svg width={size === 'sm' ? 10 : 11} height={size === 'sm' ? 10 : 11} viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7L12 2.5Z" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
-      </svg>
+      <StarGlyph size={size === 'sm' ? 11 : 13} />
       +{amount}
     </span>
+  );
+}
+
+/** The currency mark. Filled, because a hollow star reads as a rating. */
+export function StarGlyph({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 2.6l2.95 5.98 6.6.96-4.77 4.65 1.12 6.57L12 17.62l-5.9 3.1 1.12-6.57L2.45 9.5l6.6-.96L12 2.6Z" />
+    </svg>
   );
 }
 
@@ -52,10 +61,7 @@ export function PlatformChip({ ios }: { ios: boolean }) {
       style={
         ios
           ? { color: 'var(--color-ink)', background: 'var(--color-surface-2)' }
-          : {
-              color: 'var(--color-accent)',
-              background: 'color-mix(in oklab, var(--color-accent) 12%, transparent)',
-            }
+          : { color: 'var(--color-android)', background: 'var(--color-android-soft)' }
       }
     >
       {ios ? <IconApple size={11} /> : <IconAndroid size={12} />}
@@ -82,40 +88,58 @@ export function AppRow({
   const chip = cardChip(app);
   const reward = rewardFor(app);
 
+  /*
+   * The state pill only appears when the state is worth a word. On a list where
+   * almost every row is simply open, a pill on every row is noise that makes
+   * the two rows that are NOT open impossible to spot. The category takes the
+   * slot the rest of the time, because that is what a tester actually scans by.
+   */
+  const plain = chip.label.toLowerCase() === 'open';
+
   return (
     <Link
       href={href ?? `/market/${app.id}`}
       className={cx(
-        'flex items-center gap-3.5 p-3.5 transition-colors',
+        'flex items-start gap-3.5 p-4 transition-colors',
         bare
           ? 'hover:bg-[var(--color-surface-2)]'
-          : 'rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] hover:border-[var(--color-line-hi)]'
+          : 'card card-hover rounded-2xl'
       )}
     >
-      <AppIcon name={app.name} src={app.icon_url} size={52} />
+      <AppIcon name={app.name} src={app.icon_url} size={62} />
 
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[15px] font-semibold leading-tight">{app.name}</div>
-        <div className="mt-0.5 truncate text-[13px] text-[var(--color-dim)]">
+        <div className="truncate text-[16px] font-semibold leading-tight">{app.name}</div>
+        <div className="mt-1 truncate text-[14px] text-[var(--color-dim)]">
           {app.owner_display_name || `@${app.owner_handle ?? 'unknown'}`}
         </div>
-        <div className="mt-1.5 flex items-center gap-1.5">
+        <div className="mt-2.5 flex items-center gap-2">
           <PlatformChip ios={isListingOnly(app)} />
-          <Pill tone={chip.tone}>{chip.label}</Pill>
+          {plain ? (
+            app.category && (
+              <span className="truncate text-[13px] text-[var(--color-mute)]">{app.category}</span>
+            )
+          ) : (
+            <Pill tone={chip.tone}>{chip.label}</Pill>
+          )}
         </div>
       </div>
 
-      {counts ? (
-        <span className="shrink-0 text-right text-[11px] text-[var(--color-mute)]">
-          <span className="num font-semibold text-[var(--color-dim)]">{n(app.testers_active)}</span> installs
-          <br />
-          <span className="num font-semibold text-[var(--color-dim)]">{n(app.reports)}</span> reports
-        </span>
-      ) : reward ? (
-        <RewardChip amount={reward} />
-      ) : (
-        <IconArrow size={16} className="shrink-0 text-[var(--color-mute)]" />
-      )}
+      {/* Chevron at the top, value at the bottom: the tap target is the whole
+          row, so the arrow is an affordance rather than a control, and it
+          belongs on the same line as the name it points at. */}
+      <div className="flex shrink-0 flex-col items-end justify-between self-stretch gap-3">
+        <IconArrow size={17} className="text-[var(--color-mute)]" />
+        {counts ? (
+          <span className="text-right text-[11px] text-[var(--color-mute)]">
+            <span className="num font-semibold text-[var(--color-dim)]">{n(app.testers_active)}</span> installs
+            <br />
+            <span className="num font-semibold text-[var(--color-dim)]">{n(app.reports)}</span> reports
+          </span>
+        ) : reward ? (
+          <RewardChip amount={reward} />
+        ) : null}
+      </div>
     </Link>
   );
 }

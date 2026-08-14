@@ -153,7 +153,7 @@ export function OnboardingForm({
               )}
               style={
                 i < step
-                  ? { background: 'var(--color-accent)', color: '#04150C' }
+                  ? { background: 'var(--color-accent)', color: '#FFFFFF' }
                   : i === step
                     ? { borderColor: 'var(--color-accent)', color: 'var(--color-accent)' }
                     : { borderColor: 'var(--color-line)', color: 'var(--color-mute)' }

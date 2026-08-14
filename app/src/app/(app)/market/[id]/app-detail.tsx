@@ -15,7 +15,7 @@ import { ActivitySteps, type Step } from '@/components/app/activity-steps';
 import { StartActivityButton } from '@/components/app/start-activity-button';
 import { SaveButton } from '../save-button';
 import {
-  IconArrow, IconExternal, IconFeedback, IconAlert,
+  IconArrow, IconExternal, IconFeedback, IconAlert, IconDevice, IconUpload, IconAndroid,
 } from '@/components/app/icons';
 import { EARN, RULES } from '@/lib/economy';
 import { marketHref, stageOf, isListingOnly, rewardFor, type MarketAppDetail } from '@/lib/market';
@@ -31,10 +31,17 @@ export function AppDetail({ app }: { app: MarketAppDetail }) {
       {/* Save sits up here rather than in the header: in the header it took a
           column of its own on a phone, squeezed the title block to about 150px,
           and forced the status and category chips onto separate lines. */}
-      <div className="flex items-center justify-between gap-3">
-        <Link href="/market" className="text-xs font-semibold text-[var(--color-mute)] hover:text-[var(--color-ink)]">
-          ← Marketplace
+      <div className="flex items-center gap-3">
+        <Link
+          href="/market"
+          aria-label="Back to the feed"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--color-ink)] transition-colors hover:bg-[var(--color-surface-2)]"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M19 12H5m6-6-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </Link>
+        <span className="flex-1 text-center text-[17px] font-bold tracking-tight">App Details</span>
         <SaveButton appId={app.id} initial={!!app.watching} variant="full" />
       </div>
 
@@ -244,7 +251,7 @@ function ActionCard({ app }: { app: MarketAppDetail }) {
     // being logged, reporting once there is something to report on.
     const steps: Step[] = [
       {
-        label: 'Join',
+        label: 'Install',
         state: joined ? 'done' : 'current',
         detail: joined
           ? undefined
@@ -254,7 +261,7 @@ function ActionCard({ app }: { app: MarketAppDetail }) {
           : undefined,
       },
       {
-        label: 'Use it',
+        label: 'Test',
         state: !joined ? 'locked' : app.report_due ? 'done' : 'current',
         detail:
           joined && !app.report_due
@@ -265,7 +272,7 @@ function ActionCard({ app }: { app: MarketAppDetail }) {
           : undefined,
       },
       {
-        label: 'Report',
+        label: 'Review',
         state: app.report_due ? 'current' : joined ? 'locked' : 'locked',
         detail: app.report_due
           ? 'Tell the developer what broke and what worked. Specific criticism pays the same as praise.'
@@ -277,32 +284,102 @@ function ActionCard({ app }: { app: MarketAppDetail }) {
     ];
 
     return (
-      <Card className="flex flex-col gap-4 p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold">Your activity</h2>
-            <p className="mt-0.5 text-xs text-[var(--color-mute)]">
-              Complete all steps to earn the reward
-            </p>
+      <div className="flex flex-col gap-4">
+        {/*
+          Tinted, and the only tinted card on the page. This is the one region
+          that is about the reader rather than about the app, and on a screen
+          that is otherwise a listing it has to be findable without reading.
+        */}
+        <Card
+          className="flex flex-col gap-4 p-5"
+          style={{ background: 'var(--color-accent-soft)', borderColor: 'transparent' }}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-[12px] font-bold uppercase tracking-wider text-[var(--color-accent)]">
+                Your activity
+              </h2>
+              <p className="mt-1 text-[14px] text-[var(--color-dim)]">
+                Complete all steps to earn the reward
+              </p>
+            </div>
+            <RewardChip amount={EARN.optInVerified + EARN.feedbackApproved} />
           </div>
-          <RewardChip amount={EARN.optInVerified + EARN.feedbackApproved} />
-        </div>
 
-        <ActivitySteps steps={steps} />
+          <ActivitySteps steps={steps} />
+        </Card>
+
+        {/*
+          The current step, opened out. The strip above says where you are; this
+          says what to do about it, and it is the reason the opt-in link and the
+          screenshot upload are on the same screen as the listing rather than
+          two taps away.
+        */}
+        {!joined && (
+          <Card className="flex flex-col gap-4 p-5">
+            <div className="flex items-center gap-3">
+              <span
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+                style={{ background: 'var(--color-accent)', color: '#fff' }}
+              >
+                <IconDevice size={20} />
+              </span>
+              <div>
+                <h3 className="text-[17px] font-bold leading-tight">Install the app</h3>
+                <p className="mt-0.5 text-[14px] text-[var(--color-mute)]">Step 1 of your activity</p>
+              </div>
+            </div>
+
+            {app.opt_in_url ? (
+              <a
+                href={app.opt_in_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 rounded-xl bg-[var(--color-surface-2)] px-4 py-3.5 text-[15px] font-semibold transition-colors hover:bg-[var(--color-line)]"
+              >
+                <IconAndroid size={19} />
+                <span className="flex-1">Open the closed testing track</span>
+                <IconExternal size={16} className="text-[var(--color-mute)]" />
+              </a>
+            ) : (
+              <p className="text-[14px] text-[var(--color-mute)]">
+                The developer has not published a link yet. Nothing can be installed until they do.
+              </p>
+            )}
+
+            {app.assignment_id && (
+              <Link href={`/tests/${app.assignment_id}/optin`} className="card-dashed block px-5 py-6 text-center">
+                <span
+                  className="mx-auto mb-3 inline-flex h-11 w-11 items-center justify-center rounded-full"
+                  style={{ background: 'var(--color-accent-soft)', color: 'var(--color-accent)' }}
+                >
+                  <IconUpload size={19} />
+                </span>
+                <span className="block text-[16px] font-bold">Add a screenshot to claim</span>
+                <span className="mx-auto mt-2 block max-w-md text-[13px] leading-relaxed text-[var(--color-mute)]">
+                  Best: the Play testing page showing you are a tester — it verifies instantly. Your
+                  home screen with the app icon works too. For a screen inside the app, the status
+                  bar clock must be visible. The developer will see this screenshot.
+                </span>
+              </Link>
+            )}
+          </Card>
+        )}
 
         {joined && (
-          <p className="border-t border-[var(--color-line)] pt-4 text-xs leading-relaxed text-[var(--color-mute)]">
-            There is no clock on this. Take as long as you need over the app, then send the report
-            whenever you have something worth saying.
-          </p>
+          <Card className="flex flex-col gap-3 p-5">
+            <p className="text-[14px] leading-relaxed text-[var(--color-dim)]">
+              There is no clock on this. Take as long as you need over the app, then send the report
+              whenever you have something worth saying.
+            </p>
+            {app.opt_in_url && (
+              <a href={app.opt_in_url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
+                <IconExternal size={15} /> Open the closed track
+              </a>
+            )}
+          </Card>
         )}
-
-        {app.opt_in_url && joined && (
-          <a href={app.opt_in_url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
-            <IconExternal size={15} /> Open the closed track
-          </a>
-        )}
-      </Card>
+      </div>
     );
   }
 

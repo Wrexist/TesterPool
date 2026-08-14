@@ -239,7 +239,7 @@ export default function ReadinessChecker() {
                         <span
                           className={cx(
                             'num mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold',
-                            a === 'yes' ? 'text-[#04150C]' : 'text-[var(--color-mute)]'
+                            a === 'yes' ? 'text-white' : 'text-[var(--color-mute)]'
                           )}
                           style={{
                             background: a === 'yes' ? 'var(--color-accent)' : 'var(--color-surface-2)',
