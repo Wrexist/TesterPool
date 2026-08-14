@@ -25,7 +25,7 @@ const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
 const NOTIFICATION_FROM = Deno.env.get('NOTIFICATION_FROM') ?? '';
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? '';
-const SITE_URL = (Deno.env.get('SITE_URL') ?? 'https://testerpool.com').replace(/\/+$/, '');
+const SITE_URL = (Deno.env.get('SITE_URL') ?? 'https://testerpool.dev').replace(/\/+$/, '');
 
 const MAX_ATTEMPTS = 5;
 const DEFAULT_LIMIT = 100;

@@ -94,7 +94,7 @@ Four environment variables are set on the edge functions themselves. `RESEND_API
 which means it claims a batch, renders every email, logs what it would have sent, hands the
 attempts back so no row is consumed, and returns a summary saying `delivery: unconfigured` with
 the missing variable named. It never marks a row as sent that it did not send. `SITE_URL` sets the
-origin used in every deep link and defaults to `https://testerpool.com`; if it is wrong, mail
+origin used in every deep link and defaults to `https://testerpool.dev`; if it is wrong, mail
 still goes out but the links point at the wrong host, which is worse than not sending, so check it
 first when configuring a staging project. `ANTHROPIC_API_KEY` powers proof triage; without it
 `triage-proof` still fetches the image and computes its perceptual hash, still escalates a
