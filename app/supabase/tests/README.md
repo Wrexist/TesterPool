@@ -35,9 +35,20 @@ done
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/01-economy.sql
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/02-install-cap.sql
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/03-proof-intake.sql
+psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/04-marketplace.sql
+psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/05-payment-locks.sql
 ```
 
-Both test files abort on the first failed assertion and print `ALL ... PASSED`
+`04` asserts the marketplace projection: what is listed to whom, and that a member
+browsing the directory cannot read the opt-in link or package name of an app they hold
+no assignment on.
+
+`05` is the only file that runs as `authenticated` rather than as the table
+owner, because the exploits it asserts against are only reachable from a signed-in
+session. It covers the two money printers found on 13 Aug 2026: writing your own
+`opt_in_verified_at`, and inserting your own pre-approved proof.
+
+All five files abort on the first failed assertion and print `ALL ... PASSED`
 at the end if nothing is wrong.
 
 ## What the stub provides

@@ -8,10 +8,10 @@
  * rest live behind a sheet, because a 14-day habit lives or dies on how fast
  * "check in" is reachable with a thumb.
  *
- * The rail is grouped rather than flat. Nine equally-weighted links read as
- * nine equally-important places; two of them — Dashboard and My tests — are
- * where a developer spends every day of the fourteen, and the grouping says so
- * without hiding anything.
+ * The rail is grouped rather than flat. Ten equally-weighted links read as ten
+ * equally-important places; three of them — Dashboard, Marketplace and My
+ * tests — are where a developer spends every day of the fourteen, and the
+ * grouping says so without hiding anything.
  */
 
 import * as React from 'react';
@@ -21,7 +21,7 @@ import { cx, Avatar, TierBadge, ReliabilityGauge } from '@/components/ui';
 import { CreditBalance } from '@/components/app/credit-balance';
 import {
   IconDashboard, IconTests, IconPods, IconFeedback, IconCredits,
-  IconTrophy, IconShield, IconMenu, IconUser,
+  IconTrophy, IconShield, IconMenu, IconUser, IconMarket, IconDevice,
 } from '@/components/app/icons';
 import type { Tier } from '@/lib/types';
 
@@ -37,7 +37,16 @@ export interface NavProfile {
   isAdmin?: boolean;
 }
 
-type Item = { href: string; label: string; Icon: (p: { size?: number; className?: string }) => React.ReactElement; badge?: number };
+type Item = {
+  href: string;
+  label: string;
+  Icon: (p: { size?: number; className?: string }) => React.ReactElement;
+  badge?: number;
+  /** Shorter label for the phone bar, where a 10px slot is four characters wide. */
+  short?: string;
+  /** False keeps a daily item off the phone bar; it moves to the sheet instead. */
+  mobile?: boolean;
+};
 
 /** Local to the rail: billing is the only surface that needs a card glyph. */
 const IconBilling = ({ size = 18, className }: { size?: number; className?: string }) => (
@@ -75,10 +84,16 @@ function groups(
     {
       label: null,
       items: [
-        { href: '/dashboard', label: 'Dashboard', Icon: IconDashboard },
-        { href: '/tests', label: 'My tests', Icon: IconTests, badge: counts.tests },
-        { href: '/pods', label: 'Pods', Icon: IconPods },
+        // The phone bar holds four: where the work is, what you owe, what you
+        // own, and you. Everything else is one tap further into the sheet,
+        // which is the right cost for a screen you visit weekly rather than
+        // daily. The desktop rail still shows all of them.
+        { href: '/market', label: 'Marketplace', short: 'Home', Icon: IconMarket },
+        { href: '/tests', label: 'My tests', short: 'Tests', Icon: IconTests, badge: counts.tests },
+        { href: '/apps', label: 'My apps', short: 'Apps', Icon: IconDevice },
         { href: '/feedback', label: 'Feedback', Icon: IconFeedback, badge: counts.feedback },
+        { href: '/dashboard', label: 'Dashboard', Icon: IconDashboard, mobile: false },
+        { href: '/pods', label: 'Pods', Icon: IconPods, mobile: false },
       ],
     },
     {
@@ -130,7 +145,9 @@ export function AppNav({
   const [sheet, setSheet] = React.useState(false);
   const sections = groups(profile.isModerator, !!profile.isAdmin, counts);
   const [daily, ...rest] = sections;
-  const primary = daily.items;
+  const primary = daily.items.filter((item) => item.mobile !== false);
+  // Whatever the bar could not hold goes to the top of the sheet, badge and all.
+  const overflow = daily.items.filter((item) => item.mobile === false);
 
   // Navigating closes the sheet. Reconciled during render: an effect here
   // would leave the overlay on screen for a frame after the route changed.
@@ -201,7 +218,7 @@ export function AppNav({
       {/* ------------------------------------------------------- mobile bar */}
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--color-line)] bg-[var(--color-surface)]/95 backdrop-blur md:hidden">
         <ul className="flex items-stretch">
-          {primary.map(({ href, label, Icon, badge }) => {
+          {primary.map(({ href, label, short, Icon, badge }) => {
             const active = isActive(pathname, href);
             return (
               <li key={href} className="flex-1">
@@ -212,7 +229,7 @@ export function AppNav({
                   style={{ color: active ? 'var(--color-accent)' : 'var(--color-mute)' }}
                 >
                   <Icon size={19} />
-                  {label}
+                  {short ?? label}
                   {!!badge && (
                     <span
                       className="absolute right-1/2 top-1.5 translate-x-3.5 rounded-full px-1 text-[9px] font-bold"
@@ -249,6 +266,19 @@ export function AppNav({
             onClick={() => setSheet(false)}
           />
           <div className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-[var(--color-line)] bg-[var(--color-surface)] p-4 pb-24">
+            {overflow.length > 0 && (
+              <ul className="mb-2 flex flex-col gap-1">
+                {overflow.map(({ href, label, Icon, badge }) => (
+                  <li key={href}>
+                    <Link href={href} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-[var(--color-dim)]">
+                      <Icon size={18} />
+                      {label}
+                      <Badge value={badge} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
             {rest.map((group) => (
               <div key={group.label ?? 'more'} className="mb-2">
                 {group.label && (

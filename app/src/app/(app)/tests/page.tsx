@@ -69,7 +69,11 @@ export default async function TestsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My tests</h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
-            One open a day, each. A full 14 of 14 is what protects your reliability.
+            One open a day, each. A full 14 of 14 is what protects your reliability.{' '}
+            <Link href="/market?scope=due" className="underline decoration-[var(--color-line-hi)] underline-offset-2 hover:text-[var(--color-ink)]">
+              See which reports you still owe
+            </Link>
+            .
           </p>
         </div>
         <div className="flex items-center gap-2 text-sm text-[var(--color-dim)]">
@@ -196,7 +200,13 @@ function TestCard({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-base font-semibold">{app?.name ?? 'App'}</h2>
+            {app?.id ? (
+              <Link href={`/market/${app.id}`} className="text-base font-semibold hover:underline">
+                {app.name}
+              </Link>
+            ) : (
+              <h2 className="text-base font-semibold">App</h2>
+            )}
             {app?.category && <Pill tone="neutral">{app.category}</Pill>}
             {!verified && <Pill tone="amber">Opt-in required</Pill>}
             {verified && missed >= 2 && <Pill tone="red"><span className="num">{missed}</span> days missed</Pill>}

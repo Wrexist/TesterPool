@@ -787,6 +787,48 @@ export async function requestRescueSeat(appId: string): Promise<ActionResult> {
   return result;
 }
 
+/* ---------------------------------------------------------- marketplace */
+
+/**
+ * Saves an app to come back to, or unsaves it.
+ *
+ * A plain table write rather than an RPC, because this is the one piece of
+ * marketplace state that is genuinely the member's own: `app_watchlist` RLS
+ * only ever matches `user_id` against `auth.uid()`, and a watchlist row pays
+ * nothing, charges nothing and grants no access to the app's closed track. It
+ * is a bookmark.
+ */
+export async function setWatching(appId: string, watching: boolean): Promise<ActionResult<{ watching: boolean }>> {
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+  const { supabase, userId } = auth;
+
+  // `ignoreDuplicates` makes this `on conflict do nothing`, which is the right
+  // semantic for a row that is entirely its own key — there is nothing to
+  // merge — and it needs only INSERT rather than INSERT and UPDATE.
+  const { error } = watching
+    ? await supabase.from('app_watchlist').upsert(
+        { user_id: userId, app_id: appId },
+        { onConflict: 'user_id,app_id', ignoreDuplicates: true }
+      )
+    : await supabase.from('app_watchlist').delete().eq('user_id', userId).eq('app_id', appId);
+
+  if (error) {
+    // Postgres text names tables, columns and constraints, and this message is
+    // rendered in the page. Log the detail, return a sentence.
+    console.error('setWatching failed', { appId, watching, error: error.message });
+    return fail('Could not update your list. Try again.', 'db_error');
+  }
+
+  revalidatePath('/market');
+  revalidatePath(`/market/${appId}`);
+  return {
+    ok: true,
+    data: { watching },
+    message: watching ? 'Saved to your list.' : 'Removed from your list.',
+  };
+}
+
 /* ----------------------------------------------------------- moderation */
 
 async function requireModerator() {

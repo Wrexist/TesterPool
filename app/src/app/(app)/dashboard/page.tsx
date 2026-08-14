@@ -125,6 +125,9 @@ export default async function DashboardPage({
         right={
           <div className="flex flex-wrap items-center gap-2">
             <Pill tone={APP_STATUS_COPY[app.status].tone}>{APP_STATUS_COPY[app.status].label}</Pill>
+            <Link href={`/market/${app.id}`} className="btn btn-ghost">
+              <IconExternal size={14} /> Marketplace listing
+            </Link>
             {app.opt_in_url && (
               <a href={app.opt_in_url} target="_blank" rel="noreferrer" className="btn btn-ghost">
                 <IconExternal size={14} /> Opt-in link
