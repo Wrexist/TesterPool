@@ -65,12 +65,19 @@ export function PlatformChip({ ios }: { ios: boolean }) {
 }
 
 export function AppRow({
-  app, href, counts = false,
+  app, href, counts = false, bare = false,
 }: {
   app: MarketApp;
   href?: string;
   /** Ends the row with what the app has received rather than what it pays. */
   counts?: boolean;
+  /**
+   * Drops the row's own border, background and rounding so it can sit as the
+   * top half of a surface that owns those — `/apps`, where each row carries the
+   * owner's activity controls beneath it. Two nested borders a pixel apart read
+   * as a rendering fault.
+   */
+  bare?: boolean;
 }) {
   const chip = cardChip(app);
   const reward = rewardFor(app);
@@ -78,7 +85,12 @@ export function AppRow({
   return (
     <Link
       href={href ?? `/market/${app.id}`}
-      className="flex items-center gap-3.5 rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] p-3.5 transition-colors hover:border-[var(--color-line-hi)]"
+      className={cx(
+        'flex items-center gap-3.5 p-3.5 transition-colors',
+        bare
+          ? 'hover:bg-[var(--color-surface-2)]'
+          : 'rounded-2xl border border-[var(--color-line)] bg-[var(--color-surface)] hover:border-[var(--color-line-hi)]'
+      )}
     >
       <AppIcon name={app.name} src={app.icon_url} size={52} />
 

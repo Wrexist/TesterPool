@@ -146,9 +146,10 @@ listing only after deciding which of those two rules it lands under.
 which write the append-only `credit_ledger` in the same statement. The ledger is the source
 of truth; `profiles.credits` is a cached projection.
 
-RPCs callable by `authenticated`: `join_pod, start_pod, start_activity, submit_checkin,
-review_feedback, arbitrate_dispute, market_apps, market_app, market_counts,
-market_categories, market_pulse`. Each authorises against `auth.uid()` itself.
+RPCs callable by `authenticated`: `join_pod, start_pod, start_activity,
+set_activity_intake, submit_checkin, review_feedback, arbitrate_dispute, market_apps,
+market_app, market_counts, market_categories, market_pulse`. Each authorises against
+`auth.uid()` itself.
 
 **An `assignments` row with a null `pod_id` is an activity**, not a broken pod seat. It is
 the marketplace's own supply route: a member picks any open app, joins its closed testing

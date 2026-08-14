@@ -481,6 +481,61 @@ select assert_eq(
   0, 'no column exists that could record a public store review, rating or install');
 
 -- ===========================================================================
+-- 5c. The owner's controls
+-- ===========================================================================
+-- `set_activity_intake` is how a developer gives or withdraws the consent that
+-- `start_activity` checks. Its one real job is refusing to touch somebody
+-- else's listing: closing a rival's app would starve it of testers, and raising
+-- its target would spend their credits.
+
+select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', false);
+
+select assert_eq(
+  (set_activity_intake('aaaaaaaa-0000-0000-0000-00000000000a', false, null) ->> 'error'),
+  'not_your_app', 'a stranger cannot change your intake settings');
+
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false);
+
+select assert_eq(
+  (set_activity_intake('aaaaaaaa-0000-0000-0000-00000000000a', false, null) ->> 'ok')::boolean,
+  true, 'the owner can close their app to new testers');
+
+select assert_eq(
+  (select accepting_activities from apps where id = 'aaaaaaaa-0000-0000-0000-00000000000a'),
+  false, 'the setting is written');
+
+-- Closing takes nobody's seat away. A tester mid-job has already done work the
+-- owner is on the hook for, and withdrawing consent retroactively would be a
+-- way to get free testing.
+select assert_eq(
+  (select count(*)::int from assignments
+    where app_id = 'aaaaaaaa-0000-0000-0000-00000000000a' and pod_id is null
+      and status not in ('dropped', 'removed')),
+  2, 'closing an app leaves existing seats alone');
+
+select set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', false);
+select assert_eq(
+  (start_activity('aaaaaaaa-0000-0000-0000-00000000000a') ->> 'error'),
+  'not_accepting', 'a closed app takes no new testers');
+
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false);
+
+-- Clamped, not rejected: a constraint violation is a worse thing for a
+-- developer to read than simply landing on the maximum.
+select assert_eq(
+  ((set_activity_intake('aaaaaaaa-0000-0000-0000-00000000000a', true, 9999)) ->> 'target')::int,
+  50, 'an over-large target is clamped to the maximum');
+
+select assert_eq(
+  ((set_activity_intake('aaaaaaaa-0000-0000-0000-00000000000a', null, -5)) ->> 'target')::int,
+  0, 'a negative target is clamped to zero');
+
+-- Null means "leave this one alone", so the two controls move independently.
+select assert_eq(
+  ((set_activity_intake('aaaaaaaa-0000-0000-0000-00000000000a', null, 2)) ->> 'accepting')::boolean,
+  true, 'passing only a target does not disturb the switch');
+
+-- ===========================================================================
 -- 6. The client still cannot write its own seat
 -- ===========================================================================
 -- If `authenticated` can insert an assignment directly then `start_activity`

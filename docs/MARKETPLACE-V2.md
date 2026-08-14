@@ -19,10 +19,15 @@ that: `assignments.pod_id` is nullable, `start_activity` is the door, and
 `market_apps` gained `activity_open` / `activity_seats_left` / `is_activity` plus
 an `open` scope. `supabase/tests/07-activities.sql` is the regression test.
 
+The owner-facing controls from §6.3 landed too: `set_activity_intake` and
+`ActivityIntake` on `/apps`, stated as money rather than as settings — "5
+testers, 200 credits" is the decision being made.
+
+**All four migrations are applied to `yudcncvarndslyyajflr`.**
+
 Still outstanding from this plan: the bottom tab bar (§5), `/u/[handle]` as a
-Profile tab (§6.4), the My apps rework (§6.3) including an owner-facing control
-for `accepting_activities` and `activity_target` — both are live columns with
-sane defaults and no UI yet — and chat (§6.5), which was already deferred.
+Profile tab (§6.4), the rest of the My apps rework (§6.3), and chat (§6.5),
+which was already deferred.
 
 ---
 

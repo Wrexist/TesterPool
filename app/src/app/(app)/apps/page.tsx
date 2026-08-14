@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Card, EmptyState, CreditChip } from '@/components/ui';
 import { AppRow } from '@/components/app/app-row';
+import { ActivityIntake } from '@/components/app/activity-intake';
 import { IconPlus, IconArrow, IconAlert } from '@/components/app/icons';
 import { CHARGE } from '@/lib/economy';
 import { marketHref, type MarketApp } from '@/lib/market';
@@ -14,6 +15,9 @@ export const metadata = { title: 'My apps — TesterPool' };
 
 /** What one tester's full run costs the owner, and so the floor to receive one. */
 const ACTIVITY_COST = CHARGE.install + CHARGE.review;
+
+/** The owner's two activity settings, read straight off their own app rows. */
+type IntakeRow = { id: string; accepting_activities: boolean | null; activity_target: number | null };
 
 /**
  * My apps.
@@ -32,14 +36,31 @@ export default async function MyAppsPage() {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user) redirect('/login');
 
-  const [{ data: rows }, { data: profileRow }] = await Promise.all([
+  const [{ data: rows }, { data: profileRow }, { data: intakeRows }] = await Promise.all([
     supabase.rpc('market_apps', { p_scope: 'mine', p_limit: 48 }),
     supabase.from('profiles').select('credits').eq('id', auth.user.id).maybeSingle(),
+    /*
+      The listing still comes from `market_apps` — these two columns do not,
+      and deliberately. `accepting_activities` and `activity_target` are the
+      owner's own settings, not part of the projection that decides what a
+      browsing member may see, and putting them there would mean answering
+      "which of these does a stranger get" for a pair of fields no stranger has
+      any business reading. Scoped to this user's own rows, which is all RLS
+      would return anyway.
+    */
+    supabase
+      .from('apps')
+      .select('id, accepting_activities, activity_target')
+      .eq('owner_id', auth.user.id),
   ]);
 
   const apps = (rows ?? []) as MarketApp[];
   const balance = n((profileRow as Pick<Profile, 'credits'> | null)?.credits, 0);
   const short = balance < ACTIVITY_COST;
+
+  const intake = new Map(
+    ((intakeRows ?? []) as IntakeRow[]).map((r) => [r.id, r])
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -69,9 +90,28 @@ export default async function MyAppsPage() {
         />
       ) : (
         <div className="flex flex-col gap-2.5">
-          {apps.map((app) => (
-            <AppRow key={app.id} app={app} href={`/dashboard?app=${app.id}`} counts />
-          ))}
+          {apps.map((app) => {
+            const row = intake.get(app.id);
+            // An iOS listing takes no testers at all yet, so it gets no
+            // controls — a switch that governs nothing is worse than no switch.
+            const seated = app.platform === 'android';
+            return (
+              <Card key={app.id} className="overflow-hidden p-0">
+                <AppRow app={app} href={`/dashboard?app=${app.id}`} counts bare />
+                {seated && (
+                  <ActivityIntake
+                    // Remounts when the server's values change, which is how
+                    // this component takes new props — see the note in it.
+                    key={`${app.id}:${row?.accepting_activities}:${row?.activity_target}`}
+                    appId={app.id}
+                    accepting={row?.accepting_activities ?? true}
+                    target={n(row?.activity_target, 5)}
+                    seatsLeft={app.activity_seats_left}
+                  />
+                )}
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

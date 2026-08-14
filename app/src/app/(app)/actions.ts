@@ -572,6 +572,44 @@ export async function startActivity(appId: string): Promise<ActionResult> {
   return result;
 }
 
+/**
+ * The owner's two activity controls: whether strangers may pick this app up,
+ * and how many of them.
+ *
+ * Both are read by `start_activity` when it decides whether to create a seat,
+ * and a seat is 40 credits out of this owner's balance — so the write goes
+ * through a `SECURITY DEFINER` RPC that checks ownership, not through a table
+ * the client can PATCH.
+ */
+export async function setActivityIntake(
+  appId: string,
+  input: { accepting?: boolean; target?: number }
+): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+
+  const { data, error } = await auth.supabase.rpc('set_activity_intake', {
+    p_app: appId,
+    p_accepting: input.accepting ?? null,
+    p_target: Number.isFinite(input.target) ? input.target : null,
+  });
+  if (error) return fail(error.message, 'rpc_error');
+
+  const result = fromRpc(data, 'Could not update that app.');
+  if (result.ok) {
+    revalidatePath('/apps');
+    revalidatePath('/market');
+    revalidatePath(`/market/${appId}`);
+    const row = result.data as { accepting?: boolean; target?: number } | undefined;
+    result.message = row?.accepting
+      ? `Open to testers, ${row.target} at a time.`
+      : 'Closed to new testers. Anyone already testing keeps their seat.';
+  } else if (result.error === 'not_your_app') {
+    result.message = 'That is not your app.';
+  }
+  return result;
+}
+
 /* ------------------------------------------------------------- check-ins */
 
 export async function submitCheckin(assignmentId: string, note?: string): Promise<ActionResult> {
