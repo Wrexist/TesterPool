@@ -63,18 +63,34 @@ begin
   end if;
 end $$;
 
-/* ------------------------------------------------- 1. off by default */
+/* ------------------------------ 1. the gates, whatever the flag ships as */
+
+-- This block used to assert that `store_reviews` ships false. It shipped false
+-- when the feature was built and ships TRUE now, turned on deliberately in
+-- `20260815090000_enable_store_reviews.sql`.
+--
+-- Asserting the shipped value would make this file a record of a decision
+-- rather than a test of a mechanism, and it would have to be edited every time
+-- somebody flips the switch — which is exactly the kind of assertion people
+-- learn to edit without reading. So it asserts the mechanism instead: with the
+-- flag off nothing can start, whatever the row happens to say today.
+--
+-- The gate that is actually load-bearing now is the per-app one, and it is
+-- asserted first because with the network flag on it is all that stands
+-- between a publisher and a stranger reviewing their app.
 
 do $$
-declare v jsonb;
 begin
-  if coalesce((select enabled from feature_flags where key = 'store_reviews'), false) then
-    raise exception 'FAIL store_reviews must ship disabled';
-  end if;
-  raise notice 'PASS store_reviews ships disabled';
+  perform assert_eq(
+    (select coalesce(bool_or(accepting_store_reviews), false) from apps),
+    false,
+    'no app is opted into store reviews by default, whatever the network flag says');
 end $$;
 
 select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', false);
+
+-- Off: refused, regardless of anything else being in order.
+update feature_flags set enabled = false where key = 'store_reviews';
 
 do $$
 declare v jsonb;
@@ -82,9 +98,11 @@ begin
   v := start_store_activity('aaaaaaaa-0000-0000-0000-000000000001');
   perform assert_eq(v ->> 'error', 'store_reviews_closed',
                     'the flag refuses a store activity while it is off');
+  perform assert_eq(store_review_open('aaaaaaaa-0000-0000-0000-000000000001'), false,
+                    'and store_review_open agrees, so no button is offered');
 end $$;
 
--- Turn it on for the rest of the file.
+-- On for the rest of the file, which is also how it ships.
 update feature_flags set enabled = true where key = 'store_reviews';
 
 /* --------------------------------- 2. still off until the publisher opts in */
@@ -372,8 +390,16 @@ end $$;
 
 /* ----------------------------------------------- 11. leave it as found */
 
-update feature_flags set enabled = false where key = 'store_reviews';
+-- The network flag goes back to its shipped state (on). The per-app consent
+-- goes back to off, which is its shipped state and the one that matters: a
+-- later file must not inherit an app that strangers can review.
+update feature_flags set enabled = true where key = 'store_reviews';
 update apps set accepting_store_reviews = false
  where id = 'aaaaaaaa-0000-0000-0000-000000000001';
 
-do $$ begin raise notice 'PASS store_reviews left disabled'; end $$;
+do $$
+begin
+  perform assert_eq(
+    (select coalesce(bool_or(accepting_store_reviews), false) from apps), false,
+    'every app is left opted out');
+end $$;

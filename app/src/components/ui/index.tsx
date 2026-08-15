@@ -128,33 +128,99 @@ export function streakFromCount(done: number, currentDay: number, total = 14): D
 }
 
 /* ------------------------------------------------------- reliability gauge */
+/**
+ * The reliability score, as a 270° arc with the gap at the bottom.
+ *
+ * Three things were wrong with the first version and all three were about the
+ * label rather than the arc:
+ *
+ *  - Everything was hardcoded to the 88px default. `r = size/2 - 7` and a fixed
+ *    6px stroke meant that at 64px the ring nearly touched its own bounding box,
+ *    and at 132px it read as a hairline. Both scale with `size` now.
+ *  - The number and the band label were centred as a block inside the FULL
+ *    square, which put the label straight into the arc's bottom opening. The
+ *    text is nudged up by a fraction of the radius so it sits inside the ring
+ *    rather than across its gap.
+ *  - `9px` uppercase with `tracking-wide` is below the size where letter-spacing
+ *    helps legibility; it made "BUILDING" look like texture. The label scales
+ *    too, and drops out entirely below the size where it could be read.
+ *
+ * The track keeps a butt cap and the fill keeps a round one, deliberately: a
+ * round cap on both made the empty track look like it had a value of about 3.
+ */
 export function ReliabilityGauge({
   score, size = 88, label = true,
 }: { score: number; size?: number; label?: boolean }) {
   const band = reliabilityBand(score);
-  const r = size / 2 - 7;
+  const value = Math.max(0, Math.min(100, score));
+
+  const stroke = Math.max(4, Math.round(size * 0.075));
+  const r = (size - stroke) / 2 - Math.round(size * 0.03);
   const c = 2 * Math.PI * r;
-  const sweep = 0.75;                       // 270° arc
+  const sweep = 0.75;                       // 270°, opening at the bottom
   const len = c * sweep;
-  const filled = len * Math.max(0, Math.min(100, score)) / 100;
+  const filled = len * value / 100;
+
+  /*
+   * The longest band word is "BUILDING" — eight characters — and it has to fit
+   * inside the ring, not across it. Below about 72px there is no font size that
+   * both clears the minimum legible 8.5px and stays inside the arc, so the word
+   * is dropped and the number grows to fill the space it was using. Callers who
+   * want the band at a small size have the colour, which carries the same three
+   * states without needing any width at all.
+   */
+  const showLabel = label && size >= 72;
+  const numberSize = showLabel ? size / 3.2 : size / 2.6;
+  const labelSize = Math.max(8.5, size * 0.105);
 
   return (
-    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(135deg)' }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-                stroke="var(--color-surface-2)" strokeWidth="6" strokeLinecap="round"
-                strokeDasharray={`${len} ${c}`} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-                stroke={band.color} strokeWidth="6" strokeLinecap="round"
-                strokeDasharray={`${filled} ${c}`}
-                style={{ transition: 'stroke-dasharray .6s cubic-bezier(.2,.8,.2,1)' }} />
+    <div
+      className="relative inline-flex shrink-0 items-center justify-center"
+      style={{ width: size, height: size }}
+      role="img"
+      aria-label={`Reliability ${Math.round(value)} of 100 — ${band.label}`}
+    >
+      <svg width={size} height={size} style={{ transform: 'rotate(135deg)' }} aria-hidden>
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke="var(--color-surface-2)" strokeWidth={stroke} strokeLinecap="butt"
+          strokeDasharray={`${len} ${c}`}
+        />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={band.color} strokeWidth={stroke} strokeLinecap="round"
+          // A zero score should draw nothing at all; a round cap on a
+          // zero-length dash still paints a dot the size of the stroke.
+          strokeDasharray={`${filled} ${c}`}
+          style={{
+            opacity: value > 0 ? 1 : 0,
+            transition: 'stroke-dasharray .7s cubic-bezier(.2,.8,.2,1), stroke .3s',
+          }}
+        />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="num font-bold leading-none" style={{ fontSize: size / 3.4, color: band.color }}>
-          {Math.round(score)}
+
+      {/* Nudged up so the two lines sit inside the ring instead of straddling
+          the opening at the bottom. */}
+      <div
+        className="absolute inset-0 flex flex-col items-center justify-center leading-none"
+        style={{ transform: `translateY(-${Math.round(size * 0.045)}px)` }}
+      >
+        <span
+          className="num font-bold tabular-nums"
+          style={{ fontSize: numberSize, color: band.color, lineHeight: 1 }}
+        >
+          {Math.round(value)}
         </span>
-        {label && (
-          <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--color-mute)]">
+        {showLabel && (
+          <span
+            className="font-semibold uppercase text-[var(--color-mute)]"
+            style={{
+              fontSize: labelSize,
+              letterSpacing: '.04em',
+              marginTop: Math.round(size * 0.05),
+              lineHeight: 1,
+            }}
+          >
             {band.label}
           </span>
         )}

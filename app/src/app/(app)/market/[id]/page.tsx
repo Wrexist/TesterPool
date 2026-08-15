@@ -24,7 +24,19 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 export default async function MarketAppPage({ params }: { params: Promise<{ id: string }> }) {
-  const app = await load((await params).id);
+  const { id } = await params;
+  const app = await load(id);
   if (!app) notFound();
-  return <AppDetail app={app} />;
+
+  /*
+   * Whether a store activity can be started here. Not part of `market_apps`:
+   * that projection decides what a stranger may SEE about an app, and this is a
+   * question about what they may DO. `store_review_open` mirrors every
+   * condition `start_store_activity` enforces, so the buttons this drives are
+   * buttons the RPC will honour.
+   */
+  const supabase = await createClient();
+  const { data: storeOpen } = await supabase.rpc('store_review_open', { p_app: id });
+
+  return <AppDetail app={app} storeOpen={storeOpen === true} />;
 }

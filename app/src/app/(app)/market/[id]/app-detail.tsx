@@ -8,11 +8,12 @@
  */
 
 import Link from 'next/link';
-import { Card, Pill, Stat, Avatar, TierBadge } from '@/components/ui';
+import { Card, Pill, Stat, Avatar, TierBadge, cx } from '@/components/ui';
 import { AppIcon } from '@/components/app/app-card';
 import { RewardChip } from '@/components/app/app-row';
 import { ActivitySteps, type Step } from '@/components/app/activity-steps';
 import { StartActivityButton } from '@/components/app/start-activity-button';
+import { StoreActivityButtons } from '@/components/app/store-activity-buttons';
 import { SaveButton } from '../save-button';
 import {
   IconArrow, IconExternal, IconFeedback, IconAlert, IconDevice, IconUpload, IconAndroid,
@@ -21,10 +22,30 @@ import { EARN, RULES } from '@/lib/economy';
 import { marketHref, stageOf, isListingOnly, rewardFor, type MarketAppDetail } from '@/lib/market';
 import { fmtDate, n, tierOf } from '@/lib/format';
 
-export function AppDetail({ app }: { app: MarketAppDetail }) {
+/** How much description to show before folding the rest away. */
+const BLURB = 320;
+
+export function AppDetail({ app, storeOpen = false }: { app: MarketAppDetail; storeOpen?: boolean }) {
 
   const stage = stageOf(app);
   const focus = app.focus_areas ?? [];
+  const ios = isListingOnly(app);
+
+  /*
+   * The tagline is usually the first line of the description, so rendering both
+   * printed the same sentence twice — once truncated under the title and once
+   * again under About, which is what made this page read as padded. When they
+   * overlap, the description wins and the tagline is dropped.
+   */
+  const description = (app.description ?? '').trim();
+  const tagline = (app.tagline ?? '').trim();
+  const duplicated =
+    !!tagline && !!description &&
+    description.slice(0, 80).toLowerCase().startsWith(tagline.slice(0, 40).toLowerCase());
+  const showTagline = !!tagline && !duplicated;
+
+  const long = description.length > BLURB;
+  const blurb = long ? `${description.slice(0, BLURB).trimEnd()}…` : description;
 
   return (
     <div className="flex flex-col gap-6">
@@ -54,8 +75,8 @@ export function AppDetail({ app }: { app: MarketAppDetail }) {
             {stage && <Pill tone={stage.tone}>{stage.label}</Pill>}
             {app.category && <Pill tone="neutral">{app.category}</Pill>}
           </div>
-          {app.tagline && (
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--color-dim)]">{app.tagline}</p>
+          {showTagline && (
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--color-dim)]">{tagline}</p>
           )}
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <OwnerLine app={app} />
@@ -79,9 +100,20 @@ export function AppDetail({ app }: { app: MarketAppDetail }) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* --------------------------------------------------------- body */}
         <div className="order-2 flex flex-col gap-6 lg:order-1">
-          <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Testers" value={n(app.testers_active)} sub="seated now" />
-            <Stat label="Full 14" value={n(app.testers_full)} sub={`of ${RULES.requiredTesters} needed`} />
+          {/*
+            "Testers seated" and "Full 14 of 12 needed" are Google Play's
+            production-access rule, counted. Apple has no equivalent gate, so on
+            an iOS listing they are not merely irrelevant — "0 of 12 needed"
+            states a requirement that does not exist and will never be met.
+            They are dropped entirely rather than zeroed.
+          */}
+          <section className={cx('grid gap-3', ios ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4')}>
+            {!ios && (
+              <>
+                <Stat label="Testers" value={n(app.testers_active)} sub="seated now" />
+                <Stat label="Full 14" value={n(app.testers_full)} sub={`of ${RULES.requiredTesters} needed`} />
+              </>
+            )}
             <Stat label="Reports" value={n(app.reports)} sub="approved" />
             <Stat
               label={app.status === 'graduated' ? 'Graduated' : 'Listed'}
@@ -89,12 +121,25 @@ export function AppDetail({ app }: { app: MarketAppDetail }) {
             />
           </section>
 
-          {app.description && (
+          {description && (
             <section>
               <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-mute)]">About</h2>
               <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-[var(--color-dim)]">
-                {app.description.slice(0, 2000)}
+                {blurb}
               </p>
+              {/* Folded rather than truncated: a store description runs to
+                  thousands of words and dumping it here buried everything the
+                  page is actually for. Native details, so it costs no JS. */}
+              {long && (
+                <details className="disclosure mt-1">
+                  <summary className="cursor-pointer list-none text-sm font-semibold text-[var(--color-accent)]">
+                    Read the full description
+                  </summary>
+                  <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-[var(--color-dim)]">
+                    {description.slice(0, 4000)}
+                  </p>
+                </details>
+              )}
             </section>
           )}
 
@@ -137,7 +182,7 @@ export function AppDetail({ app }: { app: MarketAppDetail }) {
 
         {/* -------------------------------------------------------- action */}
         <aside className="order-1 flex flex-col gap-4 lg:order-2 lg:sticky lg:top-6 lg:self-start">
-          <ActionCard app={app} />
+          <ActionCard app={app} storeOpen={storeOpen} />
 
           {app.store_url && (
             <a
@@ -201,19 +246,55 @@ function OwnerLine({ app }: { app: MarketAppDetail }) {
  * owner's consent, their remaining seats and their balance are all checked
  * before the seat exists. When any of those says no, the button is not offered.
  */
-function ActionCard({ app }: { app: MarketAppDetail }) {
+function ActionCard({ app, storeOpen }: { app: MarketAppDetail; storeOpen: boolean }) {
+  /*
+   * Checked before anything else, including the iOS bail-out below.
+   *
+   * A store activity runs against a PUBLIC listing, so unlike closed-track
+   * testing it does not care which store the app is on — an iOS listing is as
+   * reviewable as an Android one. Leaving the platform check first would have
+   * turned every opted-in iOS app away from a job it can actually do.
+   */
+  if (storeOpen && app.relation !== 'owner') {
+    const stage: 'none' | 'installed' | 'reported' =
+      app.relation === 'tested' ? 'reported'
+      : app.opt_in_verified ? 'installed'
+      : app.relation === 'testing' ? 'none'
+      : 'none';
+
+    return (
+      <Card className="flex flex-col gap-4 p-5">
+        <div>
+          <h2 className="text-[17px] font-bold leading-tight">Install and review</h2>
+          <p className="mt-1 text-[14px] leading-relaxed text-[var(--color-dim)]">
+            Two steps, paid separately, out of this publisher&apos;s balance.
+          </p>
+        </div>
+
+        <StoreActivityButtons
+          appId={app.id}
+          assignmentId={app.assignment_id}
+          stage={stage}
+          installReward={EARN.optInVerified}
+          reviewReward={EARN.feedbackApproved}
+        />
+
+        <p className="text-[12px] leading-relaxed text-[var(--color-mute)]">
+          Your review is published publicly under your own name on the store listing. The
+          publisher reads it and approves the payment; a moderator settles it if they dispute it.
+        </p>
+      </Card>
+    );
+  }
+
   if (isListingOnly(app)) {
     return (
-      <Card className="flex flex-col gap-3 p-5">
+      <Card className="flex flex-col gap-2 p-5">
         <h2 className="text-sm font-semibold">An iOS listing</h2>
         <p className="text-sm leading-relaxed text-[var(--color-dim)]">
-          Listing an iOS app is its own feature: it puts the app in front of the network and nothing
-          else. Credits and proof are Android, because Google Play is the store that gates
-          production access behind {RULES.requiredTesters} testers for {RULES.requiredDays}{' '}
-          consecutive days and Apple has no equivalent gate to clear.
-        </p>
-        <p className="text-xs text-[var(--color-mute)]">
-          Nothing here touches App Store reviews, ratings or install counts, and it never will.
+          This app is here to be seen, not tested. Closed-track testing is Android only, because
+          Google Play is the store that gates production access behind {RULES.requiredTesters}{' '}
+          testers for {RULES.requiredDays} days and Apple has no equivalent gate.
         </p>
       </Card>
     );

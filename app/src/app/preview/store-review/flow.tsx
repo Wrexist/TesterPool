@@ -7,17 +7,23 @@
  * the screenshots you attach render, the stars set, the character counter
  * counts, and the tracker advances. What it does NOT do is touch the database.
  * Nothing here calls `award_credits`, writes a `proofs` row or creates an
- * assignment, and the schema still has no column that could hold a public store
- * review — so this is a faithful mock of the interaction and not a shipped
- * feature. Wiring it up is a separate decision and a migration.
+ * assignment — it is a mock of the interaction, kept for showing the flow
+ * without a session.
  *
- * The difference from the live flow in `/market/[id]`, which is the whole point
- * of showing them side by side:
+ * NOTE, and the reason this comment was rewritten: when this file was first
+ * written it also said the schema had no column that could hold a public store
+ * review. That stopped being true one commit later. The real, wired version of
+ * this flow is `/tests/[id]/store-review`, and `feedback.store_rating` and
+ * `feedback.store_review_text` exist — see the header of
+ * `20260814240000_store_reviews.sql`. Anything here that looks like a claim
+ * about the schema is out of date by construction; check the migration.
  *
- *   live       install from the developer's CLOSED testing track,
- *              report is private to the developer
- *   this       install from the PUBLIC store listing,
- *              review is posted publicly and paid for
+ * The difference from the closed-track flow in `/market/[id]`:
+ *
+ *   closed track   install from the developer's CLOSED testing track,
+ *                  report is private to the developer
+ *   store review   install from the PUBLIC store listing,
+ *                  review is posted publicly and paid for
  */
 
 import * as React from 'react';
