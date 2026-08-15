@@ -20,20 +20,37 @@ export default async function OnboardingPage() {
 
   const profile = profileRow as Profile | null;
 
-  // Already set up. Sending someone back through onboarding would let them
-  // create a duplicate app, so the dashboard is the honest destination.
-  if (profile && (appCount ?? 0) > 0) redirect('/dashboard');
+  /*
+   * This used to `redirect('/dashboard')` for anyone who already owned an app,
+   * to stop a second run through setup creating a duplicate. It also broke the
+   * only way to list a second app: the "Add App" button on My Apps points here,
+   * so for every existing owner it was a button that bounced them somewhere
+   * else. `completeOnboarding` has always handled an additional app correctly —
+   * it updates the profile and inserts a new row — so the redirect was
+   * protecting nothing that needed protecting.
+   *
+   * Instead: an owner with a set-up profile gets the app step on its own. The
+   * two profile steps are the part that must not run twice, and they are the
+   * part that is skipped.
+   */
+  const setUp = !!profile?.handle && !!profile?.tester_email;
+  const another = setUp && (appCount ?? 0) > 0;
 
   return (
     <div className="pb-8">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Three steps, then you are listed</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {another ? 'Add another app' : 'Three steps, then you are listed'}
+        </h1>
         <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
-          About two minutes.
+          {another
+            ? 'Paste a store link and it is listed. Your account details are already set.'
+            : 'About two minutes.'}
         </p>
       </header>
 
       <OnboardingForm
+        another={another}
         initial={{
           handle: profile?.handle ?? '',
           displayName: profile?.display_name ?? '',

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, Disclosure, Pill, cx } from '@/components/ui';
 import { Note, Spinner, useAction } from '@/components/app/action-button';
@@ -25,12 +26,19 @@ const STEPS = ['You', 'Test account', 'Your app'];
 
 export function OnboardingForm({
   initial,
+  another = false,
 }: {
   initial: { handle: string; displayName: string; countryCode: string; testerEmail: string; authEmail: string };
+  /**
+   * True when this is an owner adding a second app rather than a new member
+   * setting up. The two profile steps are already done and must not be shown
+   * again — re-asking for a handle somebody chose months ago reads as an error.
+   */
+  another?: boolean;
 }) {
   const router = useRouter();
   const { pending, feedback, run } = useAction();
-  const [step, setStep] = React.useState(0);
+  const [step, setStep] = React.useState(another ? 2 : 0);
 
   const [handle, setHandle] = React.useState(initial.handle);
   const [displayName, setDisplayName] = React.useState(initial.displayName);
@@ -136,13 +144,17 @@ export function OnboardingForm({
       { refresh: false }
     );
     if (result.ok) {
-      router.push('/market');
+      // My Apps, not the feed: they just made a thing and the first question
+      // after making it is "did that work" — which is answered by seeing it
+      // listed, with its intake controls next to it.
+      router.push('/apps');
       router.refresh();
     }
   }
 
   return (
     <div className="mx-auto max-w-2xl">
+      {!another && (
       <ol className="mb-6 flex items-center gap-2">
         {STEPS.map((label, i) => (
           <li key={label} className="flex flex-1 items-center gap-2">
@@ -171,6 +183,7 @@ export function OnboardingForm({
           </li>
         ))}
       </ol>
+      )}
 
       <Card className="p-6">
         {step === 0 && (
@@ -378,17 +391,24 @@ export function OnboardingForm({
         <Note feedback={feedback} />
 
         <div className="mt-6 flex items-center justify-between gap-3 border-t border-[var(--color-line)] pt-4">
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
-            disabled={step === 0 || pending}
-          >
-            Back
-          </button>
+          {another ? (
+            // Back out of adding an app, rather than back into a setup that is
+            // already done — the two profile steps are skipped, so walking
+            // backwards would land on a handle field with no way forward.
+            <Link href="/apps" className="btn btn-ghost">Cancel</Link>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setStep((s) => Math.max(0, s - 1))}
+              disabled={step === 0 || pending}
+            >
+              Back
+            </button>
+          )}
 
           <div className="flex items-center gap-3">
-            <Pill tone="neutral">Step {step + 1} of {STEPS.length}</Pill>
+            {!another && <Pill tone="neutral">Step {step + 1} of {STEPS.length}</Pill>}
             {step < STEPS.length - 1 ? (
               <button type="button" className="btn btn-primary" disabled={!stepOk} onClick={() => setStep((s) => s + 1)}>
                 Continue <IconArrow size={15} />
@@ -396,7 +416,7 @@ export function OnboardingForm({
             ) : (
               <button type="button" className="btn btn-primary" disabled={!stepOk || pending} onClick={() => void submit()}>
                 {pending && <Spinner />}
-                {pending ? 'Saving' : 'Finish setup'}
+                {pending ? 'Saving' : another ? 'List this app' : 'Finish setup'}
               </button>
             )}
           </div>
