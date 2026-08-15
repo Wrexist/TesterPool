@@ -3,10 +3,9 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Card, Pill, Stat, Avatar, EmptyState, CreditChip } from '@/components/ui';
 import { Section, RowList, Row, Sparkline, WarnBox, type SparkPoint } from '@/components/admin/parts';
-import { podDay, missedDays, n } from '@/lib/pods';
-import { RULES } from '@/lib/economy';
+import { fmtRelative } from '@/lib/format';
 import { currencyHealth, VERDICT_TONE } from '@/lib/admin-economy';
-import { num, podRisk, RISK_LABEL, RISK_TONE, type AdminOverviewRow, type AdminPodWatchRow } from '@/lib/admin';
+import { num, type AdminOverviewRow } from '@/lib/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +13,11 @@ const DAY_MS = 86_400_000;
 
 function utcKey(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+/** Read outside render, for the same reason `trailingDays` is. */
+function nowMs(): number {
+  return new Date().getTime();
 }
 
 /**
@@ -39,7 +43,6 @@ export default async function AdminOverviewPage() {
   const [
     { data: overviewRow },
     checkinCounts,
-    { data: podRows },
     { data: assignmentRows },
   ] = await Promise.all([
     supabase.from('admin_overview').select('*').maybeSingle(),
@@ -54,18 +57,14 @@ export default async function AdminOverviewPage() {
           .then((res) => res.count ?? 0)
       )
     ),
-    supabase.from('admin_pod_watch').select('*').limit(200),
     supabase
       .from('assignments')
-      .select('id, tester_id, days_checked_in, status, pod_id, profiles(handle, display_name, avatar_url), pods(code, name, starts_at, duration_days, status)')
+      .select('id, tester_id, status, created_at, opt_in_verified_at, profiles(handle, display_name, avatar_url), apps(name)')
       .in('status', ['active', 'opt_in_pending'])
       .limit(500),
   ]);
 
   const overview = (overviewRow ?? null) as AdminOverviewRow | null;
-  const pods = ((podRows ?? []) as AdminPodWatchRow[]).filter(
-    (p) => p.status === 'active' || p.status === 'forming' || p.status === 'locked'
-  );
 
   /* ------------------------------------------------------------ sparkline */
   const spark: SparkPoint[] = days.map((day, i) => ({
@@ -76,71 +75,74 @@ export default async function AdminOverviewPage() {
   const sparkPeak = Math.max(0, ...spark.map((p) => p.value));
 
   /* ------------------------------------------------------- needs attention */
-  type Membership = {
+  type Seat = {
     id: string;
     tester_id: string;
-    days_checked_in: number | null;
     status: string;
-    pod_id: string;
+    created_at: string | null;
+    opt_in_verified_at: string | null;
     profiles: { handle: string; display_name: string | null; avatar_url: string | null } | { handle: string; display_name: string | null; avatar_url: string | null }[] | null;
-    pods: { code: string | null; name: string | null; starts_at: string | null; duration_days: number | null; status: string } | { code: string | null; name: string | null; starts_at: string | null; duration_days: number | null; status: string }[] | null;
+    apps: { name: string | null } | { name: string | null }[] | null;
   };
 
   const one = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? v[0] ?? null : v);
 
-  // One row per tester, not per assignment. A tester holds one assignment per
-  // app in the pod, so the naive list repeats the same person a dozen times and
-  // buries everyone else.
-  type Lagging = {
+  /**
+   * Work that was started and never finished. There is no cohort clock to fall
+   * behind any more, so the only thing that can silently rot is a seat someone
+   * took and abandoned — and every one of those is an owner's balance held
+   * against work that is not coming.
+   *
+   * Two shapes, both counted from when the seat was taken: an unconfirmed
+   * install after three days, and a confirmed install with no report after
+   * ten. Neither number is load-bearing; they exist so the list is short
+   * enough to act on.
+   */
+  const STALE_INSTALL_DAYS = 3;
+  const STALE_REPORT_DAYS = 10;
+  const now = nowMs();
+
+  type Stalled = {
+    id: string;
     testerId: string;
     handle: string;
     name: string;
     avatar: string | null;
-    missed: number;
-    day: number;
-    tests: number;
-    podLabel: string;
+    appName: string;
+    kind: 'install' | 'report';
+    ageDays: number;
+    since: string | null;
   };
 
-  const laggingByTester = new Map<string, Lagging>();
-  for (const row of (assignmentRows ?? []) as Membership[]) {
-    const pod = one(row.pods);
-    const profile = one(row.profiles);
-    if (!pod || pod.status !== 'active') continue;
-    const day = podDay(pod.starts_at, pod.duration_days ?? RULES.requiredDays);
-    const missed = missedDays(n(row.days_checked_in), day);
-    if (missed < 2) continue;
+  const stalled: Stalled[] = [];
+  for (const row of (assignmentRows ?? []) as Seat[]) {
+    if (!row.created_at) continue;
+    const ageDays = Math.floor((now - new Date(row.created_at).getTime()) / DAY_MS);
+    const kind: 'install' | 'report' = row.opt_in_verified_at ? 'report' : 'install';
+    const limit = kind === 'install' ? STALE_INSTALL_DAYS : STALE_REPORT_DAYS;
+    if (ageDays < limit) continue;
 
-    const existing = laggingByTester.get(row.tester_id);
-    if (existing) {
-      existing.missed = Math.max(existing.missed, missed);
-      existing.tests += 1;
-      continue;
-    }
-    laggingByTester.set(row.tester_id, {
+    const profile = one(row.profiles);
+    stalled.push({
+      id: row.id,
       testerId: row.tester_id,
       handle: profile?.handle ?? 'unknown',
       name: profile?.display_name ?? profile?.handle ?? 'Unknown tester',
       avatar: profile?.avatar_url ?? null,
-      missed,
-      day,
-      tests: 1,
-      podLabel: pod.name || (pod.code ? `Pod ${pod.code}` : 'Unnamed pod'),
+      appName: one(row.apps)?.name ?? 'Unnamed app',
+      kind,
+      ageDays,
+      since: row.created_at,
     });
   }
-  const laggingTesters = [...laggingByTester.values()].sort((a, b) => b.missed - a.missed);
-
-  const riskyPods = pods
-    .map((pod) => ({ pod, risk: podRisk(pod) }))
-    .filter((entry) => entry.risk.reasons.length > 0)
-    .sort((a, b) => b.risk.score - a.risk.score);
+  stalled.sort((a, b) => b.ageDays - a.ageDays);
 
   const pendingProofs = num(overview?.proofs_pending);
   const openDisputes = num(overview?.disputes_open);
   const unreviewedFeedback = num(overview?.feedback_unreviewed);
 
   const attentionTotal =
-    riskyPods.length + laggingTesters.length + (pendingProofs > 0 ? 1 : 0) + (openDisputes > 0 ? 1 : 0) + (unreviewedFeedback > 0 ? 1 : 0);
+    stalled.length + (pendingProofs > 0 ? 1 : 0) + (openDisputes > 0 ? 1 : 0) + (unreviewedFeedback > 0 ? 1 : 0);
 
   /* -------------------------------------------------------- economy health */
   const health = currencyHealth(
@@ -159,25 +161,27 @@ export default async function AdminOverviewPage() {
             <Stat
               label="Banned"
               value={num(overview.banned)}
-              sub={num(overview.banned) > 0 ? 'Removed from pods on ban' : 'None'}
+              sub={num(overview.banned) > 0 ? 'Open seats released on ban' : 'None'}
               tone={num(overview.banned) > 0 ? 'var(--color-danger)' : undefined}
             />
             <Stat label="Apps" value={num(overview.apps)} sub={`${num(overview.apps_graduated)} graduated`} />
             <Stat
-              label="Pods active"
-              value={num(overview.pods_active)}
-              sub={`${num(overview.pods_forming)} still forming`}
-            />
-            <Stat
-              label="Assignments"
+              label="Work open"
               value={num(overview.assignments_active)}
-              sub={`${num(overview.assignments_dropped)} dropped`}
+              sub={`${num(overview.assignments_dropped)} abandoned`}
               tone={num(overview.assignments_dropped) > 0 ? 'var(--color-credit)' : undefined}
             />
             <Stat
-              label="Check-ins today"
-              value={num(overview.checkins_today)}
-              sub={`avg ${num(overview.avg_days).toFixed(1)} days per assignment`}
+              label="Stalled"
+              value={stalled.length}
+              sub={stalled.length > 0 ? 'Started and never finished' : 'Nothing rotting'}
+              tone={stalled.length > 0 ? 'var(--color-credit)' : undefined}
+            />
+            <Stat
+              label="Proofs pending"
+              value={pendingProofs}
+              sub={openDisputes > 0 ? `${openDisputes} open disputes` : 'No open disputes'}
+              tone={pendingProofs > 0 ? 'var(--color-credit)' : undefined}
             />
           </div>
         ) : (
@@ -200,51 +204,29 @@ export default async function AdminOverviewPage() {
         {attentionTotal === 0 ? (
           <EmptyState
             title="Nothing is waiting on you"
-            body="No pod is losing members, no tester has missed two days, the proof queue is clear and there are no open disputes. This is the state the automation is supposed to hold."
+            body="No seat has been abandoned, the proof queue is clear and there are no open disputes. This is the state the automation is supposed to hold."
           />
         ) : (
           <div className="flex flex-col gap-4">
-            {riskyPods.length > 0 && (
+            {stalled.length > 0 && (
               <div>
                 <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--color-mute)]">
-                  Pods off track
+                  Work started and never finished
                 </h3>
                 <RowList>
-                  {riskyPods.slice(0, 8).map(({ pod, risk }) => (
-                    <Row key={pod.id} href={`/admin/pods?pod=${pod.id}`}>
-                      <Pill tone={RISK_TONE[risk.level]}>{RISK_LABEL[risk.level]}</Pill>
-                      <span className="text-sm font-medium">{pod.name || `Pod ${pod.code ?? ''}`}</span>
-                      <span className="text-xs text-[var(--color-mute)]">
-                        day <span className="num">{num(pod.day_index)}</span> of{' '}
-                        <span className="num">{RULES.requiredDays}</span>
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-xs text-[var(--color-dim)]">
-                        {risk.reasons[0]}
-                      </span>
-                    </Row>
-                  ))}
-                </RowList>
-              </div>
-            )}
-
-            {laggingTesters.length > 0 && (
-              <div>
-                <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--color-mute)]">
-                  Testers who have missed two or more days
-                </h3>
-                <RowList>
-                  {laggingTesters.slice(0, 10).map((t) => (
-                    <Row key={t.testerId} href={`/admin/users?q=${encodeURIComponent(t.handle)}`}>
-                      <Avatar name={t.name} src={t.avatar} size={26} />
-                      <span className="text-sm font-medium">@{t.handle}</span>
-                      <Pill tone={t.missed >= 3 ? 'red' : 'amber'}>
-                        <span className="num">{t.missed}</span> days missed
+                  {stalled.slice(0, 12).map((s) => (
+                    <Row key={s.id} href={`/admin/users?q=${encodeURIComponent(s.handle)}`}>
+                      <Avatar name={s.name} src={s.avatar} size={26} />
+                      <span className="text-sm font-medium">@{s.handle}</span>
+                      <Pill tone={s.ageDays >= 14 ? 'red' : 'amber'}>
+                        <span className="num">{s.ageDays}</span> days
                       </Pill>
                       <span className="min-w-0 flex-1 truncate text-xs text-[var(--color-mute)]">
-                        {t.podLabel} · day <span className="num">{t.day}</span> · affects{' '}
-                        <span className="num">{t.tests}</span>{' '}
-                        {t.tests === 1 ? 'app' : 'apps'} they are testing. Two misses inside a 14-day window
-                        usually becomes a dropout.
+                        {s.appName} ·{' '}
+                        {s.kind === 'install'
+                          ? 'took the seat, never confirmed the install'
+                          : 'installed, no report filed'}{' '}
+                        · started {fmtRelative(s.since)}
                       </span>
                     </Row>
                   ))}
@@ -333,7 +315,7 @@ export default async function AdminOverviewPage() {
       {/* ------------------------------------------------------- sparkline */}
       <Section
         title="Check-ins, last 14 days"
-        note="The core loop, drawn at the same length as the thing it measures. A collapse here precedes every other number moving."
+        note="Testers opening an app they took off the feed. A collapse here precedes every other number moving."
       >
         <Card className="p-5">
           <Sparkline

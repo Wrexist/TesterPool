@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Card, Pill, Avatar, EmptyState, cx } from '@/components/ui';
 import { Section, DiffView, WarnBox } from '@/components/admin/parts';
-import { fmtDateTime } from '@/lib/pods';
+import { fmtDateTime } from '@/lib/format';
 import { auditLabel, auditTone, AUDIT_ACTION_COPY, type AdminActionRow } from '@/lib/admin';
 
 export const dynamic = 'force-dynamic';

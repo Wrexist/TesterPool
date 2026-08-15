@@ -111,7 +111,7 @@ export default function Body() {
         developer receives it &mdash; the four answers, the device, the severity
         tag and the arbitration rule stated plainly.{' '}
         <Link href="/#report">Read it here</Link>, or{' '}
-        <Link href="/pool">see which apps are open to testers right now</Link>.
+        <Link href="/feed">see which apps are open to testers right now</Link>.
       </p>
     </>
   );

@@ -3,8 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { Card, CreditChip, EmptyState, Stat, Pill } from '@/components/ui';
 import { SpendButton } from './spend-button';
 import { InvitePanel } from '@/components/app/invite-panel';
-import { EARN, COST, CHARGE, CAPS, FULL_CYCLE_EARNINGS, FULL_POD_COST, RULES } from '@/lib/economy';
-import { fmtDate, ledgerLabel, n } from '@/lib/pods';
+import { EARN, COST, CHARGE, CAPS, FULL_CYCLE_EARNINGS, FULL_CYCLE_COST, RULES } from '@/lib/economy';
+import { fmtDate, ledgerLabel, n } from '@/lib/format';
 import type { LedgerEntry, Profile } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -16,8 +16,8 @@ const EARN_ROWS = [
   { label: 'Daily check-in', value: EARN.dailyCheckin, note: `${EARN.dailyCheckin} x ${RULES.requiredDays} = ${EARN.dailyCheckin * RULES.requiredDays} over a full run.` },
   { label: 'Perfect 14 of 14', value: EARN.streakBonusFull, note: 'Paid only on a clean sheet.' },
   { label: 'Blocker with repro steps', value: EARN.bugBountyBlocker, note: 'Funded by us, not the developer. Finding the worst bug must never cost them most.' },
-  { label: 'Rescue a broken pod', value: EARN.rescueBonus, note: 'Joining mid-cycle to replace a dropout.' },
-  { label: 'Referral, when they finish', value: EARN.referralReferrer, note: 'Paid on their first completed pod, never on signup.' },
+  { label: 'Rescue an abandoned seat', value: EARN.rescueBonus, note: 'Stepping in when someone else walked away.' },
+  { label: 'Referral, when they finish', value: EARN.referralReferrer, note: 'Paid on their first finished job, never on signup.' },
 ];
 
 const CHARGE_ROWS = [
@@ -26,9 +26,9 @@ const CHARGE_ROWS = [
 ];
 
 const SPEND_ROWS = [
-  { key: 'cost_buffer_seat', fallback: COST.bufferSeat, label: 'Buffer seat', note: 'One extra tester beyond the pod default.' },
+  { key: 'cost_buffer_seat', fallback: COST.bufferSeat, label: 'Buffer seat', note: 'One extra tester beyond your target.' },
   { key: 'cost_rescue_seat', fallback: COST.rescueSeat, label: 'Rescue tester', note: 'Emergency replacement, matched within hours.' },
-  { key: 'cost_priority_pod', fallback: COST.priorityPod, label: 'Priority pod', note: 'Skip the forming queue and start within 24 hours.' },
+  { key: 'cost_priority_pod', fallback: COST.priorityMatch, label: 'Priority placement', note: 'Top of the feed until you have the testers you asked for.' },
   { key: 'cost_expert_seat', fallback: COST.expertSeat, label: 'Expert seat', note: 'A platinum tester in your category who writes long-form reports.' },
 ];
 
@@ -76,7 +76,7 @@ export default async function CreditsPage() {
           <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-mute)]">Balance</div>
           <div className="mt-2"><CreditChip amount={balance} size="lg" /></div>
           <p className="mt-2 text-xs text-[var(--color-dim)]">
-            A full pod costs <span className="num">{FULL_POD_COST}</span> and pays{' '}
+            A full cycle costs <span className="num">{FULL_CYCLE_COST}</span> and pays{' '}
             <span className="num">{FULL_CYCLE_EARNINGS}</span>. Do your share and you break even.
           </p>
         </Card>
@@ -178,8 +178,8 @@ export default async function CreditsPage() {
                 </div>
               ))}
               <div className="px-4 py-3 text-xs text-[var(--color-dim)]">
-                Run out mid-pod and your testers are still paid — your app just stops taking new work until
-                you top up. Abandoning a pod costs <span className="num">120</span> and a large reliability
+                Run out and the testers already working are still paid — your app just stops taking new
+                work until you top up. Abandoning a seat costs <span className="num">120</span> and a large reliability
                 hit; you broke fourteen other clocks.
               </div>
             </Card>
@@ -205,7 +205,7 @@ export default async function CreditsPage() {
               <p className="border-t border-[var(--color-line)] pt-3 text-[11px] text-[var(--color-mute)]">
                 Short of credits and out of time?{' '}
                 <a href="/billing" className="underline decoration-[var(--color-line-hi)] underline-offset-2">
-                  Buy a credit pack or a paid pod
+                  Buy a credit pack or a paid plan
                 </a>
                 . Testing earns the same credits for free; the money only buys the fourteen days back.
               </p>
@@ -221,7 +221,7 @@ export default async function CreditsPage() {
         <InvitePanel
           code={profile?.referral_code ?? ''}
           headline="Invite a developer who will actually test"
-          body="Your code is below. You are paid when they complete their first pod, and you keep a permanent cut of what they earn after that."
+          body="Your code is below. You are paid when they finish their first job, and you keep a permanent cut of what they earn after that."
           referrals={referralCount ?? 0}
           titheEarned={titheEarned}
         />

@@ -1,14 +1,14 @@
 /**
  * TESTERPOOL — admin surface types and pure helpers.
  *
- * Mirrors the admin migration: the `admin_overview`, `admin_pod_watch` and
+ * Mirrors the admin migration: the `admin_overview` and
  * `admin_user_rows` views, the append-only `admin_actions` log, `feature_flags`
  * and `announcements`. Everything here is null-tolerant, because the admin
  * dashboard is the one screen that has to render when the data is broken —
  * that is usually why someone opened it.
  */
 
-import type { PodStatus, Tier } from '@/lib/types';
+import type { Tier } from '@/lib/types';
 
 /* ------------------------------------------------------------------ types */
 
@@ -35,22 +35,6 @@ export interface AdminOverviewRow {
   credits_burned: number | null;
 }
 
-export interface AdminPodWatchRow {
-  id: string;
-  code: string | null;
-  name: string | null;
-  status: PodStatus;
-  core_seats: number | null;
-  required_testers: number | null;
-  starts_at: string | null;
-  ends_at: string | null;
-  day_index: number | null;
-  members: number | null;
-  dropouts: number | null;
-  active_assignments: number | null;
-  avg_days: number | string | null;
-  apps_on_track: number | null;
-}
 
 export interface AdminUserRow {
   id: string;
@@ -130,83 +114,6 @@ export function roleOf(value: string | null | undefined): UserRole {
   return value === 'admin' || value === 'moderator' ? value : 'user';
 }
 
-/* --------------------------------------------------------------- pod risk */
-
-export type PodRiskLevel = 'critical' | 'warning' | 'steady' | 'idle';
-
-export interface PodRisk {
-  level: PodRiskLevel;
-  score: number;
-  /** Ordered, most severe first. Empty when the pod is healthy. */
-  reasons: string[];
-}
-
-/**
- * Risk is a sort key, not a verdict. It exists so the pod that is quietly
- * failing sorts above the twelve that are fine, at 2am, without reading.
- */
-export function podRisk(pod: AdminPodWatchRow): PodRisk {
-  const reasons: string[] = [];
-  let score = 0;
-
-  const day = num(pod.day_index);
-  const avg = num(pod.avg_days);
-  const members = num(pod.members);
-  const dropouts = num(pod.dropouts);
-  const required = num(pod.required_testers, 12);
-  const onTrack = num(pod.apps_on_track);
-
-  if (pod.status !== 'active' && pod.status !== 'forming' && pod.status !== 'locked') {
-    return { level: 'idle', score: -1, reasons: [] };
-  }
-
-  if (dropouts > 0) {
-    score += dropouts * 30;
-    reasons.push(
-      `${dropouts} ${dropouts === 1 ? 'member has' : 'members have'} dropped. Each one resets someone's 14-day clock.`
-    );
-  }
-
-  // Falling behind: the average tester is more than a day behind the pod day.
-  if (pod.status === 'active' && day > 1) {
-    const lag = day - avg;
-    if (lag >= 2) {
-      score += Math.round(lag * 25);
-      reasons.push(`Average tester is ${lag.toFixed(1)} days behind day ${day}. The pod will not clear 14 consecutive days at this rate.`);
-    } else if (lag >= 1) {
-      score += Math.round(lag * 12);
-      reasons.push(`Average tester is ${lag.toFixed(1)} days behind day ${day}.`);
-    }
-  }
-
-  if (pod.status === 'active' && onTrack > 0 && onTrack < required) {
-    score += (required - onTrack) * 8;
-    reasons.push(`${onTrack} of ${required} apps are on track for the 12-tester bar.`);
-  }
-
-  if (members > 0 && members < required) {
-    score += (required - members) * 6;
-    reasons.push(`${members} members against a ${required}-tester requirement.`);
-  }
-
-  const level: PodRiskLevel = score >= 50 ? 'critical' : score >= 15 ? 'warning' : 'steady';
-  return { level, score, reasons };
-}
-
-export const RISK_TONE: Record<PodRiskLevel, 'red' | 'amber' | 'green' | 'neutral'> = {
-  critical: 'red',
-  warning: 'amber',
-  steady: 'green',
-  idle: 'neutral',
-};
-
-export const RISK_LABEL: Record<PodRiskLevel, string> = {
-  critical: 'Critical',
-  warning: 'Watch',
-  steady: 'Steady',
-  idle: 'Closed',
-};
-
 /* ----------------------------------------------------------- audit labels */
 
 export const AUDIT_ACTION_COPY: Record<string, string> = {
@@ -216,10 +123,6 @@ export const AUDIT_ACTION_COPY: Record<string, string> = {
   unban: 'Lifted ban',
   set_config: 'Changed economy config',
   set_flag: 'Toggled feature flag',
-  pod_force_start: 'Force-started pod',
-  pod_extend: 'Extended pod',
-  pod_complete: 'Marked pod complete',
-  pod_cancel: 'Cancelled pod',
   proof_approve: 'Approved proof',
   proof_reject: 'Rejected proof',
 };
@@ -235,10 +138,6 @@ export const AUDIT_TONE: Record<string, 'red' | 'amber' | 'green' | 'violet' | '
   unban: 'green',
   set_config: 'amber',
   set_flag: 'violet',
-  pod_force_start: 'green',
-  pod_extend: 'amber',
-  pod_complete: 'green',
-  pod_cancel: 'red',
   proof_approve: 'green',
   proof_reject: 'amber',
 };
@@ -309,11 +208,11 @@ export function jsonDiff(
 /* ------------------------------------------------------------------ flags */
 
 /** Flags that stop the core loop. Named here so the UI can shout before, not after. */
-export const KILL_SWITCHES = new Set(['pod_matching', 'checkins_open']);
+export const KILL_SWITCHES = new Set(['activities', 'checkins_open']);
 
 export const FLAG_CONSEQUENCE: Record<string, string> = {
   signups_open: 'Off means the signup form rejects new accounts. Existing users are unaffected.',
-  pod_matching: 'Off freezes matching. No pod can form or start, and every queued app waits.',
+  activities: 'Off closes the feed. Nobody can take a new app on; work already started still finishes.',
   checkins_open: 'Off blocks every check-in. Streaks break network-wide within a day, and broken streaks cost people a month.',
   paid_tiers: 'Off hides paid plans and blocks purchases. Credit earning continues.',
   apple_login: 'Off removes the Apple sign-in button. Accounts already using it can still sign in.',

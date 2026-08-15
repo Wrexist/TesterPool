@@ -321,9 +321,9 @@ export default function LoginForm({
                   <span className="font-semibold text-[var(--color-credit)]">
                     New signups are paused
                   </span>{' '}
-                  while the current pods finish their 14 days. Existing accounts sign in
-                  as usual. Check back shortly — we open the next intake when seats free
-                  up.
+                  while the current listings finish collecting. Existing accounts sign
+                  in as usual. Check back shortly — we open the next intake when there
+                  is capacity.
                 </div>
               )}
 

@@ -138,7 +138,7 @@ export default function Body() {
         </a>{' '}
         yourself before trusting anybody&rsquo;s summary of it, including this
         one, and{' '}
-        <Link href="/pool">see what is open to testers</Link> if you want to look
+        <Link href="/feed">see what is open to testers</Link> if you want to look
         at what we do instead.
       </p>
     </>

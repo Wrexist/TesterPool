@@ -546,23 +546,53 @@ select assert_eq(
     where m.id = 'aaaaaaaa-0000-0000-0000-00000000000d'),
   1, 'the live scope lists a published app that is still taking testers');
 
--- And the store URL is visible, because the listing is public — but it is a
--- link to look at, never a step that pays. Nothing in the schema can record an
--- action taken on the other side of it.
+-- And the store URL is visible, because the listing is public.
 select assert_eq(
   (select m.store_url is not null from
      market_apps('all', null, null, null, null, 'newest', 1, 0,
                  'aaaaaaaa-0000-0000-0000-00000000000d') m),
   true, 'a live app shows its public listing');
 
+-- This assertion used to read `0` — no column anywhere in the schema could
+-- record a public store review, rating or install, which was invariant 1 and
+-- the product's whole legal argument.
+--
+-- `20260814240000_store_reviews.sql` ended that on the product owner's explicit
+-- instruction, so the assertion has been narrowed rather than deleted: those
+-- columns may now exist, but ONLY on `feedback`, and only the four the store
+-- feature introduced. If a fifth appears, or one turns up on another table,
+-- this fails — which is the point. The invariant is gone; the containment is
+-- what is being tested now.
+--
+-- `08-store-reviews.sql` is where the behaviour of those columns is asserted,
+-- including that they cannot be attached to a closed-track report at all.
 select assert_eq(
-  (select count(*)::int from information_schema.columns
+  (select coalesce(array_agg(distinct table_name::text order by table_name::text), '{}')
+     from information_schema.columns
     where table_schema = 'public'
       and (column_name ilike '%store_review%'
         or column_name ilike '%store_rating%'
         or column_name ilike '%public_install%'
         or column_name ilike '%star_rating%')),
-  0, 'no column exists that could record a public store review, rating or install');
+  array['apps', 'feedback', 'store_review_audit']::text[],
+  'store-review columns exist only on apps, feedback and the audit view');
+
+select assert_eq(
+  (select count(*)::int from information_schema.columns
+    where table_schema = 'public' and table_name = 'feedback'
+      and (column_name ilike '%store_review%'
+        or column_name ilike '%store_rating%'
+        or column_name ilike '%public_install%'
+        or column_name ilike '%star_rating%')),
+  4, 'and there are exactly four on feedback — rating, text, url, proof');
+
+-- `apps` carries exactly one: the publisher's per-app consent. It is a boolean
+-- and it must stay one — anything richer here would be the feature spreading.
+select assert_eq(
+  (select count(*)::int from information_schema.columns
+    where table_schema = 'public' and table_name = 'apps'
+      and column_name ilike '%store_review%'),
+  1, 'and exactly one on apps — the publisher opt-in');
 
 -- ===========================================================================
 -- 5c. The owner's controls

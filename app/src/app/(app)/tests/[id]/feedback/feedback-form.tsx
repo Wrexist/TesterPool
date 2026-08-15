@@ -42,7 +42,7 @@ function Rubric({
                 'num h-10 flex-1 rounded-lg border text-sm font-bold transition-colors',
                 on ? 'border-transparent' : 'border-[var(--color-line)] text-[var(--color-dim)] hover:border-[var(--color-line-hi)]'
               )}
-              style={on ? { background: 'var(--color-accent)', color: '#04150C' } : { background: 'var(--color-bg)' }}
+              style={on ? { background: 'var(--color-accent)', color: '#FFFFFF' } : { background: 'var(--color-bg)' }}
             >
               {score}
             </button>

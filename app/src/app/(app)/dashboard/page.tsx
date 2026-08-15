@@ -3,30 +3,38 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import {
-  Card, Pill, Stat, Avatar, TierBadge, StreakStrip, ProgressRing, EmptyState, CreditChip, cx,
+  Card, Pill, Stat, Avatar, TierBadge, ProgressRing, EmptyState, CreditChip, cx,
 } from '@/components/ui';
 import { EvidencePack } from '@/components/app/evidence-pack';
 import { FirstRun } from '@/components/app/first-run';
-import { RescueButton } from '@/components/app/rescue-button';
 import { InvitePanel } from '@/components/app/invite-panel';
 import { IconArrow, IconExternal, IconAlert } from '@/components/app/icons';
-import { RULES, COST } from '@/lib/economy';
+import { CHARGE } from '@/lib/economy';
 import { buildEvidenceAnswers, evidenceAsText } from '@/lib/evidence';
-import {
-  podDay, stripFor, seatHealth, SEAT_HEALTH_COPY, tierOf, n, fmtDate,
-  APP_STATUS_COPY, estimateStart, missedDays,
-} from '@/lib/pods';
+import { tierOf, n, fmtRelative, APP_STATUS_COPY } from '@/lib/format';
 import type {
-  AppRow, Assignment, Feedback, Pod, PodHealthRow, ProductionEvidenceRow, Profile,
+  AppRow, Assignment, Feedback, ProductionEvidenceRow, Profile,
 } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Dashboard — TesterPool' };
 
+/** What one tester's full run costs the owner: the install plus the report. */
+const RUN_COST = CHARGE.install + CHARGE.review;
+
 type SeatRow = Assignment & {
   profiles: Pick<Profile, 'handle' | 'display_name' | 'avatar_url' | 'country_code' | 'tier' | 'reliability'> | null;
 };
 
+/**
+ * The owner's screen for one app.
+ *
+ * There is no cohort behind this any more, and so no clock: testers arrive one
+ * at a time from the feed, each one installs, uses the app and files a single
+ * report. What an owner needs to see is therefore a count against the target
+ * they set — how many have arrived, how many have paid out, what the rest will
+ * cost — and never a day number.
+ */
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -39,17 +47,13 @@ export default async function DashboardPage({
 
   const params = await searchParams;
 
-  const [{ data: profileRow }, { data: appRows }, { data: configRows }] = await Promise.all([
+  const [{ data: profileRow }, { data: appRows }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
     supabase.from('apps').select('*').eq('owner_id', user.id).order('created_at', { ascending: true }),
-    supabase.from('economy_config').select('key, value'),
   ]);
 
   const profile = profileRow as Profile | null;
   const apps = (appRows ?? []) as AppRow[];
-  const config: Record<string, number> = {};
-  for (const row of (configRows ?? []) as { key: string; value: number }[]) config[row.key] = row.value;
-  const rescuePrice = config.cost_rescue_seat ?? COST.rescueSeat;
   const balance = n(profile?.credits, 0);
 
   /* ------------------------------------------------------------ no app yet */
@@ -65,68 +69,60 @@ export default async function DashboardPage({
     );
   }
 
-  // Default to whichever app has a live clock. A developer with a shipped app
-  // and one mid-pod cares about the one that can still fail.
+  // Default to whichever app is actually taking testers. A developer with a
+  // shipped app and one still collecting reports cares about the second.
   const app =
     apps.find((a) => a.id === params.app) ??
     apps.find((a) => a.status === 'in_pod') ??
     apps.find((a) => a.status === 'queued') ??
     apps[0];
 
-  const [{ data: memberRow }, { data: seatRows }, { data: evidenceRow }, { data: feedbackRows }] =
-    await Promise.all([
-      supabase
-        .from('pod_members')
-        .select('id, pod_id, seat, status, pods(*)')
-        .eq('user_id', user.id)
-        .eq('app_id', app.id)
-        .maybeSingle(),
-      supabase
-        .from('assignments')
-        .select('*, profiles(handle, display_name, avatar_url, country_code, tier, reliability)')
-        .eq('app_id', app.id),
-      supabase.from('production_evidence').select('*').eq('app_id', app.id).maybeSingle(),
-      supabase
-        .from('feedback')
-        .select('id, severity, what_broke, suggestion, status')
-        .eq('app_id', app.id),
-    ]);
+  const [{ data: seatRows }, { data: evidenceRow }, { data: feedbackRows }] = await Promise.all([
+    supabase
+      .from('assignments')
+      .select('*, profiles(handle, display_name, avatar_url, country_code, tier, reliability)')
+      .eq('app_id', app.id),
+    supabase.from('production_evidence').select('*').eq('app_id', app.id).maybeSingle(),
+    supabase
+      .from('feedback')
+      .select('id, assignment_id, severity, what_broke, suggestion, status')
+      .eq('app_id', app.id),
+  ]);
 
-  const membership = memberRow as { pod_id: string; seat: string; status: string; pods: Pod | Pod[] | null } | null;
-  const pod = membership ? (Array.isArray(membership.pods) ? membership.pods[0] : membership.pods) : null;
   const seats = (seatRows ?? []) as SeatRow[];
   const evidence = (evidenceRow ?? null) as ProductionEvidenceRow | null;
-  const feedback = (feedbackRows ?? []) as Pick<Feedback, 'id' | 'severity' | 'what_broke' | 'suggestion' | 'status'>[];
-
-  const duration = pod?.duration_days ?? RULES.requiredDays;
-  const currentDay = podDay(pod?.starts_at, duration);
+  const feedback = (feedbackRows ?? []) as Pick<
+    Feedback, 'id' | 'assignment_id' | 'severity' | 'what_broke' | 'suggestion' | 'status'
+  >[];
 
   const answers = buildEvidenceAnswers({ appName: app.name, evidence, feedback });
   const fullText = evidenceAsText(app.name, answers);
 
-  const optedIn = n(evidence?.testers_opted_in, seats.filter((s) => s.opt_in_verified_at).length);
-  const avgDays = n(
-    evidence?.avg_days_active,
-    seats.length ? seats.reduce((t, s) => t + n(s.days_checked_in), 0) / seats.length : 0
-  );
-  const reports = n(evidence?.feedback_reports, feedback.filter((f) => f.status === 'approved').length);
-  const atRisk = seats.filter(
-    (s) => seatHealth(s.status, s.opt_in_verified_at, n(s.days_checked_in), currentDay) === 'at_risk'
-  ).length;
-  const dropped = seats.filter(
-    (s) => seatHealth(s.status, s.opt_in_verified_at, n(s.days_checked_in), currentDay) === 'dropped'
-  ).length;
+  /* ------------------------------------------------------------- the count */
+  const target = Math.max(1, n((app as AppRow & { activity_target?: number | null }).activity_target, 5));
+  const accepting = (app as AppRow & { accepting_activities?: boolean | null }).accepting_activities !== false;
+
+  const installed = seats.filter((s) => s.opt_in_verified_at).length;
+  const waiting = seats.filter((s) => !s.opt_in_verified_at && s.status !== 'dropped').length;
+
+  const reportBySeat = new Map(feedback.map((f) => [f.assignment_id, f]));
+  const reportsApproved = feedback.filter((f) => f.status === 'approved').length;
+  const reportsWaiting = feedback.filter((f) => f.status === 'submitted').length;
+
+  const remaining = Math.max(0, target - installed);
+  const costToFinish = remaining * RUN_COST;
+  const short = balance < RUN_COST;
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeading
         title={app.name}
-        sub={app.tagline || 'Your 14-day closed test, one screen.'}
+        sub={app.tagline || 'Your listing, and everyone working on it.'}
         right={
           <div className="flex flex-wrap items-center gap-2">
             <Pill tone={APP_STATUS_COPY[app.status].tone}>{APP_STATUS_COPY[app.status].label}</Pill>
             <Link href={`/market/${app.id}`} className="btn btn-ghost">
-              <IconExternal size={14} /> Marketplace listing
+              <IconExternal size={14} /> Feed listing
             </Link>
             {app.opt_in_url && (
               <a href={app.opt_in_url} target="_blank" rel="noreferrer" className="btn btn-ghost">
@@ -157,122 +153,139 @@ export default async function DashboardPage({
       )}
 
       {/* ------------------------------------------------------------- hero */}
-      {pod && pod.status === 'active' ? (
-        <Card className="dotgrid overflow-hidden">
-          <div className="flex flex-col gap-6 p-6 lg:flex-row lg:items-center">
-            <div className="flex items-center gap-5">
-              <ProgressRing
-                value={Math.max(currentDay, 0)}
-                max={duration}
-                size={148}
-                caption="Days elapsed"
-                sub={currentDay >= duration ? 'Window complete' : `${duration - currentDay} to go`}
-              />
-              <div className="min-w-0">
-                <div className="text-sm font-semibold uppercase tracking-wide text-[var(--color-mute)]">
-                  {pod.name || `Pod ${pod.code}`}
-                </div>
-                <div className="mt-1 text-2xl font-bold tracking-tight">
-                  Day <span className="num">{Math.max(currentDay, 1)}</span> of <span className="num">{duration}</span>
-                </div>
-                <p className="mt-1 max-w-xs text-sm text-[var(--color-dim)]">
-                  {optedIn >= RULES.requiredTesters
-                    ? 'You are above the 12-tester bar. Hold it to the last day.'
-                    : `You need ${RULES.requiredTesters - optedIn} more verified opt-ins to clear Google's bar.`}
-                </p>
-                <div className="mt-3 text-xs text-[var(--color-mute)]">
-                  Ends {fmtDate(pod.ends_at)}
-                </div>
+      <Card className="dotgrid overflow-hidden">
+        <div className="flex flex-col gap-6 p-6 lg:flex-row lg:items-center">
+          <div className="flex items-center gap-5">
+            <ProgressRing
+              value={Math.min(installed, target)}
+              max={target}
+              size={148}
+              caption="Testers in"
+              sub={remaining === 0 ? 'Target reached' : `${remaining} to go`}
+            />
+            <div className="min-w-0">
+              <div className="text-sm font-semibold uppercase tracking-wide text-[var(--color-mute)]">
+                Your target
               </div>
-            </div>
-
-            <div className="grid flex-1 grid-cols-2 gap-3 lg:grid-cols-4">
-              <Stat
-                label="Testers opted in"
-                value={<span className="num">{optedIn}</span>}
-                sub={`of ${RULES.requiredTesters} required`}
-                tone={optedIn >= RULES.requiredTesters ? 'var(--color-accent)' : undefined}
-              />
-              <Stat label="Avg days active" value={<span className="num">{avgDays.toFixed(1)}</span>} sub={`of ${duration}`} />
-              <Stat label="Feedback reports" value={<span className="num">{reports}</span>} sub="private to you" />
-              <Stat label="Your credits" value={<CreditChip amount={balance} size="lg" />} sub="spend on rescues" />
+              <div className="mt-1 text-2xl font-bold tracking-tight">
+                <span className="num">{installed}</span> of <span className="num">{target}</span>
+              </div>
+              <p className="mt-1 max-w-xs text-sm text-[var(--color-dim)]">
+                {remaining === 0
+                  ? 'Every tester you asked for has installed. Raise the target on My apps to keep going.'
+                  : `${remaining} more ${remaining === 1 ? 'tester' : 'testers'} to reach it, at ${RUN_COST} credits each.`}
+              </p>
+              <div className="mt-3 text-xs text-[var(--color-mute)]">
+                {accepting
+                  ? <>Open to new testers · <span className="num">{costToFinish}</span> credits to finish</>
+                  : 'Intake is off. Nobody new can pick this up.'}
+              </div>
             </div>
           </div>
 
-          {(atRisk > 0 || dropped > 0) && (
-            <div
-              className="flex items-start gap-2 border-t px-6 py-3 text-sm"
-              style={{
-                borderColor: 'color-mix(in oklab, var(--color-credit) 25%, transparent)',
-                background: 'color-mix(in oklab, var(--color-credit) 8%, transparent)',
-                color: 'var(--color-credit)',
-              }}
-            >
-              <IconAlert size={15} className="mt-0.5 shrink-0" />
-              <p>
-                <span className="num">{atRisk}</span> seat{atRisk === 1 ? '' : 's'} at risk
-                {dropped > 0 && <> and <span className="num">{dropped}</span> dropped</>}. Below twelve on the
-                final day resets your clock.
-              </p>
-            </div>
-          )}
-        </Card>
-      ) : (
-        <FormingHero
-          app={app}
-          podId={membership?.pod_id ?? null}
-          referralCode={profile?.referral_code ?? ''}
-        />
-      )}
+          <div className="grid flex-1 grid-cols-2 gap-3 lg:grid-cols-4">
+            <Stat
+              label="Installs confirmed"
+              value={<span className="num">{installed}</span>}
+              sub={waiting > 0 ? `${waiting} still to confirm` : 'none pending'}
+              tone={installed >= target ? 'var(--color-accent)' : undefined}
+            />
+            <Stat
+              label="Reports in"
+              value={<span className="num">{reportsApproved}</span>}
+              sub={reportsWaiting > 0 ? `${reportsWaiting} awaiting your verdict` : 'private to you'}
+              tone={reportsWaiting > 0 ? 'var(--color-credit)' : undefined}
+            />
+            <Stat
+              label="Spent on this app"
+              value={<span className="num">{installed * CHARGE.install + reportsApproved * CHARGE.review}</span>}
+              sub="paid to testers"
+            />
+            <Stat label="Your credits" value={<CreditChip amount={balance} size="lg" />} sub="funds the next tester" />
+          </div>
+        </div>
 
-      {/* -------------------------------------------------------- seat grid */}
+        {(short || !accepting) && (
+          <div
+            className="flex items-start gap-2 border-t px-6 py-3 text-sm"
+            style={{
+              borderColor: 'color-mix(in oklab, var(--color-credit) 25%, transparent)',
+              background: 'color-mix(in oklab, var(--color-credit) 8%, transparent)',
+              color: 'var(--color-credit)',
+            }}
+          >
+            <IconAlert size={15} className="mt-0.5 shrink-0" />
+            <p>
+              {short ? (
+                <>
+                  Your balance is under <span className="num">{RUN_COST}</span>, so nobody new can take this
+                  app on. Test an app from the feed to earn, or top up on{' '}
+                  <Link href="/billing" className="underline">billing</Link>.
+                </>
+              ) : (
+                <>
+                  Intake is switched off for this app. Turn it back on from{' '}
+                  <Link href="/apps" className="underline">My apps</Link>.
+                </>
+              )}
+            </p>
+          </div>
+        )}
+      </Card>
+
+      {/* ------------------------------------------------------- tester list */}
       <section>
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
-            <h2 className="text-base font-semibold">Your seats</h2>
+            <h2 className="text-base font-semibold">Your testers</h2>
             <p className="text-sm text-[var(--color-dim)]">
-              Every tester on {app.name}, and where their clock is.
+              Everyone who has picked up {app.name}, and how far they have got.
             </p>
           </div>
           <span className="text-xs text-[var(--color-mute)]">
-            <span className="num">{seats.length}</span> assigned
+            <span className="num">{seats.length}</span> total
           </span>
         </div>
 
         {seats.length === 0 ? (
           <EmptyState
-            title="No testers seated yet"
-            body="Seats appear the moment your pod locks. Inviting another developer fills it faster."
-            action={<Link href="/pods" className="btn btn-secondary">Browse forming pods <IconArrow size={15} /></Link>}
+            title="Nobody has picked this up yet"
+            body="Your app is in the feed. Testers browse it and take the ones they want; a sharper tagline and a clear opt-in link get picked up first."
+            action={<Link href={`/market/${app.id}`} className="btn btn-secondary">See your listing <IconArrow size={15} /></Link>}
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {seats
               .slice()
-              .sort((a, b) => n(b.days_checked_in) - n(a.days_checked_in))
+              .sort((a, b) => Number(!!b.opt_in_verified_at) - Number(!!a.opt_in_verified_at))
               .map((seat) => (
-                <SeatTile
-                  key={seat.id}
-                  seat={seat}
-                  currentDay={currentDay}
-                  duration={duration}
-                  appId={app.id}
-                  rescuePrice={rescuePrice}
-                  balance={balance}
-                />
+                <SeatTile key={seat.id} seat={seat} report={reportBySeat.get(seat.id) ?? null} />
               ))}
           </div>
         )}
       </section>
 
+      {/* -------------------------------------------------------- invite */}
+      {seats.length > 0 && seats.length < target && (
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold">Bring another developer in</h2>
+          <p className="mt-1 max-w-lg text-sm text-[var(--color-dim)]">
+            A deeper feed is more testers for your app, and referrals pay both of you.
+          </p>
+          <div className="mt-5">
+            <InvitePanel code={profile?.referral_code ?? ''} />
+          </div>
+        </Card>
+      )}
+
       {/* ----------------------------------------------------- evidence pack */}
       <EvidencePack
         appName={app.name}
         stats={{
-          testersOptedIn: optedIn,
-          testersFull14: n(evidence?.testers_full_14, seats.filter((s) => n(s.days_checked_in) >= duration).length),
-          avgDaysActive: avgDays,
-          feedbackReports: reports,
+          testersOptedIn: n(evidence?.testers_opted_in, installed),
+          testersFull14: n(evidence?.testers_full_14, 0),
+          avgDaysActive: n(evidence?.avg_days_active, 0),
+          feedbackReports: n(evidence?.feedback_reports, reportsApproved),
           significantIssues: n(evidence?.significant_issues, feedback.filter((f) => n(f.severity) >= 2).length),
         }}
         answers={answers}
@@ -296,27 +309,35 @@ function PageHeading({ title, sub, right }: { title: string; sub: string; right?
   );
 }
 
+/** The three states a seat can be in once there is no cohort behind it. */
+type SeatState = 'pending' | 'installed' | 'reported' | 'dropped';
+
+const SEAT_COPY: Record<SeatState, { label: string; tone: 'green' | 'amber' | 'red' | 'neutral'; note: string }> = {
+  pending: { label: 'Opt-in pending', tone: 'neutral', note: 'has not confirmed the install yet' },
+  installed: { label: 'Testing', tone: 'amber', note: 'installed, report not filed' },
+  reported: { label: 'Report filed', tone: 'green', note: 'done — the report is in your inbox' },
+  dropped: { label: 'Dropped', tone: 'red', note: 'took the seat and let it go' },
+};
+
 function SeatTile({
-  seat, currentDay, duration, appId, rescuePrice, balance,
+  seat, report,
 }: {
   seat: SeatRow;
-  currentDay: number;
-  duration: number;
-  appId: string;
-  rescuePrice: number;
-  balance: number;
+  report: Pick<Feedback, 'id' | 'status'> | null;
 }) {
   const tester = seat.profiles;
   const name = tester?.display_name || tester?.handle || 'Tester';
-  const days = n(seat.days_checked_in);
-  const health = seatHealth(seat.status, seat.opt_in_verified_at, days, currentDay);
-  const copy = SEAT_HEALTH_COPY[health];
-  const missed = missedDays(days, currentDay);
-  const needsRescue = health === 'at_risk' || health === 'dropped';
 
+  const state: SeatState =
+    seat.status === 'dropped' || seat.status === 'removed' ? 'dropped'
+    : report ? 'reported'
+    : seat.opt_in_verified_at ? 'installed'
+    : 'pending';
+
+  const copy = SEAT_COPY[state];
   const accent =
-    health === 'dropped' ? 'var(--color-danger)'
-    : health === 'at_risk' ? 'var(--color-credit)'
+    state === 'dropped' ? 'var(--color-danger)'
+    : state === 'reported' ? 'var(--color-accent)'
     : 'var(--color-line)';
 
   return (
@@ -324,12 +345,12 @@ function SeatTile({
       hover
       className="p-4"
       style={{
-        borderColor: needsRescue ? `color-mix(in oklab, ${accent} 45%, transparent)` : undefined,
-        background: health === 'dropped' ? 'color-mix(in oklab, var(--color-danger) 5%, var(--color-surface))' : undefined,
+        borderColor: state === 'dropped' ? `color-mix(in oklab, ${accent} 45%, transparent)` : undefined,
+        background: state === 'dropped' ? 'color-mix(in oklab, var(--color-danger) 5%, var(--color-surface))' : undefined,
       }}
     >
       <div className="flex items-start gap-3">
-        <Avatar name={name} src={tester?.avatar_url} size={38} ring={needsRescue ? accent : undefined} />
+        <Avatar name={name} src={tester?.avatar_url} size={38} ring={state === 'dropped' ? accent : undefined} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-semibold">
@@ -351,19 +372,15 @@ function SeatTile({
         <span className="pill shrink-0" style={pillStyle(copy.tone)}>{copy.label}</span>
       </div>
 
-      <div className="mt-3">
-        <StreakStrip days={stripFor(days, currentDay, duration)} total={duration} size={11} />
-        <div className="mt-2 flex items-center justify-between text-[11px] text-[var(--color-mute)]">
-          <span><span className="num">{days}</span> of <span className="num">{duration}</span> days</span>
-          {missed > 0 && health !== 'dropped' && (
-            <span style={{ color: 'var(--color-credit)' }}><span className="num">{missed}</span> missed</span>
-          )}
-          {health === 'pending' && <span>waiting on opt-in</span>}
-        </div>
+      <div className="mt-3 flex items-center justify-between text-[11px] text-[var(--color-mute)]">
+        <span>{copy.note}</span>
+        <span>picked up {fmtRelative(seat.created_at)}</span>
       </div>
 
-      {needsRescue && (
-        <RescueButton appId={appId} price={rescuePrice} balance={balance} compact />
+      {report?.status === 'submitted' && (
+        <Link href="/feedback" className="btn btn-secondary mt-3 w-full justify-center">
+          Review their report
+        </Link>
       )}
     </Card>
   );
@@ -384,73 +401,4 @@ function pillStyle(tone: 'green' | 'amber' | 'red' | 'neutral'): React.CSSProper
         borderColor: `color-mix(in oklab, ${color} 32%, transparent)`,
         background: `color-mix(in oklab, ${color} 10%, transparent)`,
       };
-}
-
-async function FormingHero({
-  app, podId, referralCode,
-}: {
-  app: AppRow;
-  podId: string | null;
-  referralCode: string;
-}) {
-  const supabase = await createClient();
-
-  let health: PodHealthRow | null = null;
-  if (podId) {
-    const { data } = await supabase.from('pod_health').select('*').eq('id', podId).maybeSingle();
-    health = (data ?? null) as PodHealthRow | null;
-  }
-
-  if (!podId || !health) {
-    return (
-      <Card className="p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-lg">
-            <h2 className="text-lg font-semibold">{app.name} is not in a pod yet</h2>
-            <p className="mt-1 text-sm text-[var(--color-dim)]">
-              Join one and your clock starts the moment the last seat fills.
-              {!app.opt_in_url && !app.google_group && ' We ask for your opt-in link there.'}
-            </p>
-          </div>
-          <Link href="/pods" className="btn btn-primary">
-            Find a pod <IconArrow size={15} />
-          </Link>
-        </div>
-      </Card>
-    );
-  }
-
-  const members = n(health.members);
-  const seats = n(health.core_seats, RULES.podSeats);
-  const pct = seats > 0 ? Math.min(100, Math.round((members / seats) * 100)) : 0;
-
-  return (
-    <Card className="p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Your pod is filling</h2>
-          <p className="mt-1 max-w-lg text-sm text-[var(--color-dim)]">
-            {estimateStart(members, seats)}. The clock starts when the last seat is taken.
-          </p>
-        </div>
-        <div className="text-right">
-          <div className="num text-3xl font-bold leading-none">
-            {members}<span className="text-[var(--color-mute)]"> of {seats}</span>
-          </div>
-          <div className="mt-1 text-xs uppercase tracking-wide text-[var(--color-mute)]">seats filled</div>
-        </div>
-      </div>
-
-      <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--color-surface-2)]">
-        <div
-          className="h-full rounded-full transition-all"
-          style={{ width: `${pct}%`, background: 'var(--color-accent)' }}
-        />
-      </div>
-
-      <div className="mt-5">
-        <InvitePanel code={referralCode} />
-      </div>
-    </Card>
-  );
 }

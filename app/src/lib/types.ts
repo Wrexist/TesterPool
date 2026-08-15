@@ -9,8 +9,6 @@
 
 export type Platform = 'android' | 'ios';
 export type AppStatus = 'draft' | 'queued' | 'in_pod' | 'graduated' | 'paused' | 'rejected';
-export type PodStatus = 'forming' | 'locked' | 'active' | 'completed' | 'failed';
-export type SeatType = 'core' | 'buffer' | 'rescue';
 export type MembershipStatus =
   | 'invited' | 'joined' | 'opt_in_pending' | 'active' | 'dropped' | 'graduated' | 'removed';
 export type ProofKind = 'opt_in' | 'daily_use' | 'uninstall_release';
@@ -65,7 +63,7 @@ export interface AppRow {
   category: string | null;
   description: string | null;
   opt_in_url: string | null;
-  /** Set when the owner's balance ran out mid-pod. Cleared the moment it is positive again. */
+  /** Set when the owner's balance ran out mid-job. Cleared the moment it is positive again. */
   credits_paused: boolean;
   google_group: string | null;
   tester_instructions: string | null;
@@ -76,38 +74,10 @@ export interface AppRow {
   created_at: string;
 }
 
-export interface Pod {
-  id: string;
-  code: string;
-  name: string;
-  status: PodStatus;
-  core_seats: number;
-  required_testers: number;
-  duration_days: number;
-  category_focus: string | null;
-  is_priority: boolean;
-  starts_at: string | null;
-  ends_at: string | null;
-  locked_at: string | null;
-  completed_at: string | null;
-  created_at: string;
-}
-
-export interface PodMember {
-  id: string;
-  pod_id: string;
-  user_id: string;
-  app_id: string | null;
-  seat: SeatType;
-  status: MembershipStatus;
-  joined_at: string;
-  dropped_at: string | null;
-  drop_reason: string | null;
-}
-
 export interface Assignment {
   id: string;
-  pod_id: string;
+  /** Null for every seat taken off the feed. Nothing in the app reads it now. */
+  pod_id: string | null;
   app_id: string;
   tester_id: string;
   status: MembershipStatus;
@@ -163,6 +133,18 @@ export interface Feedback {
   repro_steps: string | null;
   suggestion: string | null;
   severity: number | null;
+  /**
+   * Set only on a `store_listing` seat, and null on every closed-track report —
+   * `guard_store_review_columns` enforces that, so these four are how you tell
+   * a published public review from a private report without joining.
+   *
+   * See the header of `20260814240000_store_reviews.sql` for what they are and
+   * why they exist at all.
+   */
+  store_rating: number | null;
+  store_review_text: string | null;
+  store_review_url: string | null;
+  store_review_proof_id: string | null;
   status: FeedbackStatus;
   creator_verdict: string | null;
   creator_note: string | null;
@@ -248,11 +230,18 @@ export interface LeaderboardRow {
   approved_reports: number;
 }
 
+/**
+ * `pod_health` — one row per pack, with its fill and its progress.
+ *
+ * Back because Packs is back. `PodStatus` is inlined rather than restored as a
+ * shared alias: this view is the only thing in the app that reads a pod's
+ * status now, and a top-level type would invite a second reader.
+ */
 export interface PodHealthRow {
   id: string;
   code: string;
   name: string;
-  status: PodStatus;
+  status: 'forming' | 'locked' | 'active' | 'completed' | 'failed';
   core_seats: number;
   required_testers: number;
   starts_at: string | null;

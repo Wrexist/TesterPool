@@ -124,7 +124,7 @@ export function OptInWizard({
               className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold"
               style={
                 i < step
-                  ? { background: 'var(--color-accent)', color: '#04150C', borderColor: 'transparent' }
+                  ? { background: 'var(--color-accent)', color: '#FFFFFF', borderColor: 'transparent' }
                   : i === step
                     ? { borderColor: 'var(--color-accent)', color: 'var(--color-accent)' }
                     : { borderColor: 'var(--color-line)', color: 'var(--color-mute)' }
@@ -227,7 +227,7 @@ export function OptInWizard({
             ) : (
               <p className="flex items-start gap-2 text-sm" style={{ color: 'var(--color-credit)' }}>
                 <IconAlert size={15} className="mt-0.5 shrink-0" />
-                This developer has not published an opt-in URL yet. Message them through their pod before
+                This developer has not published an opt-in URL yet. Message them through their listing before
                 uploading anything.
               </p>
             )}

@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Card, Pill } from '@/components/ui';
 import { OptInWizard } from './optin-wizard';
 import { IconArrow, IconCheck } from '@/components/app/icons';
-import { fmtDate } from '@/lib/pods';
+import { fmtDate } from '@/lib/format';
 import type { AppRow, Assignment, Profile } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';

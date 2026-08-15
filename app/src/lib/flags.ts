@@ -26,31 +26,15 @@ export const FLAG_DEFAULTS = {
   github_login: false,
   signups_open: true,
   /**
-   * Whether a developer may join or start a pod today.
+   * Whether a member may take an app off the feed: join its closed test, use
+   * it, file one report, be paid 10 + 30 out of the owner's balance.
    *
-   * This is the flag `join_pod` and `start_pod` already enforce inside the
-   * database, which is why the pods screen reads it rather than a second flag
-   * of its own: a gate the UI keeps and the RPC does not is not a gate, and
-   * every RPC here is reachable over REST.
-   *
-   * Turn it off in /admin/flags to put pods in their Upcoming state — the
-   * button and the RPC move together. Pods already in flight keep running, and
-   * the cron keeps advancing them either way.
-   *
-   * Defaults true to match the RPC, which treats a missing row as open. The
-   * flag row is the source of truth; this constant only covers an unreachable
-   * database, and in that case a join fails on its own merits rather than
-   * because a flag read failed.
-   */
-  pod_matching: true,
-  /**
-   * Whether a member may start a one-off activity: join an app's closed test,
-   * use it, file one report, be paid the same 10 + 30 a pod seat pays.
-   *
-   * Same rule as `pod_matching` — `start_activity` enforces this flag inside
-   * the database and `market_apps` computes `activity_open` from it, so the
-   * button, the row and the RPC all move together. Turning it off leaves work
-   * already started running; only new activities stop.
+   * This is the whole exchange, so this is the flag that opens and closes it.
+   * `start_activity` enforces it inside the database and `market_apps`
+   * computes `activity_open` from it, so the button, the row and the RPC all
+   * move together — a gate the UI keeps and the RPC does not is not a gate,
+   * and every RPC here is reachable over REST. Turning it off leaves work
+   * already started running; only new work stops.
    *
    * Defaults true to match the RPC, which treats a missing row as open.
    */

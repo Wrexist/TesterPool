@@ -15,7 +15,7 @@ import {
 import { SiteNav, SiteFooter } from '@/components/SiteChrome';
 import {
   EARN, COST, CHARGE, RULES, PENALTY, PLANS,
-  PER_APP_EARNINGS, FULL_CYCLE_EARNINGS, FULL_POD_COST,
+  PER_APP_EARNINGS, FULL_CYCLE_EARNINGS, FULL_CYCLE_COST,
 } from '@/lib/economy';
 
 export const metadata: Metadata = {
@@ -122,7 +122,7 @@ function Section({
 /**
  * The offer, in one card: the reviews landing on your app.
  *
- * This replaced a pod progress ring at day 9 of 14, and then a picture of the
+ * This replaced a cohort progress ring at day 9 of 14, and then a picture of the
  * work you do to earn them. Both were the price of the product drawn before the
  * product. What a developer wants is the inbox — fourteen people who ship for a
  * living, telling them what is wrong with their app before their users do.
@@ -130,7 +130,7 @@ function Section({
  * Three things it deliberately does not draw, all for invariant 1:
  *
  *   - No package name. For an app in closed testing the package name is the way
- *     into the track, and the way in is granted by a pod, not by a picture on
+ *     into the track, and the way in is granted by taking the job, not by a picture on
  *     the marketing site.
  *   - No 1-5 rubric scores, even though the real review form collects them.
  *     Those scores are private between a tester and a developer. Rendered on a
@@ -170,7 +170,7 @@ const INBOX: Array<{ name: string; handle: string; device: string; line: string;
 
 function ReviewsVisual() {
   const inCount = 11;
-  const total = RULES.podSeats - 1;
+  const total = RULES.cycleSize - 1;
 
   return (
     <Card className="relative overflow-hidden p-5 sm:p-6">
@@ -290,9 +290,9 @@ const JOB: Array<{ title: string; body: string; detail: string; pays: number | n
     title: 'Use it',
     pays: EARN.dailyCheckin || null,
     body:
-      'Open the app on the days your group is running and check in. Ten seconds. This is the part Google actually measures, so it is the part that counts.',
+      'Actually use the app, then log the session. Ten seconds. Staying opted in is the part Google measures, so it is the part that counts.',
     detail:
-      'Check-ins pay nothing on purpose. They build your Reliability Score, which is what gets you into the best groups.',
+      'Logging a session pays nothing on purpose. It builds your Reliability Score, which is what lets you hold more work at once.',
   },
   {
     title: 'Review',
@@ -433,21 +433,21 @@ const STEPS = [
     title: 'List your app',
     body:
       'Paste your Play closed-track opt-in link or Google Group, add a one-line brief and the two or three things you want testers to hammer. Two minutes.',
-    detail: 'Opt-in link validated before your group starts — a broken link is the #1 silent killer.',
+    detail: 'Opt-in link validated before anyone can join — a broken link is the #1 silent killer.',
   },
   {
     n: '02',
-    title: `Get grouped with ${RULES.podSeats - 1} developers`,
+    title: 'Developers pick it up from the feed',
     body:
-      `Fifteen developers, all shipping in the same window, all matched on device mix and timezone spread. Twelve is the requirement; fifteen is what you get.`,
-    detail: 'A free group typically fills in 3–6 days. Fast Pod starts within 24 hours.',
+      'Your listing sits in front of every developer here. They take it one at a time, join your closed track and stay opted in — no cohort to fill, no start date to wait for.',
+    detail: 'You set how many testers you want. Most listings see their first the same day.',
   },
   {
     n: '03',
-    title: 'Everyone tests everyone for 14 days',
+    title: 'Each one installs, uses it, and reports',
     body:
-      'One shared clock. Daily check-in with screenshot proof, then one structured review per app at the end. Your dashboard shows exactly who is holding and who is slipping.',
-    detail: 'Someone drops? A rescue tester is matched in hours, not days.',
+      'Screenshot proof on the way in, then one structured review written against your brief. Your dashboard shows who has installed, who has reported and what it cost.',
+    detail: 'Someone takes a seat and vanishes? It frees up and goes back in the feed.',
   },
 ];
 
@@ -466,7 +466,7 @@ const COMPARISON: Array<{
     criterion: 'Written reviews you can act on',
     note: 'The reason you came',
     cells: [
-      { verdict: 'good', text: `One structured, on-rubric review per tester, privately — ${RULES.podSeats - 1} of them` },
+      { verdict: 'good', text: `One structured, on-rubric review per tester, privately — ${RULES.cycleSize - 1} of them` },
       { verdict: 'bad', text: 'A five-star string you did not want, and cannot use' },
       { verdict: 'mixed', text: 'Occasionally a paragraph; rarely actionable' },
       { verdict: 'mixed', text: '“Looks nice”' },
@@ -504,14 +504,14 @@ const COMPARISON: Array<{
     cells: [
       { verdict: 'good', text: 'Daily check-in with screenshot proof, tracked per tester' },
       { verdict: 'bad', text: 'Opt-in and vanish; engagement is not the product' },
-      { verdict: 'bad', text: 'Usually one install, then silence for 14 days' },
+      { verdict: 'bad', text: 'Usually one install, then silence' },
       { verdict: 'mixed', text: 'Enthusiastic for four days, then they forget' },
     ],
   },
   {
     criterion: 'Dropout replacement',
     cells: [
-      { verdict: 'good', text: 'Rescue tester matched in hours, included on paid plans' },
+      { verdict: 'good', text: 'The seat frees up and goes straight back in the feed' },
       { verdict: 'bad', text: 'Not offered' },
       { verdict: 'mixed', text: 'Re-order and wait, if the seller is still online' },
       { verdict: 'bad', text: 'You start asking again' },
@@ -530,7 +530,7 @@ const COMPARISON: Array<{
   {
     criterion: 'Buffer above the 12 required',
     cells: [
-      { verdict: 'good', text: '15 seats free, 18 on Fast Pod, 20 on Pro' },
+      { verdict: 'good', text: 'Ask for as many as you can fund; 18 on Fast Track, 20 on Pro' },
       { verdict: 'mixed', text: 'Sold as an upsell, if at all' },
       { verdict: 'mixed', text: 'Buy 12, pay again for more' },
       { verdict: 'bad', text: 'You are lucky to reach 12' },
@@ -540,7 +540,7 @@ const COMPARISON: Array<{
     criterion: 'Time to start',
     note: 'Where money genuinely buys speed',
     cells: [
-      { verdict: 'mixed', text: 'A free group fills in 3–6 days; Fast Pod within 24 hours' },
+      { verdict: 'good', text: 'Listed in two minutes; testers arrive as they browse' },
       { verdict: 'good', text: 'Immediate' },
       { verdict: 'good', text: 'Immediate — the honest advantage of paying a stranger' },
       { verdict: 'mixed', text: 'As fast as people reply' },
@@ -635,7 +635,7 @@ const LEDGER: Array<{ label: string; detail: string; amount: number }> = [
   { label: 'Confirmed review', detail: 'on-rubric, arbitrated, private', amount: EARN.feedbackApproved },
 ];
 
-/* --------------------------------------------------------- founding pod */
+/* ------------------------------------------------------ founding members */
 
 /*
  * This replaced three testimonials from developers who do not exist — named,
@@ -644,22 +644,22 @@ const LEDGER: Array<{ label: string; detail: string; amount: number }> = [
  * checking. A product whose entire pitch is "we are the honest option in a
  * category built on lying to developers" cannot open with invented people.
  *
- * The slot is worth more used for the truth: this network is new, the first pod
- * is the one being filled, and the people reading this are exactly who it needs.
- * That is also the only ask that matters right now.
+ * The slot is worth more used for the truth: this network is new, the feed is
+ * still thin, and the people reading this are exactly who it needs. That is
+ * also the only ask that matters right now.
  */
 const FOUNDING: Array<{ t: string; b: string }> = [
   {
     t: 'What you get',
-    b: `A seat in the first group: ${RULES.podSeats - 1} developers installing your app, holding the track for ${RULES.requiredDays} days, and each sending one structured review. The same thing every later group gets.`,
+    b: `Your app in front of every developer here: ${RULES.cycleSize - 1} of them installing it, holding your track for ${RULES.requiredDays} days, and each sending one structured review. Nothing is reserved for later members.`,
   },
   {
     t: 'What we get',
-    b: 'The first cycle run end to end by people who will tell us what broke. Founding members set the standard the reviews are held to, and we would rather hear it from fifteen developers than from a launch.',
+    b: 'The exchange run end to end by people who will tell us what broke. Founding members set the standard the reviews are held to, and we would rather hear it from fifteen developers than from a launch.',
   },
   {
     t: 'What is not here yet',
-    b: 'No apps have shipped yet, because no group has finished. The launch feed is empty and stays empty until one clears. Everything on this page describes how it works, not how well it has worked.',
+    b: 'No apps have shipped yet, because none has finished collecting. The launch feed is empty and stays empty until one clears. Everything on this page describes how it works, not how well it has worked.',
   },
 ];
 
@@ -677,7 +677,7 @@ const FAQ: Array<{ q: string; a: React.ReactNode }> = [
       <>
         <p>
           Partly, and the difference matters more than it sounds. You get{' '}
-          {RULES.podSeats - 1} written reviews of your app from developers who
+          {RULES.cycleSize - 1} written reviews of your app from developers who
           ship Android apps themselves — what broke, on which device, what they
           would change. Detailed, private, and yours to act on.
         </p>
@@ -696,8 +696,8 @@ const FAQ: Array<{ q: string; a: React.ReactNode }> = [
           The reason people want store reviews is almost always one of two
           things: they cannot publish yet, or the app is not good enough to earn
           reviews on its own. TesterPool is built for both. The first is the{' '}
-          {RULES.requiredTesters}-tester requirement, which one group clears. The
-          second is what {RULES.podSeats - 1} critical reviews are for.
+          {RULES.requiredTesters}-tester requirement, which the feed clears. The
+          second is what {RULES.cycleSize - 1} critical reviews are for.
         </p>
       </>
     ),
@@ -735,23 +735,23 @@ const FAQ: Array<{ q: string; a: React.ReactNode }> = [
     a: (
       <>
         <p>
-          First, it usually does not matter. You get {RULES.podSeats} seats for a{' '}
-          {RULES.requiredTesters}-tester requirement, so three people can vanish
+          First, ask for more than twelve. You set the number of testers you want
+          and you can raise it any time, so aiming at {RULES.cycleSize} for a{' '}
+          {RULES.requiredTesters}-tester requirement means three people can vanish
           and you still clear the bar. Competitors sell that buffer as an upsell;
-          it is our default.
+          here it is just a number you choose.
         </p>
         <p className="mt-3">
-          Second, we replace them. If a tester goes quiet, your dashboard flags it
-          the same day and you can send a rescue request — a verified replacement
-          matched from the rescue pool, typically within six hours. Rescue testers
-          earn a bonus of {EARN.rescueBonus} credits, which is why the pool is
-          staffed. On Fast Pod and Pro, rescues are included.
+          Second, the seat comes back. A tester who takes your app on and goes
+          quiet is flagged on your dashboard, and their seat returns to the feed
+          for someone else — no waiting on a match, because there is no cohort to
+          rebuild. On Fast Track and Pro a replacement is found for you.
         </p>
         <p className="mt-3">
-          Third, dropping out is expensive for the person who does it: it costs{' '}
+          Third, walking away is expensive for the person who does it: it costs{' '}
           {PENALTY.dropout} credits and a serious hit to their Reliability Score,
-          which locks them out of groups below {RULES.minReliabilityToJoin}. Nobody
-          ghosts a group twice.
+          which throttles how much work they can hold below{' '}
+          {RULES.minReliabilityToJoin}. Nobody ghosts twice.
         </p>
       </>
     ),
@@ -761,11 +761,11 @@ const FAQ: Array<{ q: string; a: React.ReactNode }> = [
     a: (
       <p>
         On the free tier, yes — that is the trade, and it is what makes the
-        network honest. Testing one app costs roughly five minutes a day: open
-        it, do the thing, tap check-in. Testing every app in a full group earns{' '}
-        {FULL_CYCLE_EARNINGS} credits — exactly what your own group costs you, so
-        doing your share breaks even. If you would rather not, Fast Pod at $
-        {planPrice('fast')} buys you a seat without reciprocating.
+        network honest. Testing one app costs about ten minutes: install it, use
+        it properly, write what you found. Testing a full cycle of apps earns{' '}
+        {FULL_CYCLE_EARNINGS} credits — exactly what a full cycle of testers costs
+        you, so doing your share breaks even. If you would rather not, Fast Track
+        at ${planPrice('fast')} buys the testers without reciprocating.
       </p>
     ),
   },
@@ -773,11 +773,12 @@ const FAQ: Array<{ q: string; a: React.ReactNode }> = [
     q: 'How long until reviewing starts?',
     a: (
       <p>
-        A free group fills in three to six days depending on your device
-        requirements and how many are forming that week. Fast Pod guarantees
-        a start within 24 hours. We will be blunt: if you need testers this
-        afternoon, a Fiverr gig is faster than our free tier. It is also the one
-        most likely to get your account flagged.
+        There is nothing to wait for — your listing is live the moment you save
+        it, and testers take it whenever they browse. How fast they arrive
+        depends on how deep the feed is that week and how clear your brief is.
+        Fast Track puts you at the top of it. We will be blunt: while the network
+        is still small, a listing can sit for a day or two before anyone picks it
+        up.
       </p>
     ),
   },
@@ -852,13 +853,13 @@ export default function LandingPage() {
                 <h1 className="mt-6 text-[2.4rem] font-bold leading-[1.06] tracking-tight sm:text-5xl">
                   Get your app reviewed
                   <br />
-                  by <span className="num">{RULES.podSeats - 1}</span> developers.
+                  by <span className="num">{RULES.cycleSize - 1}</span> developers.
                   <br />
                   <span style={{ color: 'var(--color-accent)' }}>Then ship it.</span>
                 </h1>
 
                 <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--color-dim)]">
-                  List your app and {RULES.podSeats - 1} indie developers install it,
+                  List your app and {RULES.cycleSize - 1} indie developers install it,
                   use it for {RULES.requiredDays} days, and each send you one
                   structured review &mdash; what broke, on which device, what they
                   would change. You hear it from people who ship Android apps before
@@ -904,8 +905,8 @@ export default function LandingPage() {
                   and the one a signup wall refuses to answer.
                 */}
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <Link href="/pool" className="btn btn-primary h-11 px-5 text-[15px]">
-                    Browse the pool <Arrow />
+                  <Link href="/feed" className="btn btn-primary h-11 px-5 text-[15px]">
+                    Browse the feed <Arrow />
                   </Link>
                   <Link href="/login" className="btn btn-secondary h-11 px-5 text-[15px]">
                     Start free
@@ -913,7 +914,7 @@ export default function LandingPage() {
                 </div>
 
                 {/*
-                  This strip used to read "1,247 developers · 38 pods forming ·
+                  This strip used to read "1,247 developers · 38 listings live ·
                   9,318 apps greenlit", hardcoded, beside a glowing "live" dot.
                   On a page whose whole argument is that we are the honest option,
                   invented traffic figures are the one unforced error that costs
@@ -936,10 +937,10 @@ export default function LandingPage() {
                     // deal — three people can disappear and you still clear
                     // Google's bar — and it was the worse sentence until it had
                     // its numbers stated this plainly.
-                    { v: `${RULES.podSeats - 1}`, l: 'reviews on your app' },
+                    { v: `${RULES.cycleSize - 1}`, l: 'reviews on your app' },
                     {
-                      v: `${RULES.podSeats}`,
-                      l: `seats, so ${RULES.podSeats - RULES.requiredTesters} can vanish and you still clear ${RULES.requiredTesters}`,
+                      v: `${RULES.cycleSize}`,
+                      l: `seats, so ${RULES.cycleSize - RULES.requiredTesters} can vanish and you still clear ${RULES.requiredTesters}`,
                     },
                     { v: EARN.signupGrant.toLocaleString(), l: 'credits to start' },
                   ].map((s) => (
@@ -974,7 +975,7 @@ export default function LandingPage() {
             <>
               This is the screen a developer sees, rendered by the same component
               the product uses &mdash; an example of the format, not a real
-              member&rsquo;s report. {RULES.podSeats - 1} of these land on your app
+              member&rsquo;s report. {RULES.cycleSize - 1} of these land on your app
               over {RULES.requiredDays} days.
             </>
           }
@@ -1037,9 +1038,9 @@ export default function LandingPage() {
           </div>
 
           <p className="mt-6 max-w-2xl text-sm leading-relaxed text-[var(--color-dim)]">
-            A review takes about ten minutes. {RULES.podSeats - 1} of them
-            across two weeks is the entire cost of getting your own app to
-            production &mdash; {FULL_POD_COST.toLocaleString()} credits out as a
+            A review takes about ten minutes. {RULES.cycleSize - 1} of them is
+            the entire cost of getting your own app to
+            production &mdash; {FULL_CYCLE_COST.toLocaleString()} credits out as a
             developer, {FULL_CYCLE_EARNINGS.toLocaleString()} back in as a tester.
             Do your share and you break exactly even.
           </p>
@@ -1057,14 +1058,13 @@ export default function LandingPage() {
           }
           lede={
             <>
-              The reviews come {RULES.podSeats - 1} at a time because the rule
-              does. Every personal developer account created after 13 November
-              2023 has to run a closed test with at least {RULES.requiredTesters}{' '}
+              Every personal developer account created after 13 November 2023
+              has to run a closed test with at least {RULES.requiredTesters}{' '}
               testers opted in continuously for {RULES.requiredDays} days before
               Google will even consider production access. Miss it by one tester
-              on one day and the count starts over &mdash; which is why we group{' '}
-              {RULES.podSeats} people on one shared clock rather than running a
-              queue you dip into.
+              on one day and the count starts over &mdash; which is why the
+              number of testers you ask for should be more than twelve, and why
+              this is a listing you keep open rather than a batch you run once.
             </>
           }
         >
@@ -1171,18 +1171,18 @@ export default function LandingPage() {
               <div className="text-center">
                 <div className="text-sm font-semibold">Public, 0&ndash;100</div>
                 <p className="mt-1 text-xs leading-relaxed text-[var(--color-mute)]">
-                  Shown on every profile, every roster and the leaderboard.
-                  Below {RULES.minReliabilityToJoin} you cannot join a group at all.
+                  Shown on every profile, every listing and the leaderboard.
+                  Below {RULES.minReliabilityToJoin} you cannot take work at all.
                 </p>
               </div>
             </Card>
 
             <div className="grid gap-4 sm:grid-cols-2">
               {[
-                { t: 'Check in every day', s: 'Your score climbs, and your seat stays clean', tone: 'up' },
-                { t: 'Finish a perfect streak', s: 'A Perfect 14 badge and your best score bump', tone: 'up' },
-                { t: 'Rescue someone mid-round', s: `+${EARN.rescueBonus} credits and a lasting score bump`, tone: 'up' },
-                { t: 'Drop out mid-round', s: `−${PENALTY.dropout} credits, a score collapse, and a lockout`, tone: 'down' },
+                { t: 'Finish what you take on', s: 'Your score climbs, and you can hold more at once', tone: 'up' },
+                { t: 'Write a report they act on', s: 'Your best score bump, and a badge for the specific ones', tone: 'up' },
+                { t: 'Take an abandoned seat', s: `+${EARN.rescueBonus} credits and a lasting score bump`, tone: 'up' },
+                { t: 'Take a seat and vanish', s: `−${PENALTY.dropout} credits, a score collapse, and a lockout`, tone: 'down' },
               ].map((r) => (
                 <Card key={r.t} className="p-5" hover>
                   <div className="flex items-center gap-2">
@@ -1199,8 +1199,7 @@ export default function LandingPage() {
                 <p className="text-sm leading-relaxed text-[var(--color-dim)]">
                   You are testing alongside people whose next launch depends on the
                   same system working. That is a much stronger incentive than $20
-                  ever was, and it is why groups finish at rates a marketplace cannot
-                  reach.
+                  ever was, and it is why the reports here are worth reading at all.
                 </p>
               </Card>
             </div>
@@ -1223,7 +1222,7 @@ export default function LandingPage() {
             <div className="grid gap-px bg-[var(--color-line)] sm:grid-cols-2 lg:grid-cols-4">
               {[
                 { l: 'Testers opted in', v: '15', s: 'requirement: 12' },
-                { l: 'Completed all 14 days', v: '14', s: '1 replaced on day 6' },
+                { l: 'Completed all 14 days', v: '14', s: '1 seat re-taken' },
                 { l: 'Avg days active', v: '13.6', s: 'across all testers' },
                 { l: 'Daily engagement', v: '94%', s: 'sessions with proof' },
                 // One review per tester per app, so this tracks the testers who
@@ -1293,8 +1292,8 @@ export default function LandingPage() {
               </div>
               <p className="mt-4 text-sm leading-relaxed text-[var(--color-dim)]">
                 The same number, because it is the same number. Credits move between
-                developers; nothing here mints them. A full round earns you{' '}
-                {FULL_CYCLE_EARNINGS} and costs you {FULL_POD_COST}, so doing your
+                developers; nothing here mints them. A full cycle earns you{' '}
+                {FULL_CYCLE_EARNINGS} and costs you {FULL_CYCLE_COST}, so doing your
                 share breaks exactly even &mdash; and no amount of testing can
                 inflate the supply, because every credit anyone earns came out of
                 somebody&rsquo;s balance.
@@ -1308,9 +1307,9 @@ export default function LandingPage() {
                 </div>
                 <ul className="mt-4 space-y-3">
                   {[
-                    { l: 'Buffer seat', v: COST.bufferSeat, s: 'One more tester above the 15 you already have' },
-                    { l: 'Rescue seat', v: COST.rescueSeat, s: 'A verified replacement, matched within hours' },
-                    { l: 'Priority match', v: COST.priorityPod, s: 'Front of the matching queue' },
+                    { l: 'Buffer seat', v: COST.bufferSeat, s: 'One more tester above the target you set' },
+                    { l: 'Rescue seat', v: COST.rescueSeat, s: 'A verified replacement, found within hours' },
+                    { l: 'Priority placement', v: COST.priorityMatch, s: 'Top of the feed until you are full' },
                     { l: 'Expert seat', v: COST.expertSeat, s: 'A long-form report from a senior tester' },
                     { l: 'Second app', v: COST.extraApp, s: 'Run two apps through testing at once' },
                   ].map((c) => (
@@ -1399,7 +1398,7 @@ export default function LandingPage() {
                   { ok: true, t: 'Daily engagement proof', s: 'Screenshot-backed, for your own application' },
                   { ok: false, t: 'Public store reviews', s: 'No mechanism exists in the product' },
                   { ok: false, t: 'Public ratings', s: 'No mechanism exists in the product' },
-                  { ok: false, t: 'Production installs', s: 'Not part of any round, ever' },
+                  { ok: false, t: 'Production installs', s: 'Not part of the exchange, ever' },
                 ].map((r) => (
                   <div
                     key={r.t}
@@ -1487,16 +1486,16 @@ export default function LandingPage() {
             })}
           </div>
           <p className="mt-4 text-xs text-[var(--color-mute)]">
-            One-off pricing per app, not a subscription. If your group fails to reach{' '}
+            One-off pricing per app, not a subscription. If your listing fails to reach{' '}
             {RULES.requiredTesters} verified testers, a paid plan is refunded in full.
           </p>
         </Section>
 
-        {/* ------------------------------------------------ the founding group */}
+        {/* ---------------------------------------------- the founding members */}
         <Section
           id="founding"
           eyebrow="Where this actually stands"
-          title="TesterPool is new. The first group is the one filling now."
+          title="TesterPool is new. The feed is the one filling now."
           lede={
             <>
               Most sites in this category would put three glowing testimonials
@@ -1519,11 +1518,11 @@ export default function LandingPage() {
           <Card className="mt-4 flex flex-col items-start justify-between gap-5 p-7 sm:flex-row sm:items-center">
             <p className="max-w-2xl text-sm leading-relaxed text-[var(--color-dim)]">
               If you need {RULES.requiredTesters} testers and would rather not buy
-              them from a stranger, the first group is open. It fills at{' '}
-              {RULES.podSeats} and starts on one shared day.
+              them from a stranger, list your app. It goes into the feed the
+              moment you save it, and there is nothing to wait for after that.
             </p>
             <Link href="/login" className="btn btn-primary shrink-0">
-              Take a seat <Arrow />
+              List your app <Arrow />
             </Link>
           </Card>
         </Section>
@@ -1566,9 +1565,9 @@ export default function LandingPage() {
               Your fourteen days start whenever you do
             </h2>
             <p className="mt-5 text-lg leading-relaxed text-[var(--color-dim)]">
-              {EARN.signupGrant} credits when you sign up, {RULES.podSeats} seats
-              for a {RULES.requiredTesters}-tester requirement, and an Evidence
-              Pack waiting on day 15.
+              {EARN.signupGrant} credits when you sign up, enough to pay for more
+              testers than the {RULES.requiredTesters} Google asks for, and an
+              Evidence Pack that fills itself in as they arrive.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Link href="/login" className="btn btn-primary h-11 px-6 text-[15px]">

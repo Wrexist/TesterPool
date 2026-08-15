@@ -13,8 +13,8 @@
  * The cash tiers mirror `PLANS` in economy.ts. The credit packs are separate:
  * they are for the developer who would rather pay than test, and they are
  * priced above the effective cash cost of the equivalent tier on purpose. A
- * Fast Pod at 19 dollars gives eighteen seats and a free rescue; 500 credits at
- * 15 dollars buys a priority pod and change. Paying cash for the tier should
+ * Fast Track at 19 dollars gives eighteen testers and a free replacement; 500
+ * credits at 15 dollars buys priority placement and change. Paying cash should
  * always be the better deal, or the tiers are decoration.
  */
 
@@ -76,7 +76,7 @@ export const SKUS: Sku[] = [
     id: 'fast_pod',
     kind: 'plan',
     name: FAST.name,
-    description: 'Guaranteed pod start within 24 hours, 18 seats, free rescue.',
+    description: 'Priority placement in the feed, 18 testers, free replacement.',
     amountCents: FAST.price * 100,
     currency: 'usd',
     planKey: 'fast',
@@ -112,7 +112,7 @@ export const SKUS: Sku[] = [
     id: 'credits_500',
     kind: 'credits',
     name: '500 credits',
-    description: 'A priority pod and a buffer seat, without testing for them.',
+    description: 'Priority placement and a buffer seat, without testing for them.',
     amountCents: 1500,
     currency: 'usd',
     credits: 500,

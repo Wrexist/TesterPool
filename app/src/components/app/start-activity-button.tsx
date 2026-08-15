@@ -4,7 +4,7 @@
  * TESTERPOOL — take this app's job.
  *
  * The marketplace has shown a reward chip on every row since it was built and
- * has never had the button that chip implies: a seat came from pod matching or
+ * has never had the button that chip implies: a seat came from matching or
  * it did not come at all. This is that button.
  *
  * It routes onward rather than sitting still. Starting an activity creates the

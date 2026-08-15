@@ -24,7 +24,6 @@ export default function robots(): MetadataRoute.Robots {
         '/market',
         '/mod',
         '/onboarding',
-        '/pods',
         '/tests',
         '/auth/',
       ],

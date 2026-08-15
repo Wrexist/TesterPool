@@ -31,7 +31,7 @@ export async function generateMetadata({
 
   const title = `${g.appName} is approved for production`;
   const description = g.found
-    ? `${g.appName} cleared Google Play production access with ${summaryLine(g)}. Greenlit through a TesterPool pod.`
+    ? `${g.appName} cleared Google Play production access with ${summaryLine(g)}. Greenlit through TesterPool.`
     : `Greenlit on TesterPool — ${RULES.requiredTesters} testers, ${RULES.requiredDays} consecutive days, production access approved.`;
   const url = `${SITE_URL}/g/${slug}`;
 
@@ -73,7 +73,7 @@ export default async function GreenlightPage({
 
   const shareText = g.found
     ? `${g.appName} is approved for production on Google Play — ${summaryLine(g)}.`
-    : 'Approved for production on Google Play, via a TesterPool pod.';
+    : 'Approved for production on Google Play, via TesterPool.';
 
   const stats: Array<{ label: string; value: string }> = [
     { label: 'Days held', value: String(g.days) },
@@ -184,9 +184,10 @@ export default async function GreenlightPage({
             </h2>
             <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[var(--color-dim)]">
               That is what Google Play asks for before you can publish, and it is
-              the reason most first apps stall. TesterPool puts you in a pod of{' '}
-              {RULES.podSeats} developers who test each other for the same{' '}
-              {RULES.requiredDays} days. No money, no store reviews, no policy risk.
+              the reason most first apps stall. TesterPool puts your app in front
+              of developers who install it, hold the track for{' '}
+              {RULES.requiredDays} days and write you a real review. No money, no
+              store reviews, no policy risk.
             </p>
             <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
               <Link href="/login" className="btn btn-primary">

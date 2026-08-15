@@ -20,7 +20,7 @@ import { LogoMark, Wordmark } from '@/components/Logo';
  * footer and every post. A nav link is not the only way to reach something.
  */
 const NAV: Array<{ href: string; label: string; wide?: boolean }> = [
-  { href: '/pool', label: 'Browse the pool' },
+  { href: '/feed', label: 'Browse apps' },
   { href: '/#how', label: 'How it works' },
   { href: '/#pricing', label: 'Pricing' },
   { href: '/blog', label: 'Writing' },
@@ -71,7 +71,7 @@ const FOOTER_COLS: Array<{ title: string; links: Array<{ label: string; href: st
   {
     title: 'Product',
     links: [
-      { label: 'Browse the pool', href: '/pool' },
+      { label: 'Browse apps', href: '/feed' },
       { label: 'See a review', href: '/#report' },
       { label: 'How it works', href: '/#how' },
       { label: 'Pricing', href: '/#pricing' },

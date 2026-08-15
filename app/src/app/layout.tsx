@@ -14,7 +14,7 @@ const inter = Inter({
 });
 
 /*
- * Lead with the loop, not the pod — same reposition as the landing page, and it
+ * Lead with the loop, not the cohort — same reposition as the landing page, and it
  * matters more here, because a search result and a shared link are the actual
  * first sight for most people who ever reach us.
  *

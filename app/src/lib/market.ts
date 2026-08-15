@@ -4,11 +4,11 @@
  * Two features, kept apart on purpose:
  *
  *   MARKETPLACE (here)  the apps. Find one, open it, install it, report on it.
- *   PODS (/pods)        the 14-day clock. Seats, days, dropouts, escrow.
+ *   MY TESTS (/tests)   the work you have taken on: install, session, report.
  *
- * A card in here therefore says nothing about pod mechanics — no seat counts,
- * no "day 6 of 14", no forming/locked. Those are the pod's business and they
- * live on the pod's screen. What a browsing developer needs here is: what is
+ * A card in here therefore says nothing about the mechanics of work already
+ * started — no day counts, no session logs. Those live on /tests, against the
+ * seat they belong to. What a browsing developer needs here is: what is
  * this, which store is it for, is it open to testers, and where do I already
  * stand with it. Four things, so a card shows four things.
  *
@@ -72,7 +72,7 @@ export interface MarketApp {
   activity_open: boolean | null;
   activity_seats_left: number | null;
   /**
-   * True when the seat you hold here is an activity rather than a pod seat.
+   * True when you hold a seat on this app. Every seat is one of these now.
    * The two differ in exactly one visible way: an activity is one check-in and
    * has no fourteen-day clock, so nothing should draw a streak strip against it.
    */
@@ -130,7 +130,7 @@ export const SCOPES: FilterOption<Scope>[] = [
 export const PLATFORMS: FilterOption<PlatformFilter>[] = [
   { value: 'all',     label: 'All' },
   { value: 'android', label: 'Android' },
-  { value: 'ios',     label: 'iOS', hint: 'iOS apps are listings. Pods are Android only.' },
+  { value: 'ios',     label: 'iOS', hint: 'iOS apps are listings. Testing is Android only.' },
 ];
 
 export const STATUSES: FilterOption<StatusFilter>[] = [
@@ -211,11 +211,11 @@ export function isFiltered(query: MarketQuery): boolean {
 /* ------------------------------------------------------------ presentation */
 
 /**
- * Where the app is in its life, in store language rather than pod language.
+ * Where the app is in its life, in store language rather than schema language.
  *
  * Deliberately three words at most, and deliberately silent about seats, days
- * and pod status: that is the other feature. A developer browsing for something
- * to test needs one bit — can I get in — and the rest belongs on /pods.
+ * and session counts: those belong to a seat, not to a listing. A developer
+ * browsing for something to test needs one bit — can I get in.
  */
 export function stageOf(
   app: Pick<MarketApp, 'status' | 'pod_status' | 'platform'>
@@ -225,7 +225,7 @@ export function stageOf(
   if (app.status === 'rejected')  return { label: 'Removed', tone: 'red' };
   if (app.status === 'draft')     return { label: 'Draft', tone: 'neutral' };
 
-  // iOS is a listing: there is no pod for it to be open to, but it still gets a
+  // iOS is a listing: there is no testing for it to be open to, but it still gets a
   // chip, because a card with an empty chip row reads as a card missing data.
   if (app.platform === 'ios') return { label: 'Listed', tone: 'neutral' };
 
@@ -260,10 +260,10 @@ export function relationCopy(app: Pick<MarketApp, 'relation' | 'report_due'>): {
 /**
  * iOS is a listing feature of its own, deliberately separate.
  *
- * The pod mechanic exists to satisfy Google Play's closed-testing gate — 12
+ * The testing mechanic exists to satisfy Google Play's closed-testing gate — 12
  * testers, 14 consecutive days — before a personal developer account may
  * publish. Apple has no equivalent gate, so there is nothing for an iOS build
- * to clear and no reason to route one through pods, credits or proof.
+ * to clear and no reason to route one through credits or proof.
  *
  * What an iOS listing is: discovery. What it is not, and must never become: a
  * route to an App Store review or rating. That is the same line invariant 1
@@ -298,7 +298,7 @@ export interface MarketPulse {
  * tester — true of the *gate*, and wrong about everything else. A live game has
  * players, bugs and a developer who wants to hear about both, and the work is
  * the same work: join the closed track the app still runs, use it, report. What
- * a shipped app cannot have is a pod seat, and that is decided by
+ * a shipped app cannot have is a production-access requirement, and intake is decided by
  * `start_activity` and `activity_open`, not here.
  */
 export function rewardFor(
@@ -307,7 +307,7 @@ export function rewardFor(
   if (app.relation === 'owner' || app.relation === 'tested') return null;
   if (app.platform === 'ios') return null;
   if (app.status === 'draft' || app.status === 'paused') return null;
-  // A shipped app has no pod to fall back on: an activity is the only seat it
+  // A shipped app has no production gate left to clear: an open seat is all it
   // can give, so it pays only while `activity_open` says the RPC would accept
   // one. Without this a live app whose owner had closed intake or run dry
   // showed `+40` on its row and "Not taking testers right now" on its own

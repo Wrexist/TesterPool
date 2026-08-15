@@ -2,12 +2,11 @@ import * as React from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import {
-  Card, Pill, Avatar, EmptyState, CreditChip, ReliabilityGauge, TierBadge, StreakStrip, cx,
+  Card, Pill, Avatar, EmptyState, CreditChip, ReliabilityGauge, TierBadge, cx,
 } from '@/components/ui';
 import { Section, KeyValue, WarnBox } from '@/components/admin/parts';
 import { UserActions } from '@/components/admin/user-actions';
-import { fmtDate, fmtRelative, ledgerLabel, podDay, stripFor, tierOf, n, SEAT_HEALTH_COPY, seatHealth } from '@/lib/pods';
-import { RULES } from '@/lib/economy';
+import { fmtDate, fmtRelative, ledgerLabel, tierOf } from '@/lib/format';
 import { num, roleOf, ROLE_COPY, type AdminUserRow, type UserRole } from '@/lib/admin';
 import type { AppRow, LedgerEntry, Profile } from '@/lib/types';
 
@@ -238,7 +237,7 @@ async function UserDetail({
       supabase.from('apps').select('id, name, status, package_name, created_at').eq('owner_id', row.id).limit(20),
       supabase
         .from('assignments')
-        .select('id, status, days_checked_in, opt_in_verified_at, apps(name), pods(code, name, starts_at, duration_days, status)')
+        .select('id, status, days_checked_in, opt_in_verified_at, created_at, apps(name)')
         .eq('tester_id', row.id)
         .order('created_at', { ascending: false })
         .limit(12),
@@ -259,11 +258,8 @@ async function UserDetail({
     status: string;
     days_checked_in: number | null;
     opt_in_verified_at: string | null;
+    created_at: string | null;
     apps: { name: string } | { name: string }[] | null;
-    pods:
-      | { code: string | null; name: string | null; starts_at: string | null; duration_days: number | null; status: string }
-      | { code: string | null; name: string | null; starts_at: string | null; duration_days: number | null; status: string }[]
-      | null;
   };
   const one = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? v[0] ?? null : v);
   const assignments = (assignmentRows ?? []) as AssignmentRow[];
@@ -309,8 +305,8 @@ async function UserDetail({
             <div className="flex flex-col gap-1.5">
               <CreditChip amount={num(row.credits)} size="lg" />
               <span className="text-xs text-[var(--color-mute)]">
-                <span className="num">{num(row.pods_completed)}</span> pods completed ·{' '}
-                <span className="num">{num(row.pods_dropped)}</span> dropped
+                <span className="num">{num(row.pods_completed)}</span> jobs completed ·{' '}
+                <span className="num">{num(row.pods_dropped)}</span> abandoned
               </span>
               <span className="text-xs text-[var(--color-mute)]">
                 streak <span className="num">{num(row.current_streak)}</span> ·{' '}
@@ -376,24 +372,19 @@ async function UserDetail({
             ) : (
               <ul className="mt-1.5 flex flex-col gap-2">
                 {assignments.map((a) => {
-                  const pod = one(a.pods);
                   const app = one(a.apps);
-                  const duration = pod?.duration_days ?? RULES.requiredDays;
-                  const day = pod?.status === 'active' ? podDay(pod.starts_at, duration) : 0;
-                  const health = seatHealth(
-                    a.status as never,
-                    a.opt_in_verified_at,
-                    n(a.days_checked_in),
-                    day
-                  );
+                  // Two states, because a seat only has two: the install is
+                  // unconfirmed, or it is confirmed and the report is owed.
+                  const installed = !!a.opt_in_verified_at;
                   return (
                     <li key={a.id} className="flex flex-wrap items-center gap-2.5">
-                      <StreakStrip days={stripFor(n(a.days_checked_in), day, duration)} total={duration} size={9} gap={2} />
                       <span className="text-xs font-medium">{app?.name ?? 'App unavailable'}</span>
-                      <Pill tone={SEAT_HEALTH_COPY[health].tone}>{SEAT_HEALTH_COPY[health].label}</Pill>
+                      <Pill tone={installed ? 'green' : 'neutral'}>
+                        {installed ? 'Installed' : 'Opt-in pending'}
+                      </Pill>
                       <span className="text-[11px] text-[var(--color-mute)]">
-                        {pod?.name || (pod?.code ? `Pod ${pod.code}` : 'No pod')}
-                        {day > 0 && <> · day <span className="num">{day}</span></>}
+                        {installed ? 'report outstanding' : 'no confirmed install yet'} · taken{' '}
+                        {fmtRelative(a.created_at)}
                       </span>
                     </li>
                   );

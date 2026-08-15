@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Card, Avatar, TierBadge, ReliabilityGauge, EmptyState, Pill } from '@/components/ui';
 import { reliabilityBand } from '@/lib/economy';
-import { n, tierOf } from '@/lib/pods';
+import { n, tierOf } from '@/lib/format';
 import type { LeaderboardRow } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +31,7 @@ export default async function LeaderboardPage() {
       {list.length === 0 ? (
         <EmptyState
           title="No testers ranked yet"
-          body="The board fills as people complete pods. Finish your first fourteen days and you will be on it."
+          body="The board fills as people finish jobs. Test your first app and you will be on it."
         />
       ) : (
         <>
@@ -50,7 +50,7 @@ export default async function LeaderboardPage() {
                       <th className="px-4 py-2.5 font-semibold">#</th>
                       <th className="px-4 py-2.5 font-semibold">Tester</th>
                       <th className="px-4 py-2.5 font-semibold">Reliability</th>
-                      <th className="px-4 py-2.5 text-right font-semibold">Pods</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Jobs</th>
                       <th className="px-4 py-2.5 text-right font-semibold">Apps shipped</th>
                       <th className="px-4 py-2.5 text-right font-semibold">Reports</th>
                       <th className="px-4 py-2.5 text-right font-semibold">Longest streak</th>
@@ -138,7 +138,7 @@ function PodiumCard({ row, rank, isMe }: { row: LeaderboardRow; rank: number; is
 
       <dl className="mt-4 grid w-full grid-cols-3 gap-2 text-xs">
         {[
-          ['Pods', n(row.pods_completed)],
+          ['Jobs', n(row.pods_completed)],
           ['Shipped', n(row.apps_helped_ship)],
           ['Reports', n(row.approved_reports)],
         ].map(([label, value]) => (

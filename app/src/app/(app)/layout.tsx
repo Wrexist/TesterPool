@@ -1,13 +1,9 @@
 import * as React from 'react';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppNav, type NavProfile } from '@/components/app/nav';
-import { Pill } from '@/components/ui';
-import { podDay, tierOf, n, checkedInToday } from '@/lib/pods';
-import { RULES } from '@/lib/economy';
-import { getFlags } from '@/lib/flags';
-import type { Assignment, Pod, Profile } from '@/lib/types';
+import { tierOf, n } from '@/lib/format';
+import type { Assignment, Profile } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +11,12 @@ export const dynamic = 'force-dynamic';
  * The app shell. Everything behind this layout assumes a session and a profile,
  * so both are resolved once here and nothing downstream has to defend against
  * an anonymous request.
+ *
+ * The shell owns the navigation and nothing else. There is no global page
+ * header: Home opens with a greeting, My Apps with its own title, an app detail
+ * with a back arrow — three different headers, and a shared one would have to
+ * be blanked out on two of the three screens to get there. Each screen brings
+ * its own.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -22,10 +24,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: auth } = await supabase.auth.getUser();
   const user = auth?.user;
   if (!user) redirect('/login');
-
-  // Read once here so the nav and the pods screen cannot disagree about
-  // whether matching is open.
-  const flags = await getFlags();
 
   const { data: profileRow } = await supabase
     .from('profiles')
@@ -54,14 +52,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     isAdmin: (profile as Profile & { role?: string }).role === 'admin',
   };
 
-  const [{ data: membershipRows }, { data: assignmentRows }, { count: inboxCount }] = await Promise.all([
-    supabase
-      .from('pod_members')
-      .select('pod_id, status, pods(id, code, name, status, starts_at, ends_at, duration_days)')
-      .eq('user_id', user.id),
+  const [{ data: assignmentRows }, { count: inboxCount }] = await Promise.all([
     supabase
       .from('assignments')
-      .select('id, status, opt_in_verified_at, days_checked_in, last_checkin_on, pod_id')
+      .select('id, status, opt_in_verified_at')
       .eq('tester_id', user.id)
       .in('status', ['opt_in_pending', 'active']),
     supabase
@@ -71,67 +65,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .eq('apps.owner_id', user.id),
   ]);
 
-  type Membership = { pod_id: string; status: string; pods: Pod | Pod[] | null };
-  const memberships = (membershipRows ?? []) as Membership[];
-  const pods = memberships
-    .map((m) => (Array.isArray(m.pods) ? m.pods[0] : m.pods))
-    .filter((p): p is Pod => !!p);
-  const activePod = pods.find((p) => p.status === 'active') ?? null;
-  const duration = activePod?.duration_days ?? RULES.requiredDays;
-  const day = podDay(activePod?.starts_at, duration);
-
+  // Every open seat is a piece of work: either the install is unconfirmed or
+  // the report is unwritten. Both are one tap from /tests, so both count.
   const assignments = (assignmentRows ?? []) as Assignment[];
-  const activePodIds = new Set(pods.filter((p) => p.status === 'active').map((p) => p.id));
-  const todoToday = assignments.filter(
-    (a) => activePodIds.has(a.pod_id) && (!a.opt_in_verified_at || !checkedInToday(a.last_checkin_on))
-  ).length;
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col md:pl-[238px]">
+    <div className="flex min-h-screen flex-1 flex-col md:pl-[232px]">
       <AppNav
         profile={nav}
-        counts={{ tests: todoToday, feedback: inboxCount ?? 0 }}
-        podsOpen={flags.pod_matching}
+        counts={{ tests: assignments.length, feedback: inboxCount ?? 0 }}
       />
 
-      <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-[var(--color-line)] bg-[var(--color-bg)]/90 px-4 backdrop-blur md:h-16 md:px-8">
-        <Link href="/dashboard" className="flex items-center gap-2 md:hidden">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7L12 2.5Z" stroke="var(--color-accent)" strokeWidth="1.9" strokeLinejoin="round" />
-          </svg>
-          <span className="text-sm font-semibold tracking-tight">TesterPool</span>
-        </Link>
-
-        {activePod ? (
-          <div className="flex min-w-0 items-center gap-2">
-            <Pill tone={day >= duration ? 'violet' : 'green'}>
-              <span className="num">Day {Math.max(day, 1)} of {duration}</span>
-            </Pill>
-            <span className="hidden truncate text-xs text-[var(--color-dim)] sm:inline">
-              {activePod.name || `Pod ${activePod.code}`}
-            </span>
-          </div>
-        ) : (
-          <span className="truncate text-xs text-[var(--color-dim)]">
-            {pods.some((p) => p.status === 'forming')
-              ? 'Pod filling. The clock starts when the last seat fills.'
-              : 'No active pod yet.'}
-          </span>
-        )}
-
-        <div className="ml-auto flex items-center gap-2">
-          {nav.isAdmin && (
-            <Link href="/admin" className="btn btn-ghost hidden sm:inline-flex">Admin</Link>
-          )}
-          {todoToday > 0 && (
-            <Link href="/tests" className="btn btn-primary hidden sm:inline-flex">
-              <span className="num">{todoToday}</span> to do today
-            </Link>
-          )}
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-[1180px] flex-1 px-4 pb-28 pt-6 md:px-8 md:pb-14">
+      <main
+        className="mx-auto w-full max-w-[860px] flex-1 px-4 pb-28 pt-4 md:px-8 md:pb-14 md:pt-6"
+        style={{ paddingBottom: 'calc(7rem + env(safe-area-inset-bottom))' }}
+      >
         {children}
       </main>
     </div>

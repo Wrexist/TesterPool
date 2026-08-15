@@ -227,8 +227,8 @@ export default async function LaunchPage() {
 
             {rows.length === 0 && (
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-[var(--color-mute)]">
-                There are none yet. TesterPool is new, the first pods are still
-                running, and this page stays empty until an app actually clears.
+                There are none yet. TesterPool is new, the first apps are still
+                collecting testers, and this page stays empty until one clears.
                 Nothing on it will ever be an illustration.
               </p>
             )}
@@ -262,7 +262,7 @@ export default async function LaunchPage() {
                   : 'This page reads live from the network and the read failed. Rather than show you something invented, it shows you nothing. Try again shortly.'
               }
               action={
-                <Link href="/pool" className="btn btn-primary">
+                <Link href="/feed" className="btn btn-primary">
                   See what is open to testers
                 </Link>
               }
@@ -281,9 +281,9 @@ export default async function LaunchPage() {
                 The next one on this page could be yours
               </h2>
               <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-[var(--color-dim)]">
-                Join a pod of {RULES.podSeats}, hold the clock for{' '}
-                {RULES.requiredDays} days, and get a share page here with the
-                evidence attached.
+                List your app, collect {RULES.requiredTesters} testers who hold
+                the track for {RULES.requiredDays} days, and get a share page here
+                with the evidence attached.
               </p>
             </div>
             <Link href="/login" className="btn btn-primary shrink-0">

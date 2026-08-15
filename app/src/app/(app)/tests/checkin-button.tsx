@@ -13,7 +13,7 @@ import { submitCheckin } from '@/app/(app)/actions';
  * press — and rolls back with a specific reason if the server disagrees.
  *
  * No credit figure on the button. A check-in pays nothing directly; it protects
- * the reliability score that decides whether you can join a pod at all, which
+ * the reliability score that decides how much work you can take on, which
  * is a far bigger number than five credits ever was.
  */
 export function CheckInButton({

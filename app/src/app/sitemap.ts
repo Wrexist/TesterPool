@@ -10,7 +10,7 @@ import { absoluteUrl } from '@/lib/site-url';
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticPages: Array<{ path: string; priority: number; freq: MetadataRoute.Sitemap[number]['changeFrequency'] }> = [
     { path: '', priority: 1, freq: 'weekly' },
-    { path: '/pool', priority: 0.9, freq: 'daily' },
+    { path: '/feed', priority: 0.9, freq: 'daily' },
     { path: '/blog', priority: 0.8, freq: 'weekly' },
     { path: '/readiness', priority: 0.7, freq: 'monthly' },
     { path: '/launch', priority: 0.6, freq: 'daily' },

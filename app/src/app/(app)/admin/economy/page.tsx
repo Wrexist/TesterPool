@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Card, Pill, EmptyState, Stat } from '@/components/ui';
 import { Section, DiffView, WarnBox } from '@/components/admin/parts';
 import { ConfigEditor } from '@/components/admin/config-editor';
-import { fmtDateTime } from '@/lib/pods';
+import { fmtDateTime } from '@/lib/format';
 import { CONFIG_GROUPS, deriveEconomy, type ConfigMap } from '@/lib/admin-economy';
 import { num, type AdminActionRow, type EconomyConfigRow } from '@/lib/admin';
 

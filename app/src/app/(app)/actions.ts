@@ -10,9 +10,10 @@
  */
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type { ActionResult } from '@/lib/types';
-import { checkHandle, looksLikeEmail } from '@/lib/pods';
+import { checkHandle, looksLikeEmail } from '@/lib/format';
 import { CAPS } from '@/lib/economy';
 import { triageProof } from '@/lib/triage';
 import { normaliseCategory, parseAppLink, suggestFocusAreas } from '@/lib/store-links';
@@ -358,7 +359,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
   }
   // No opt-in link required here, deliberately. The app is saved as a draft,
   // and `app_needs_optin_to_queue` allows a draft without one; the link is
-  // demanded by `joinPod` below, at the point it first has to work. Requiring
+  // demanded before a tester can join, at the point it first has to work. Requiring
   // it at signup blocked every developer who has not created their closed
   // track yet — which is most of the people this product exists for.
 
@@ -411,7 +412,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
   }
 
   revalidatePath('/dashboard');
-  revalidatePath('/pods');
+  revalidatePath('/market');
   return { ok: true, data: { appId: app.id as string }, message: 'Your app is listed.' };
 }
 
@@ -421,7 +422,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
  * Saves the way testers reach a closed track, after the fact.
  *
  * Onboarding no longer demands this, so it has to be reachable later — from the
- * join button on /pods and from the dashboard. Ownership is enforced by RLS on
+ * feed listing and from the dashboard. Ownership is enforced by RLS on
  * `apps`; the `eq('owner_id')` is belt and braces, and makes the zero-row case
  * mean "not yours" rather than a silent no-op.
  */
@@ -458,59 +459,68 @@ export async function saveAppEntry(
   if (!data) return fail('That app is not yours.', 'not_found');
 
   revalidatePath('/dashboard');
-  revalidatePath('/pods');
+  revalidatePath('/market');
   return { ok: true, message: 'Saved. Testers can reach your track now.' };
 }
 
-/* ------------------------------------------------------------------ pods */
+/* ------------------------------------------------------------- session */
 
-export async function joinPod(appId: string): Promise<ActionResult> {
+/**
+ * Sign out.
+ *
+ * There has never been a way to do this from inside the product, which on a
+ * shared or borrowed phone is a real problem and not a cosmetic one. Supabase
+ * clears the session cookie; the redirect is what stops the next render being
+ * served from a cache that still believes there is a user.
+ */
+export async function signOut(): Promise<void> {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  revalidatePath('/', 'layout');
+  redirect('/login');
+}
+
+/* ----------------------------------------------------------------- packs */
+
+/**
+ * Claim a seat in a forming pack for one of your apps.
+ *
+ * `join_pod` answers with named error states rather than throwing, so each one
+ * is translated into a sentence a developer can act on. Every guard that
+ * matters is inside the RPC — the `pod_matching` flag, ownership, the
+ * reliability floor, the concurrent-assignment cap and the seat filter — and
+ * this only decides the wording.
+ */
+export async function joinPack(appId: string): Promise<ActionResult> {
   const auth = await requireUser();
   if ('error' in auth) return fail(auth.error, 'no_session');
-
-  // `join_pod` moves the app to 'queued', which the `app_needs_optin_to_queue`
-  // constraint rejects without a way in. Caught here so the developer reads a
-  // sentence about their opt-in link rather than a raw constraint violation.
-  const { data: app } = await auth.supabase
-    .from('apps')
-    .select('opt_in_url, google_group')
-    .eq('id', appId)
-    .maybeSingle();
-
-  if (app && !app.opt_in_url && !app.google_group) {
-    return fail(
-      'Add your opt-in link first. It is how testers reach your closed track.',
-      'needs_optin'
-    );
-  }
 
   const { data, error } = await auth.supabase.rpc('join_pod', { p_app: appId });
   if (error) return fail(error.message, 'rpc_error');
 
-  const result = fromRpc(data, 'Could not join that pod.');
+  const result = fromRpc(data, 'Could not claim that seat.');
   if (result.ok) {
-    revalidatePath('/pods');
+    revalidatePath('/packs');
+    revalidatePath('/market');
     revalidatePath('/dashboard');
-    result.message = 'You are in. The pod starts once the seats are full.';
+    result.message = 'Seat claimed. The pack starts the moment the last one fills.';
   }
   return result;
 }
 
-export async function startPod(podId: string): Promise<ActionResult> {
+/** Start a pack you are in, once it has enough members to be worth starting. */
+export async function startPack(podId: string): Promise<ActionResult> {
   const auth = await requireUser();
   if ('error' in auth) return fail(auth.error, 'no_session');
 
   const { data, error } = await auth.supabase.rpc('start_pod', { p_pod: podId });
   if (error) return fail(error.message, 'rpc_error');
 
-  const result = fromRpc(data, 'Could not start that pod.');
+  const result = fromRpc(data, 'Could not start that pack.');
   if (result.ok) {
-    revalidatePath('/pods');
-    revalidatePath('/dashboard');
+    revalidatePath('/packs');
     revalidatePath('/tests');
-    result.message = 'Pod started. Day 1 of 14 begins now.';
-  } else if (result.error === 'not_enough_members') {
-    result.message = 'A pod needs at least six members before the clock can start.';
+    result.message = 'Pack started. Day 1 of 14 begins now.';
   }
   return result;
 }
@@ -520,9 +530,8 @@ export async function startPod(podId: string): Promise<ActionResult> {
 /**
  * Take one app's job: join its closed test, use it, send one report.
  *
- * The marketplace has shown what an app's work pays since it was built and has
- * never had a way to accept it — a seat existed only where pod matching made
- * one. This is the missing verb, and every guard that matters lives in
+ * This is the only way a seat is ever created, and every guard that matters
+ * lives in
  * `start_activity`: the owner's consent, their remaining seats, their balance,
  * the flag, and whether you already hold a seat here. The messages below only
  * translate the refusals into a sentence a developer can act on.
@@ -628,9 +637,6 @@ export async function submitCheckin(assignmentId: string, note?: string): Promis
   });
 
   if (error) {
-    if (/pod has not started/i.test(error.message)) {
-      return fail('This pod has not started yet. The clock begins when the last seat fills.', 'not_started');
-    }
     if (/not your assignment/i.test(error.message)) {
       return fail('That test is not assigned to you.', 'forbidden');
     }
@@ -672,7 +678,14 @@ export async function submitCheckin(assignmentId: string, note?: string): Promis
 export async function recordProof(
   assignmentId: string,
   storagePath: string,
-  kind: 'opt_in' | 'daily_use' = 'opt_in'
+  /**
+   * `store_review` is the screenshot of a published public-store review. It
+   * goes through the same intake, triage and moderator queue as every other
+   * proof, and deliberately pays nothing on approval — only `opt_in` does that,
+   * which is why the store INSTALL proof is still an `opt_in` and there stays
+   * exactly one code path that pays for an install.
+   */
+  kind: 'opt_in' | 'daily_use' | 'store_review' = 'opt_in'
 ): Promise<ActionResult<{ proofId: string; status: string }>> {
   const auth = await requireUser();
   if ('error' in auth) return fail(auth.error, 'no_session');
@@ -708,6 +721,144 @@ export async function recordOptInProof(
   storagePath: string
 ): Promise<ActionResult<{ proofId: string; status: string }>> {
   return recordProof(assignmentId, storagePath, 'opt_in');
+}
+
+/* -------------------------------------------------------- store reviews */
+
+/**
+ * Take a store-listing job: install from the PUBLIC listing, publish a review.
+ *
+ * Read the header of `20260814240000_store_reviews.sql` before touching this.
+ * Every guard is in `start_store_activity` — the `store_reviews` flag, the
+ * publisher's per-app consent, a public listing to install from, their
+ * remaining seats, and their balance checked for the whole 40 before the seat
+ * exists — and this only translates the refusals.
+ */
+export async function startStoreActivity(appId: string): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+
+  const { data, error } = await auth.supabase.rpc('start_store_activity', { p_app: appId });
+  if (error) return fail(error.message, 'rpc_error');
+
+  const result = fromRpc(data, 'Could not start on that app.');
+
+  if (result.ok) {
+    revalidatePath('/market');
+    revalidatePath(`/market/${appId}`);
+    revalidatePath('/tests');
+    result.message = 'Yours. Install it from the store listing, then upload the screenshot.';
+    return result;
+  }
+
+  const said: Record<string, string> = {
+    store_reviews_closed: 'Store reviews are switched off right now.',
+    not_accepting: 'This publisher has not opened this app to store reviews.',
+    no_store_listing: 'This app has no public store listing yet, so there is nothing to install.',
+    already_seated: 'You already have a seat on this app. It is on your tests page.',
+    your_own_app: 'This is your own app. You cannot review it for credits.',
+    no_seats_left: 'Every seat on this app is taken.',
+    owner_out_of_credits:
+      'The publisher has run out of credits, so this app is paused. Nothing you do now would be paid.',
+    unknown_app: 'That app is no longer listed.',
+  };
+  if (result.error && said[result.error]) result.message = said[result.error];
+  return result;
+}
+
+/** The publisher's per-app opt in. A separate switch from closed-track intake. */
+export async function setStoreReviewIntake(appId: string, accepting: boolean): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+
+  const { data, error } = await auth.supabase.rpc('set_store_review_intake', {
+    p_app: appId,
+    p_accepting: accepting,
+  });
+  if (error) return fail(error.message, 'rpc_error');
+
+  const result = fromRpc(data, 'Could not save that.');
+  if (result.ok) {
+    revalidatePath('/apps');
+    revalidatePath(`/market/${appId}`);
+    result.message = accepting
+      ? 'Open to store reviews. Testers install from your public listing and publish a review you then approve.'
+      : 'Closed to store reviews. Nobody new can take this on.';
+  }
+  return result;
+}
+
+export interface StoreReviewInput {
+  assignmentId: string;
+  appId: string;
+  rating: number;
+  reviewText: string;
+  reviewUrl: string;
+  /** The proof row for the screenshot of the published review. */
+  proofId: string;
+}
+
+/**
+ * File the published review.
+ *
+ * The row lands as `submitted`, which is the only status the client may write —
+ * `guard_feedback_columns` refuses anything else, so a tester cannot insert a
+ * pre-approved review and pay themselves. From here it goes to the publisher
+ * (`reviewFeedback`), and if they dispute it, to a moderator
+ * (`arbitrateDispute`). Both of those are unchanged.
+ */
+export async function submitStoreReview(input: StoreReviewInput): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+  const { supabase, userId } = auth;
+
+  const text = input.reviewText.trim();
+  if (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5) {
+    return fail('Pick a rating between one and five stars.', 'bad_rating');
+  }
+  if (text.length < 60) {
+    return fail('A review under sixty characters is not worth reading or paying for.', 'too_short');
+  }
+  if (!input.proofId) {
+    return fail('Attach a screenshot of the published review.', 'no_proof');
+  }
+
+  const { error } = await supabase.from('feedback').upsert(
+    {
+      assignment_id: input.assignmentId,
+      tester_id: userId,
+      app_id: input.appId,
+      // The rubric fields the private report uses do not apply here, but
+      // `first_impression` is the column the publisher inbox already renders,
+      // so the review body goes in both places rather than teaching every
+      // reader about a second field.
+      first_impression: text,
+      severity: 0,
+      store_rating: input.rating,
+      store_review_text: text,
+      store_review_url: input.reviewUrl.trim() || null,
+      store_review_proof_id: input.proofId,
+      status: 'submitted' as const,
+      submitted_at: new Date().toISOString(),
+    },
+    { onConflict: 'assignment_id' }
+  );
+
+  if (error) {
+    const capped = capMessage(error.message);
+    if (capped) return fail(capped, 'daily_cap');
+    if (/store_fields_on_closed_track/.test(error.message)) {
+      return fail('That seat is a closed-track test, not a store review.', 'wrong_kind');
+    }
+    return fail(error.message, 'db_error');
+  }
+
+  revalidatePath('/tests');
+  revalidatePath('/feedback');
+  return {
+    ok: true,
+    message: 'Sent to the publisher. They approve it, and a moderator settles it if they do not.',
+  };
 }
 
 /* ------------------------------------------------------------- feedback */
@@ -876,7 +1027,7 @@ export async function requestRescueSeat(appId: string): Promise<ActionResult> {
   const result = fromRpc(data, 'Could not request a rescue tester.');
   if (result.ok) {
     revalidatePath('/dashboard');
-    revalidatePath('/pods');
+    revalidatePath('/market');
     revalidatePath('/credits');
     const paidWith = (result.data as { paid_with?: string } | undefined)?.paid_with;
     result.message =

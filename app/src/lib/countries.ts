@@ -2,8 +2,8 @@
  * TESTERPOOL — ISO 3166-1 alpha-2 countries.
  *
  * The country is not demographics. It is the only signal the matcher has for
- * spreading a pod across time zones, so that fifteen daily check-ins do not all
- * fall in the same three hours and leave the pod blind for the other twenty-one.
+ * spreading testers across time zones, so that sessions do not all fall in the
+ * same three hours and leave the app unwatched for the other twenty-one.
  *
  * Names are hardcoded rather than derived from `Intl.DisplayNames` on purpose:
  * ICU data differs between the Node that renders and the browser that hydrates,

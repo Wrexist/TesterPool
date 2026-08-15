@@ -3,8 +3,9 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Card, Pill, Avatar, TierBadge, EmptyState, CreditChip } from '@/components/ui';
 import { ReviewActions } from './review-actions';
-import { IconArrow, IconAlert } from '@/components/app/icons';
-import { fmtDate, n, tierOf } from '@/lib/pods';
+import { IconArrow, IconAlert, IconExternal } from '@/components/app/icons';
+import { StarGlyph } from '@/components/app/app-row';
+import { fmtDate, n, tierOf } from '@/lib/format';
 import type { AppRow, Feedback, FeedbackStatus, Profile } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -106,6 +107,7 @@ function ReportCard({ report, actionable = false }: { report: Row; actionable?: 
   const name = tester?.display_name || tester?.handle || 'Tester';
   const pill = STATUS_PILL[report.status];
   const severity = n(report.severity);
+  const isStoreReview = report.store_rating != null;
 
   return (
     <Card className="p-5">
@@ -132,35 +134,52 @@ function ReportCard({ report, actionable = false }: { report: Row; actionable?: 
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {severity >= 2 && <Pill tone={severity >= 3 ? 'red' : 'amber'}>Severity {severity}</Pill>}
+          {isStoreReview && <Pill tone="violet">Public store review</Pill>}
+          {!isStoreReview && severity >= 2 && (
+            <Pill tone={severity >= 3 ? 'red' : 'amber'}>Severity {severity}</Pill>
+          )}
           <Pill tone={pill.tone}>{pill.label}</Pill>
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-2 sm:max-w-xs">
-        {[
-          ['Usability', report.score_usability],
-          ['Performance', report.score_performance],
-          ['Clarity', report.score_clarity],
-        ].map(([label, value]) => (
-          <div key={String(label)} className="rounded-lg border border-[var(--color-line)] px-2.5 py-1.5">
-            <div className="text-[10px] uppercase tracking-wide text-[var(--color-mute)]">{label}</div>
-            <div className="num text-base font-bold">
-              {value ?? '—'}<span className="text-xs text-[var(--color-mute)]">/5</span>
-            </div>
+      {/*
+        Two different objects share this card, and they must not be shown the
+        same way. A closed-track report is scored against a rubric and private;
+        a store review is a rating and a body of text that is already public
+        under this tester's name. Showing a store review through the rubric
+        would print three "—/5" boxes and bury the only thing the publisher is
+        actually being asked to judge.
+      */}
+      {isStoreReview ? (
+        <StoreReviewBody report={report} />
+      ) : (
+        <>
+          <div className="mt-4 grid grid-cols-3 gap-2 sm:max-w-xs">
+            {[
+              ['Usability', report.score_usability],
+              ['Performance', report.score_performance],
+              ['Clarity', report.score_clarity],
+            ].map(([label, value]) => (
+              <div key={String(label)} className="rounded-lg border border-[var(--color-line)] px-2.5 py-1.5">
+                <div className="text-[10px] uppercase tracking-wide text-[var(--color-mute)]">{label}</div>
+                <div className="num text-base font-bold">
+                  {value ?? '—'}<span className="text-xs text-[var(--color-mute)]">/5</span>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      <div className="mt-4 flex flex-col gap-3 text-sm">
-        <Field label="First impression" value={report.first_impression} />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="What worked" value={report.what_worked} />
-          <Field label="What broke" value={report.what_broke} tone="danger" />
-        </div>
-        <Field label="Reproduction steps" value={report.repro_steps} mono />
-        <Field label="One change they would make" value={report.suggestion} />
-      </div>
+          <div className="mt-4 flex flex-col gap-3 text-sm">
+            <Field label="First impression" value={report.first_impression} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="What worked" value={report.what_worked} />
+              <Field label="What broke" value={report.what_broke} tone="danger" />
+            </div>
+            <Field label="Reproduction steps" value={report.repro_steps} mono />
+            <Field label="One change they would make" value={report.suggestion} />
+          </div>
+        </>
+      )}
 
       {report.creator_note && (
         <p className="mt-3 rounded-lg border border-[var(--color-line)] bg-[var(--color-surface-2)] p-3 text-xs text-[var(--color-dim)]">
@@ -170,6 +189,57 @@ function ReportCard({ report, actionable = false }: { report: Row; actionable?: 
 
       {actionable && <ReviewActions feedbackId={report.id} />}
     </Card>
+  );
+}
+
+/**
+ * A published store review, as the publisher has to judge it.
+ *
+ * The rating and the exact text come first because they are already public
+ * under the tester's name — by the time this card is read, the thing being
+ * approved has already happened, and the only question left is whether it gets
+ * paid for. Saying that plainly is the least this screen can do.
+ */
+function StoreReviewBody({ report }: { report: Row }) {
+  const rating = n(report.store_rating);
+
+  return (
+    <div className="mt-4 flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <span key={star} style={{ color: star <= rating ? '#F5A524' : 'var(--color-line-hi)' }}>
+            <StarGlyph size={22} />
+          </span>
+        ))}
+        <span className="num ml-1 text-[15px] font-bold">{rating}.0</span>
+        <span className="text-[13px] text-[var(--color-mute)]">published on the store</span>
+      </div>
+
+      <blockquote
+        className="whitespace-pre-wrap rounded-xl border-l-2 bg-[var(--color-surface-2)] px-4 py-3 text-[15px] leading-relaxed"
+        style={{ borderLeftColor: 'var(--color-accent)' }}
+      >
+        {report.store_review_text || report.first_impression}
+      </blockquote>
+
+      <div className="flex flex-wrap items-center gap-3 text-[13px]">
+        {report.store_review_url && (
+          <a
+            href={report.store_review_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 font-semibold text-[var(--color-accent)] hover:underline"
+          >
+            <IconExternal size={14} /> See it on the store
+          </a>
+        )}
+        <span className="text-[var(--color-mute)]">
+          {report.store_review_proof_id
+            ? 'Screenshot attached — a moderator checks it independently'
+            : 'No screenshot attached'}
+        </span>
+      </div>
+    </div>
   );
 }
 

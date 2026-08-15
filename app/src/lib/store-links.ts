@@ -203,7 +203,7 @@ const APPLE_CATEGORY: Record<string, string> = {
  *
  * The two that are always suggested are the two that always apply. A tester's
  * first run is the only first run they get, and a crash ends the fourteen days
- * for everyone in the pod, not just the person who hit it.
+ * for every tester on the app, not just the person who hit it.
  */
 export function suggestFocusAreas(
   category: string | null | undefined,

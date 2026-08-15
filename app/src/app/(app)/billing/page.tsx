@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Card, Pill, CreditChip, Stat, EmptyState } from '@/components/ui';
-import { PLANS, CHARGE, FULL_CYCLE_EARNINGS, FULL_POD_COST, RULES } from '@/lib/economy';
+import { PLANS, CHARGE, FULL_CYCLE_EARNINGS, FULL_CYCLE_COST, RULES } from '@/lib/economy';
 import {
   PLAN_SKUS,
   CREDIT_PACKS,
@@ -15,14 +15,14 @@ import {
 } from '@/lib/billing';
 import { stripeConfigured, isLiveMode } from '@/lib/stripe';
 import { getFlag } from '@/lib/flags';
-import { fmtDate, n } from '@/lib/pods';
+import { fmtDate, n } from '@/lib/format';
 import { BuyButton, ManageBillingButton, type BuyApp } from './buy-button';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Billing — TesterPool' };
 
 const ENTITLEMENT_LABEL: Record<string, string> = {
-  fast_pod: 'Fast Pod',
+  fast_pod: 'Fast Track',
   pro: 'Pro',
   rescue: 'Rescue',
   unlimited: 'Unlimited',
@@ -110,7 +110,7 @@ export default async function BillingPage({
           {!paidOpen && <Pill tone="neutral">Paid plans closed</Pill>}
         </div>
         <p className="mt-1 max-w-2xl text-sm text-[var(--color-dim)]">
-          The free tier is the whole product: {RULES.podSeats} seats, {RULES.requiredDays} days of
+          The free tier is the whole product: testers off the feed, {RULES.requiredDays} days of
           check-in tracking, structured feedback and an evidence pack, paid for by testing other
           people&rsquo;s apps. Money buys two things the free tier cannot give you — a start date
           you can plan around, and enough spare seats that a dropout is an inconvenience rather
@@ -157,12 +157,12 @@ export default async function BillingPage({
         <Card className="p-4">
           <div className="text-sm font-semibold">Paid plans are not open yet</div>
           <p className="mt-0.5 max-w-2xl text-sm text-[var(--color-dim)]">
-            We are still filling pods by barter while the pool is small, because a paid guarantee
-            we cannot keep is worse than no paid tier at all.{' '}
-            <Link href="/pods" className="underline decoration-[var(--color-line-hi)] underline-offset-2">
-              Join a forming pod
+            The exchange runs on barter while the network is small, because a paid guarantee we
+            cannot keep is worse than no paid tier at all.{' '}
+            <Link href="/market" className="underline decoration-[var(--color-line-hi)] underline-offset-2">
+              Test an app from the feed
             </Link>{' '}
-            — it costs nothing but the fourteen days you were going to spend anyway.
+            — it costs nothing but the time you were going to spend anyway.
           </p>
         </Card>
       )}
@@ -177,7 +177,7 @@ export default async function BillingPage({
             <CreditChip amount={balance} size="lg" />
           </div>
           <p className="mt-2 text-xs text-[var(--color-dim)]">
-            A pod costs <span className="num">{FULL_POD_COST}</span> and testing one back earns{' '}
+            A full cycle costs <span className="num">{FULL_CYCLE_COST}</span> and testing one back earns{' '}
             <span className="num">{FULL_CYCLE_EARNINGS}</span>.
           </p>
         </Card>
@@ -238,7 +238,7 @@ export default async function BillingPage({
                 </ul>
 
                 {plan.key === 'free' ? (
-                  <Link href="/pods" className="btn btn-secondary w-full justify-center">
+                  <Link href="/market" className="btn btn-secondary w-full justify-center">
                     {plan.cta}
                   </Link>
                 ) : sku ? (
@@ -298,8 +298,8 @@ export default async function BillingPage({
         </div>
         <p className="mt-3 max-w-3xl text-xs text-[var(--color-dim)]">
           Credits pay your testers: <span className="num">{CHARGE.install}</span> per confirmed install
-          and <span className="num">{CHARGE.review}</span> per confirmed report, so a full pod costs{' '}
-          <span className="num">{FULL_POD_COST}</span>. Testing a pod&apos;s worth of apps back earns
+          and <span className="num">{CHARGE.review}</span> per confirmed report, so a full cycle costs{' '}
+          <span className="num">{FULL_CYCLE_COST}</span>. Testing a cycle&apos;s worth of apps back earns
           exactly that, which is why doing your share is free. Buying credits skips the reciprocal
           testing — it does not shorten the fourteen-day closed test, and it does not buy anything
           a tester could not earn.
@@ -346,7 +346,7 @@ export default async function BillingPage({
             <div className="p-6">
               <EmptyState
                 title="Nothing bought yet"
-                body="Every charge, its Stripe receipt and any refund lands here. You do not need to buy anything to finish a pod — the free path takes longer, not less far."
+                body="Every charge, its Stripe receipt and any refund lands here. You do not need to buy anything to get testers — the free path takes longer, not less far."
               />
             </div>
           ) : (
