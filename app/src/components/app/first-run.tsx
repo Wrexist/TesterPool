@@ -192,8 +192,11 @@ export function FirstRun({ credits }: { credits: number }) {
                 strokeLinejoin="round" />
         </svg>
         <span>
-          Everything happens inside closed testing tracks, which do not affect store rankings,
-          ratings, or public install counts. Reports are private to the developer, never store reviews.
+          Testing happens inside closed testing tracks, which do not affect store rankings,
+          ratings or public install counts, and your report is private to the developer. Some
+          publishers also ask for a public store install and review — that is public activity
+          on your own store account, it is always labelled on the listing, and it is yours to
+          turn down.
         </span>
       </div>
 

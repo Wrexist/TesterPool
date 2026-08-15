@@ -136,8 +136,8 @@ export default async function ProfilePage() {
       <SignOutButton />
 
       <p className="px-1 pb-2 text-center text-[12px] leading-relaxed text-[var(--color-mute)]">
-        Everything here happens inside closed testing tracks, which do not affect store rankings,
-        ratings or public install counts.{' '}
+        Closed-track testing does not affect store rankings, ratings or public install counts.
+        Store activities are public and are labelled as such before you take one.{' '}
         <Link href="/terms" className="underline underline-offset-2">Terms</Link>
         {' · '}
         <Link href="/privacy" className="underline underline-offset-2">Privacy</Link>

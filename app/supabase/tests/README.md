@@ -49,6 +49,7 @@ psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/04-marketplace.sql
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/05-payment-locks.sql
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/06-showcase.sql
 psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/07-activities.sql
+psql -h "$SP" -p 5433 -U postgres -d tp -f supabase/tests/08-store-reviews.sql
 ```
 
 `04` asserts the marketplace projection: what is listed to whom, and that a member
@@ -77,8 +78,19 @@ a pod seat moves, that `submit_checkin` works on a pod-less seat, and — as
 is still refused. Run it after `01`; it uses `01`'s fixtures and clears the daily
 report cap `02` deliberately fills.
 
-All seven files abort on the first failed assertion and print `ALL ... PASSED`
-at the end if nothing is wrong.
+`08` asserts store activities — the paid public install and published review. The two
+gates that bound the feature: it turns the network flag off, proves nothing can start,
+turns it back on, and asserts no app is opted in by default. It deliberately does not
+assert the shipped value of the flag, because an assertion that only records a decision
+is one people learn to edit without reading. It also asserts the second invariant holds
+on this path too — a critical store review opens a dispute rather than being rejected,
+and is paid the same 30 when upheld — that the audit view carries every published review
+and no closed-track feedback, and, as `authenticated`, that a tester cannot file their
+own pre-approved store review.
+
+All eight files abort on the first failed assertion and print `ALL ... PASSED`
+at the end if nothing is wrong. Grep for that banner rather than for the absence
+of `ERROR`: a file that never ran produces neither.
 
 ## What the stub provides
 

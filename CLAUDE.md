@@ -23,24 +23,58 @@ the `in_pod` value of the `app_status` enum (displayed as "Taking testers"), the
 (displayed as "Fast Track"), and the `pod-lifecycle` cron job. The blog also keeps one
 post with "pods" in an indexed slug, because explaining the mechanism is the point.
 
-The `pods` and `pod_members` tables still exist and still hold real history, but nothing
-in the app reads them, `pod_matching` is permanently false, and `join_pod` / `start_pod` /
-`admin_pod_action` have execute revoked from every role
-(`20260814220000_close_pod_matching.sql`). Do not grant them back.
+The `pods` and `pod_members` tables carry two things now: real history, and **Packs**.
+`20260814220000_close_pod_matching.sql` shut cohort matching down — flag false, execute
+revoked from every role — because the cohort had been the *only* route to a tester, so a
+member without one had no product. `20260814230000_packs.sql` re-opened the same tables,
+the same RPCs and the same guards as an *optional* product on its own tab: a developer who
+wants Google's whole requirement handled in one go buys a pack instead of taking testers
+one at a time. `pod_matching` is true again and `join_pod` / `start_pod` are granted to
+`authenticated` (each authorises against `auth.uid()` in its own body).
 
-## The two invariants. Do not break these.
+`admin_pod_action` did **not** come back and must not: the admin screen that drove it is
+gone, and a `security definer` function with no caller is an unsupervised REST endpoint.
 
-**1. No credit may ever attach to a public store action.**
+The feed remains the home screen and the default way work happens. A pack is something a
+developer opts into on top of it — never the only route, which is the shape that was
+removed.
+
+## The invariants. Do not break these.
+
+**1. Store activities are paid, and that is a policy exposure, not an oversight.**
+This invariant used to read *"no credit may ever attach to a public store action"*, and the
+schema was built to make one unrepresentable. That was reversed on 15 Aug 2026 on the
+product owner's explicit, repeated instruction. `20260814240000_store_reviews.sql` added
+`feedback.store_rating` / `store_review_url` / `store_review_text` / `store_review_proof_id`,
+the `store_listing` value of `activity_kind`, and the `store_review` proof kind;
+`20260815090000_enable_store_reviews.sql` turned the network flag on. A store install pays
+10 and a published store review pays 30, out of the publisher's balance.
+
+Do not quietly re-tighten this, and do not quietly widen it either. What it costs is stated
+plainly so the next reader is not surprised by it:
+
 Google Play's [Ratings, Reviews and Installs policy](https://support.google.com/googleplay/android-developer/answer/9898684)
-prohibits incentivized reviews, ratings and installs; Apple's Section 3 does the same.
-Everything TesterPool does happens inside **closed testing tracks**, which affect no store
-ranking, rating or public install count. That distinction is the entire legal basis of the
-product.
+prohibits incentivized reviews, ratings and installs; Apple's Section 3 does the same. Paid
+store activity is squarely inside what both prohibit, and the closed-testing argument that
+was the product's entire legal basis does not cover it, because a public listing is not a
+closed track. Enforcement risk lands on the *publisher's* developer account, not only on
+TesterPool.
 
-The schema deliberately contains no table, column or enum value capable of representing a
-public store review, a public rating, or a production install. If a feature request needs
-one, the answer is no. Never add: review text fields, star ratings destined for a store,
-install-count rewards, review-prompt tooling, or AI-drafted review copy.
+Three gates are what keeps this bounded, and all three are load-bearing:
+
+  1. the `store_reviews` feature flag — network-wide, in `/admin/flags`, off stops new work
+     immediately and retracts nothing already published
+  2. `apps.accepting_store_reviews` — per app, defaults **false**, the publisher's own
+     decision on their own listing, taken one app at a time
+  3. a public `store_url` — no listing, no seat
+
+Still never add: AI-drafted review copy, review text the network dictates or supplies, star
+ratings chosen by anyone but the tester who installed the app, or any reward that scales
+with the rating given. The tester writes what they actually think or they are not paid for
+a review; a rating floor would turn this from a policy exposure into a fraud product.
+
+Marketing must not describe store activity as compliant. Closed-track work may still be
+described the specific, defensible way — see the bottom of this section.
 
 **1a. Credits move, they are never minted, and the client never decides a payment.**
 A confirmed install transfers 10 from the app owner to the tester; a confirmed report
@@ -55,9 +89,11 @@ report. Specific critical feedback is paid at the same rate as praise. Remove th
 arbitration step and creator approval becomes a positivity machine, which is exactly the
 failure mode of the competitor this product was designed against.
 
-Marketing claims: never say "provably compliant". Say the specific, defensible thing —
-*all activity happens inside closed testing tracks, which do not affect store rankings,
-ratings, or public install counts.*
+Marketing claims: never say "provably compliant". The old line — *all activity happens
+inside closed testing tracks, which do not affect store rankings, ratings, or public
+install counts* — is no longer true of the product as a whole and must not be used as a
+blanket claim. It is still exactly true of closed-track work, so scope it to that and say
+nothing of the kind about store activities.
 
 ## Layout
 
@@ -155,8 +191,11 @@ of truth; `profiles.credits` is a cached projection.
 
 RPCs callable by `authenticated`: `start_activity, set_activity_intake, submit_checkin,
 review_feedback, arbitrate_dispute, market_apps, market_app, market_counts,
-market_categories, market_pulse`. Each authorises against `auth.uid()` itself.
-`join_pod`, `start_pod` and `admin_pod_action` are revoked from every role and stay that way.
+market_categories, market_pulse, start_store_activity, set_store_review_intake,
+store_review_open, join_pod, start_pod`. Each authorises against `auth.uid()` itself.
+`admin_pod_action` is revoked from every role and stays that way. `fulfil_purchase` and
+`refund_purchase` are deliberately *not* callable by `authenticated` — they move money and
+are reached only by the Stripe webhook through the service-role client.
 
 **Every `assignments` row now has a null `pod_id`.** A seat is one member, one app: they
 pick anything open, join its closed testing track, use it, file one report, and are paid

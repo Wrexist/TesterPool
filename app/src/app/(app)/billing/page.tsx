@@ -260,9 +260,9 @@ export default async function BillingPage({
         <p className="mt-3 max-w-3xl text-xs text-[var(--color-dim)]">
           Rescue exists for one situation: a tester dropped on day 10, your fourteen-day clock is
           still running, and you need a verified replacement before the count falls under{' '}
-          <span className="num">{RULES.requiredTesters}</span>. Nothing you buy here touches a
-          public store listing — every seat is inside a closed testing track, which affects no
-          ranking, rating or public install count.
+          <span className="num">{RULES.requiredTesters}</span>. A rescue seat is a closed-track
+          seat: it affects no ranking, rating or public install count. Credits are a separate
+          matter — if you opt an app into store activities, credits are what pays for them.
         </p>
       </section>
 

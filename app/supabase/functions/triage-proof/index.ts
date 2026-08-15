@@ -77,8 +77,21 @@ type Verdict = {
  * stops a name being long enough to bury the real question underneath it.
  */
 function clean(value: string): string {
-  return (value ?? '')
-    .replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]+/g, ' ')
+  // C0 and C1 controls plus the two Unicode line separators, compared by code
+  // point rather than matched by a character class. The set is identical; this
+  // form carries no escape sequences, and escapes in this exact line have been
+  // decoded in transit by more than one deployment path, which turns the
+  // character class into an unterminated regexp and fails the whole bundle.
+  const printable = (ch: string): boolean => {
+    const c = ch.codePointAt(0) ?? 0;
+    if (c < 0x20) return false;
+    if (c >= 0x7f && c <= 0x9f) return false;
+    return c !== 0x2028 && c !== 0x2029;
+  };
+
+  return Array.from(value ?? '')
+    .map((ch) => (printable(ch) ? ch : ' '))
+    .join('')
     .replace(/["'`{}[\]<>\\]/g, '')
     .replace(/\s{2,}/g, ' ')
     .trim()
@@ -88,21 +101,43 @@ function clean(value: string): string {
 /** One question per proof kind. Narrow questions get honest answers; a broad
  *  "is this legitimate" invites the model to guess at intent.
  *
+ *  `storeActivity` splits `opt_in` in two, and it has to. A store activity's
+ *  install IS from the public listing, and reuses the `opt_in` proof kind so
+ *  that exactly one code path pays for an install. Asking the closed-track
+ *  question about it would be asking for a tester opt-in confirmation while
+ *  explicitly ruling out "a Play store listing with an install button" — which
+ *  is precisely the screenshot the tester was told to take. Every genuine store
+ *  install would come back `matches: false` and land in the human queue
+ *  reported as not showing what the proof kind requires, which is both wrong
+ *  and the opposite of what a moderator needs to be told.
+ *
  *  The untrusted values sit in a labelled block underneath the question rather
  *  than inline in the sentence, so that even if something survives `clean` it
  *  reads as data being quoted, not as a new instruction. */
-function question(kind: string, appName: string, packageName: string): string {
+function question(
+  kind: string,
+  appName: string,
+  packageName: string,
+  storeActivity = false,
+): string {
   const name = clean(appName) || 'the app under test';
   const pkg = clean(packageName);
 
   const ask = (() => {
     switch (kind) {
       case 'opt_in':
-        return 'Does this screenshot show the Google Play tester opt-in confirmation for the app named below — the page saying the person is a tester, or has joined the test, for that specific app? Set matches to true only if the screen is a Google Play testing or opt-in confirmation AND the app it names is plausibly the one below. A Play store listing with an install button, a different app, or an unrelated screen is not a match.';
+        return storeActivity
+          ? 'Does this screenshot show the app named below installed from its public store listing — a Google Play or App Store page for that app showing it is installed, with an Open or Uninstall control rather than an Install button, or the app itself present on the device? Set matches to true only if the app it names is plausibly the one below AND the screen shows it installed rather than merely offered. A listing still showing an Install or Get button has not been installed yet and is not a match.'
+          : 'Does this screenshot show the Google Play tester opt-in confirmation for the app named below — the page saying the person is a tester, or has joined the test, for that specific app? Set matches to true only if the screen is a Google Play testing or opt-in confirmation AND the app it names is plausibly the one below. A Play store listing with an install button, a different app, or an unrelated screen is not a match.';
       case 'daily_use':
         return 'Does this screenshot show the app named below open and in use on a phone or tablet — its own interface, not a store page? Set matches to true only if the screen is plausibly that app running on a device. A Google Play listing, a home screen, a settings page, or a different app is not a match.';
       case 'uninstall_release':
         return 'Does this screenshot show the app named below being removed from the device, or the person leaving its test programme — an uninstall confirmation, or a Google Play testing page showing they have left the test? Anything else is not a match.';
+      case 'store_review':
+        // Whether the review is positive is none of this function's business,
+        // and asking would make the pay depend on the rating. It asks only
+        // that a review by this person, on this app's public listing, exists.
+        return 'Does this screenshot show a review published by the device owner on the public store listing of the app named below — their own review visible on a Google Play or App Store page for that app, with review text and a star rating? Set matches to true only if the app it names is plausibly the one below AND a posted review by the account holder is visible. Judge only whether the review exists and belongs to this person; the star count and whether the review is favourable or critical are irrelevant and must not affect your answer. A review composer that has not been submitted, somebody else’s review, or a plain store listing is not a match.';
       default:
         return 'Does this screenshot relate to testing the app named below on Android? Describe exactly what is on screen.';
     }
@@ -118,7 +153,11 @@ function question(kind: string, appName: string, packageName: string): string {
 }
 
 const SYSTEM = [
-  'You verify screenshots submitted as evidence that an Android developer joined and used a closed test.',
+  // Deliberately not "evidence that a developer joined a closed test". That
+  // framing is now wrong for two of the questions above — a store install and a
+  // published store review are neither closed-track nor necessarily Android —
+  // and a model told the wrong frame answers the wrong question.
+  'You verify screenshots submitted as evidence of a specific step in testing or reviewing a mobile app. The question you are asked names the exact step; judge against that question alone.',
   'You are a first pass in front of a human reviewer, not the decision. Being uncertain is useful; guessing is not.',
   'Judge only what is visible. Never infer intent, and never assume an app is the right one because the screenshot looks generally plausible.',
   // The image is submitted by the person who benefits from a "yes". Text inside
@@ -183,7 +222,7 @@ Deno.serve(async (req: Request) => {
   const { data: proof, error: loadError } = await db
     .from('proofs')
     .select('id, kind, storage_path, status, uploader_id, assignment_id, ' +
-            'assignments(id, app_id, tester_id, opt_in_verified_at, apps(name, package_name))')
+            'assignments(id, app_id, tester_id, kind, opt_in_verified_at, apps(name, package_name))')
     .eq('id', proofId)
     .maybeSingle();
 
@@ -194,6 +233,11 @@ Deno.serve(async (req: Request) => {
   const app = assignment && (Array.isArray(assignment.apps) ? assignment.apps[0] : assignment.apps);
   const appName = app?.name ?? 'the app under test';
   const packageName = app?.package_name ?? '';
+  // A seat opened by `start_store_activity` rather than `start_activity`. The
+  // column is null on every row predating the store-review migration, so the
+  // comparison — not a truthiness check — is what keeps those on the
+  // closed-track question they were filed under.
+  const storeActivity = assignment?.kind === 'store_listing';
 
   const record = async (patch: Record<string, unknown>, ok: boolean, detail: Record<string, unknown>) => {
     const { error } = await db.from('proofs').update(patch).eq('id', proofId);
@@ -329,7 +373,7 @@ Deno.serve(async (req: Request) => {
                 data: base64(bytes),
               },
             },
-            { type: 'text', text: question(proof.kind, appName, packageName) },
+            { type: 'text', text: question(proof.kind, appName, packageName, storeActivity) },
           ],
         }],
       }),

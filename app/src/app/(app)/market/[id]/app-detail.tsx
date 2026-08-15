@@ -173,10 +173,29 @@ export function AppDetail({ app, storeOpen = false }: { app: MarketAppDetail; st
             </p>
           )}
 
+          {/*
+            This claim has to follow the job on offer. Closed-track work genuinely is
+            invisible to the store surface, and saying so is the honest sell. A store
+            activity is not, and printing the closed-track line under an Install/Review
+            button would be telling a tester their public review carries no risk at the
+            moment we ask them to publish one.
+          */}
           <p className="text-xs leading-relaxed text-[var(--color-mute)]">
-            All testing happens inside closed testing tracks, which do not affect store rankings,
-            ratings or install counts. Reports are private, and paid the same whether they praise
-            the app or take it apart.
+            {storeOpen ? (
+              <>
+                This app is asking for a public store install and review. That is public
+                activity, on your own store account, and it is not covered by the
+                closed-track rule below — Google and Apple both prohibit incentivised
+                reviews. Write what you actually think; the rating is yours, and you are
+                paid the same either way.
+              </>
+            ) : (
+              <>
+                All testing happens inside closed testing tracks, which do not affect store
+                rankings, ratings or install counts. Reports are private, and paid the same
+                whether they praise the app or take it apart.
+              </>
+            )}
           </p>
         </div>
 

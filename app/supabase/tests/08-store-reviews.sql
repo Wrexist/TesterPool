@@ -403,3 +403,8 @@ begin
     (select coalesce(bool_or(accepting_store_reviews), false) from apps), false,
     'every app is left opted out');
 end $$;
+
+-- Every other suite ends by printing a banner, and the runner in README.md greps
+-- for it. Without one this file could fail to run at all — wrong path, wrong
+-- order — and a grep for PASSED would report the same silence as a clean pass.
+select '================= STORE REVIEW TESTS PASSED =================' as result;

@@ -483,7 +483,7 @@ const COMPARISON: Array<{
     criterion: 'What happens if it works too well',
     note: 'The downside nobody prices',
     cells: [
-      { verdict: 'good', text: 'Nothing. Closed tracks are invisible to the store surface' },
+      { verdict: 'good', text: 'Nothing, on the closed-track work that is the default. Store activity is opt-in and carries the risk below' },
       { verdict: 'bad', text: 'A cluster of accounts trading public reviews is the pattern enforcement looks for, and termination travels between linked accounts' },
       { verdict: 'bad', text: 'You are one of many buyers of the same seller’s accounts' },
       { verdict: 'good', text: 'Nothing' },
@@ -493,7 +493,7 @@ const COMPARISON: Array<{
     criterion: 'Policy risk',
     note: 'The one that ends your account',
     cells: [
-      { verdict: 'good', text: 'None. Closed track only, never a review or rating' },
+      { verdict: 'mixed', text: 'None if you stay on closed tracks, which is the default. Real if you opt an app into store reviews' },
       { verdict: 'bad', text: 'High. Incentivised reviews and installs are explicitly banned' },
       { verdict: 'mixed', text: 'Depends entirely on the seller; many quietly buy installs' },
       { verdict: 'good', text: 'None' },
@@ -707,20 +707,30 @@ const FAQ: Array<{ q: string; a: React.ReactNode }> = [
     a: (
       <>
         <p>
-          No, and the distinction is worth being precise about. Google prohibits
-          incentivised <em>ratings, reviews and installs</em> — paying or
-          rewarding someone to leave a five-star review or to install from the
-          production store listing. TesterPool has no mechanism for any of those. There
-          is no field in our system that can hold a store review or a public
-          rating, by design.
+          Closed testing is not, and that is the whole of what TesterPool does by
+          default. Your listing, the testers who take it, the fourteen-day clock and
+          the private reports all happen inside your closed testing track. Closed
+          track installs do not affect your store ranking, your public rating or your
+          public install count. Google&rsquo;s own developer community guidance is
+          that using a third-party service to find testers for a closed test does not
+          violate policy.
         </p>
         <p className="mt-3">
-          Everything on TesterPool happens inside your closed testing track. Closed
-          track installs do not affect your store ranking, your public rating, or
-          your public install count. Google&rsquo;s own developer community
-          guidance is that using a third-party testing service to find testers
-          does not violate policy; what violates policy is buying engagement
-          signals that reach the public store. We deliberately do not sell those.
+          <strong className="font-semibold text-[var(--color-ink)]">
+            Store activities are a different answer, and it is yes.
+          </strong>{' '}
+          A publisher can opt one of their own apps into asking for a public store
+          install and a published review, paid in credits. Google prohibits
+          incentivised <em>ratings, reviews and installs</em>, and that is what this
+          is — the closed-track argument above does not stretch to cover it, because a
+          public listing is not a closed track. Enforcement risk sits with the
+          developer account that opted in.
+        </p>
+        <p className="mt-3">
+          It is off for every app until its publisher turns it on, one app at a time,
+          and it can be turned off again for the whole network. If you want the part
+          of TesterPool that carries no policy risk, simply do not enable it: closed
+          testing works exactly as described above on its own.
         </p>
         <p className="mt-3">
           <a href={POLICY_URL} target="_blank" rel="noreferrer" className="font-medium text-[var(--color-accent)] hover:underline">
@@ -874,18 +884,22 @@ export default function LandingPage() {
                   paragraph is where it gets converted rather than either ignored
                   or served.
                   It leads with what you do get, because leading with a denial
-                  reads as a disclaimer and disclaimers get skipped. The denial
-                  still has to be here, above the fold, in plain words: the one
-                  thing this product must never be mistaken for is the thing that
-                  terminates a developer account. Do not move it down the page and
-                  do not soften it into "compliant" — say which reviews we mean.
+                  reads as a disclaimer and disclaimers get skipped. This used to
+                  be a flat denial — "not Play Store reviews" — which stopped being
+                  true when store activities shipped. It is now a distinction rather
+                  than a denial, and the warning has to survive that: whichever way
+                  it is worded, a visitor must not get to the signup button still
+                  thinking the store half is the safe half. Do not move it down the
+                  page and do not soften it into "compliant" — say which reviews we
+                  mean, and say what each one costs.
                 */}
                 <p className="mt-4 max-w-xl rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-3 text-[15px] leading-relaxed text-[var(--color-dim)]">
                   <strong className="font-semibold text-[var(--color-ink)]">
                     Private developer reviews, inside your own closed testing track.
                   </strong>{' '}
-                  Not Play Store reviews &mdash; those are incentivised the moment
-                  they are traded, and{' '}
+                  That is the default and it touches no public signal. Public Play
+                  Store reviews are a separate thing you can switch on per app, and
+                  they are incentivised the moment they are traded &mdash;{' '}
                   <a
                     href={POLICY_URL}
                     target="_blank"
@@ -894,8 +908,8 @@ export default function LandingPage() {
                   >
                     Google removes apps for it
                   </a>
-                  . That is the difference between the reviews you want and the
-                  ones that cost you the account.
+                  . Know which one you are turning on: the reviews you want, or the
+                  ones that can cost you the account.
                 </p>
 
                 {/*
@@ -1347,38 +1361,52 @@ export default function LandingPage() {
           <div className="mx-auto max-w-6xl">
             <div className="grid gap-10 lg:grid-cols-[1fr_360px] lg:gap-14">
               <div>
+                {/*
+                  This section used to be headed "Nothing TesterPool does ever touches
+                  the public store" and listed the absence of a store-review mechanism
+                  as the proof. Store activities made every sentence of that false, and
+                  a safety claim that is false is worse than no safety claim — it is the
+                  one thing a developer would rely on before risking their account. It
+                  now draws the line where the line actually is: closed testing is safe
+                  and is the default; store activity is opt-in and is not.
+                */}
                 <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-accent)]">
-                  Why this is safe
+                  Where the line is
                 </div>
                 <h2 className="text-3xl font-bold leading-[1.1] tracking-tight sm:text-4xl">
-                  Nothing TesterPool does ever touches the public store
+                  Closed testing touches no public signal. Store activity does.
                 </h2>
                 <div className="mt-6 space-y-4 text-base leading-relaxed text-[var(--color-dim)]">
                   <p>
-                    All activity happens inside your closed testing track. Closed
-                    track installs and usage do not affect store rankings, public
-                    ratings, or public install counts — they are invisible to the
-                    store surface entirely. There is nothing here for Google&rsquo;s
-                    anti-manipulation systems to object to, because there is no
-                    public signal being manufactured.
+                    Closed-track activity — the listing, the testers, the fourteen days,
+                    the private reports — does not affect store rankings, public ratings
+                    or public install counts. It is invisible to the store surface
+                    entirely, and there is nothing in it for Google&rsquo;s
+                    anti-manipulation systems to object to, because no public signal is
+                    being manufactured. Google&rsquo;s developer community guidance is
+                    explicit that using a third-party service to find testers for a
+                    closed test does not violate policy. That is the default, and for
+                    most developers here it is the whole product.
                   </p>
                   <p>
-                    Google&rsquo;s developer community guidance is explicit that
-                    using a third-party service to find testers for a closed test
-                    does not violate policy. What Google prohibits is incentivising{' '}
+                    <strong className="font-semibold text-[var(--color-ink)]">
+                      Store activities are the exception, and we will not dress them up.
+                    </strong>{' '}
+                    A publisher can opt an app into paying for a public store install
+                    and a published review. Google and Apple both prohibit incentivising{' '}
                     <strong className="font-semibold text-[var(--color-ink)]">
                       ratings, reviews and installs
-                    </strong>{' '}
-                    — and that is precisely the thing TesterPool refuses to sell. We
-                    have no product to offer you there. The database schema behind
-                    this site has no column that can hold a store review or a public
-                    rating; it was designed that way on purpose.
+                    </strong>
+                    , and this is that. The closed-track reasoning above does not cover
+                    it. If it goes wrong it goes wrong on the developer account that
+                    switched it on.
                   </p>
                   <p>
-                    Feedback on TesterPool is private, structured and delivered to you
-                    — never posted anywhere public. If a tester tried to trade a
-                    five-star review for credits, there would be no mechanism to
-                    pay them.
+                    So it is off everywhere until a publisher turns it on for one of
+                    their own apps, and nobody is ever paid for a rating they did not
+                    choose: the tester writes their own review, sets their own star
+                    count, and is paid the same whatever they put. Closed testing runs
+                    perfectly well without ever touching it.
                   </p>
                 </div>
                 <a
@@ -1396,9 +1424,9 @@ export default function LandingPage() {
                   { ok: true, t: 'Closed testing track activity', s: 'Invisible to store rankings and ratings' },
                   { ok: true, t: 'Private structured reviews', s: 'On a rubric, arbitrated, never published' },
                   { ok: true, t: 'Daily engagement proof', s: 'Screenshot-backed, for your own application' },
-                  { ok: false, t: 'Public store reviews', s: 'No mechanism exists in the product' },
-                  { ok: false, t: 'Public ratings', s: 'No mechanism exists in the product' },
-                  { ok: false, t: 'Production installs', s: 'Not part of the exchange, ever' },
+                  { ok: false, t: 'Public store reviews', s: 'Opt-in per app, and against Play and App Store policy' },
+                  { ok: false, t: 'Public ratings', s: 'The tester chooses the stars; pay never depends on them' },
+                  { ok: false, t: 'Dictated or AI-written review copy', s: 'No mechanism exists in the product' },
                 ].map((r) => (
                   <div
                     key={r.t}
