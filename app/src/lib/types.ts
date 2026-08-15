@@ -133,6 +133,18 @@ export interface Feedback {
   repro_steps: string | null;
   suggestion: string | null;
   severity: number | null;
+  /**
+   * Set only on a `store_listing` seat, and null on every closed-track report —
+   * `guard_store_review_columns` enforces that, so these four are how you tell
+   * a published public review from a private report without joining.
+   *
+   * See the header of `20260814240000_store_reviews.sql` for what they are and
+   * why they exist at all.
+   */
+  store_rating: number | null;
+  store_review_text: string | null;
+  store_review_url: string | null;
+  store_review_proof_id: string | null;
   status: FeedbackStatus;
   creator_verdict: string | null;
   creator_note: string | null;

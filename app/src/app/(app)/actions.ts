@@ -678,7 +678,14 @@ export async function submitCheckin(assignmentId: string, note?: string): Promis
 export async function recordProof(
   assignmentId: string,
   storagePath: string,
-  kind: 'opt_in' | 'daily_use' = 'opt_in'
+  /**
+   * `store_review` is the screenshot of a published public-store review. It
+   * goes through the same intake, triage and moderator queue as every other
+   * proof, and deliberately pays nothing on approval — only `opt_in` does that,
+   * which is why the store INSTALL proof is still an `opt_in` and there stays
+   * exactly one code path that pays for an install.
+   */
+  kind: 'opt_in' | 'daily_use' | 'store_review' = 'opt_in'
 ): Promise<ActionResult<{ proofId: string; status: string }>> {
   const auth = await requireUser();
   if ('error' in auth) return fail(auth.error, 'no_session');
@@ -714,6 +721,144 @@ export async function recordOptInProof(
   storagePath: string
 ): Promise<ActionResult<{ proofId: string; status: string }>> {
   return recordProof(assignmentId, storagePath, 'opt_in');
+}
+
+/* -------------------------------------------------------- store reviews */
+
+/**
+ * Take a store-listing job: install from the PUBLIC listing, publish a review.
+ *
+ * Read the header of `20260814240000_store_reviews.sql` before touching this.
+ * Every guard is in `start_store_activity` — the `store_reviews` flag, the
+ * publisher's per-app consent, a public listing to install from, their
+ * remaining seats, and their balance checked for the whole 40 before the seat
+ * exists — and this only translates the refusals.
+ */
+export async function startStoreActivity(appId: string): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+
+  const { data, error } = await auth.supabase.rpc('start_store_activity', { p_app: appId });
+  if (error) return fail(error.message, 'rpc_error');
+
+  const result = fromRpc(data, 'Could not start on that app.');
+
+  if (result.ok) {
+    revalidatePath('/market');
+    revalidatePath(`/market/${appId}`);
+    revalidatePath('/tests');
+    result.message = 'Yours. Install it from the store listing, then upload the screenshot.';
+    return result;
+  }
+
+  const said: Record<string, string> = {
+    store_reviews_closed: 'Store reviews are switched off right now.',
+    not_accepting: 'This publisher has not opened this app to store reviews.',
+    no_store_listing: 'This app has no public store listing yet, so there is nothing to install.',
+    already_seated: 'You already have a seat on this app. It is on your tests page.',
+    your_own_app: 'This is your own app. You cannot review it for credits.',
+    no_seats_left: 'Every seat on this app is taken.',
+    owner_out_of_credits:
+      'The publisher has run out of credits, so this app is paused. Nothing you do now would be paid.',
+    unknown_app: 'That app is no longer listed.',
+  };
+  if (result.error && said[result.error]) result.message = said[result.error];
+  return result;
+}
+
+/** The publisher's per-app opt in. A separate switch from closed-track intake. */
+export async function setStoreReviewIntake(appId: string, accepting: boolean): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+
+  const { data, error } = await auth.supabase.rpc('set_store_review_intake', {
+    p_app: appId,
+    p_accepting: accepting,
+  });
+  if (error) return fail(error.message, 'rpc_error');
+
+  const result = fromRpc(data, 'Could not save that.');
+  if (result.ok) {
+    revalidatePath('/apps');
+    revalidatePath(`/market/${appId}`);
+    result.message = accepting
+      ? 'Open to store reviews. Testers install from your public listing and publish a review you then approve.'
+      : 'Closed to store reviews. Nobody new can take this on.';
+  }
+  return result;
+}
+
+export interface StoreReviewInput {
+  assignmentId: string;
+  appId: string;
+  rating: number;
+  reviewText: string;
+  reviewUrl: string;
+  /** The proof row for the screenshot of the published review. */
+  proofId: string;
+}
+
+/**
+ * File the published review.
+ *
+ * The row lands as `submitted`, which is the only status the client may write —
+ * `guard_feedback_columns` refuses anything else, so a tester cannot insert a
+ * pre-approved review and pay themselves. From here it goes to the publisher
+ * (`reviewFeedback`), and if they dispute it, to a moderator
+ * (`arbitrateDispute`). Both of those are unchanged.
+ */
+export async function submitStoreReview(input: StoreReviewInput): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+  const { supabase, userId } = auth;
+
+  const text = input.reviewText.trim();
+  if (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5) {
+    return fail('Pick a rating between one and five stars.', 'bad_rating');
+  }
+  if (text.length < 60) {
+    return fail('A review under sixty characters is not worth reading or paying for.', 'too_short');
+  }
+  if (!input.proofId) {
+    return fail('Attach a screenshot of the published review.', 'no_proof');
+  }
+
+  const { error } = await supabase.from('feedback').upsert(
+    {
+      assignment_id: input.assignmentId,
+      tester_id: userId,
+      app_id: input.appId,
+      // The rubric fields the private report uses do not apply here, but
+      // `first_impression` is the column the publisher inbox already renders,
+      // so the review body goes in both places rather than teaching every
+      // reader about a second field.
+      first_impression: text,
+      severity: 0,
+      store_rating: input.rating,
+      store_review_text: text,
+      store_review_url: input.reviewUrl.trim() || null,
+      store_review_proof_id: input.proofId,
+      status: 'submitted' as const,
+      submitted_at: new Date().toISOString(),
+    },
+    { onConflict: 'assignment_id' }
+  );
+
+  if (error) {
+    const capped = capMessage(error.message);
+    if (capped) return fail(capped, 'daily_cap');
+    if (/store_fields_on_closed_track/.test(error.message)) {
+      return fail('That seat is a closed-track test, not a store review.', 'wrong_kind');
+    }
+    return fail(error.message, 'db_error');
+  }
+
+  revalidatePath('/tests');
+  revalidatePath('/feedback');
+  return {
+    ok: true,
+    message: 'Sent to the publisher. They approve it, and a moderator settles it if they do not.',
+  };
 }
 
 /* ------------------------------------------------------------- feedback */

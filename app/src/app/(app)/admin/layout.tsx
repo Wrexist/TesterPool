@@ -44,6 +44,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin/users', label: 'Users' },
     { href: '/admin/economy', label: 'Economy' },
     { href: '/admin/moderation', label: 'Moderation', badge: (proofCount ?? 0) + (disputeCount ?? 0) },
+    { href: '/admin/store-reviews', label: 'Store reviews' },
     { href: '/admin/fraud', label: 'Fraud' },
     { href: '/admin/flags', label: 'Flags' },
     { href: '/admin/audit', label: 'Audit log' },

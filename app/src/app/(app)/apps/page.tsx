@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import { Card, EmptyState, CreditChip } from '@/components/ui';
 import { AppRow } from '@/components/app/app-row';
 import { ActivityIntake } from '@/components/app/activity-intake';
+import { StoreReviewIntake } from '@/components/app/store-review-intake';
+import { getFlags } from '@/lib/flags';
 import { IconPlus, IconArrow, IconAlert } from '@/components/app/icons';
 import { CHARGE } from '@/lib/economy';
 import { marketHref, type MarketApp } from '@/lib/market';
@@ -17,7 +19,13 @@ export const metadata = { title: 'My apps — TesterPool' };
 const ACTIVITY_COST = CHARGE.install + CHARGE.review;
 
 /** The owner's two activity settings, read straight off their own app rows. */
-type IntakeRow = { id: string; accepting_activities: boolean | null; activity_target: number | null };
+type IntakeRow = {
+  id: string;
+  accepting_activities: boolean | null;
+  activity_target: number | null;
+  accepting_store_reviews: boolean | null;
+  store_url: string | null;
+};
 
 /**
  * My apps.
@@ -50,9 +58,13 @@ export default async function MyAppsPage() {
     */
     supabase
       .from('apps')
-      .select('id, accepting_activities, activity_target')
+      .select('id, accepting_activities, activity_target, accepting_store_reviews, store_url')
       .eq('owner_id', auth.user.id),
   ]);
+
+  // The per-app switch only renders when the network-wide flag is on. A control
+  // for a closed feature is a control that lies about what it does.
+  const flags = await getFlags();
 
   const apps = (rows ?? []) as MarketApp[];
   const balance = n((profileRow as Pick<Profile, 'credits'> | null)?.credits, 0);
@@ -131,6 +143,14 @@ export default async function MyAppsPage() {
                     accepting={row?.accepting_activities ?? true}
                     target={n(row?.activity_target, 5)}
                     seatsLeft={app.activity_seats_left}
+                  />
+                )}
+                {seated && flags.store_reviews && (
+                  <StoreReviewIntake
+                    key={`${app.id}:store:${row?.accepting_store_reviews}`}
+                    appId={app.id}
+                    accepting={row?.accepting_store_reviews ?? false}
+                    hasStoreListing={!!row?.store_url}
                   />
                 )}
               </Card>
