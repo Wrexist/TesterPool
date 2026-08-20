@@ -203,3 +203,31 @@ export function referralLink(code: string, origin?: string): string {
   const base = origin || process.env.NEXT_PUBLIC_SITE_URL || 'https://testerpool.dev';
   return `${base.replace(/\/$/, '')}/login?ref=${code}`;
 }
+
+/**
+ * "9m ago", "3h ago", "2d ago" — presence, at the length it is worth.
+ *
+ * Returns null rather than a string for a member who has never been seen, so
+ * the caller drops the line instead of printing "Active never", which reads as
+ * an accusation rather than as an absence of data.
+ *
+ * Deliberately coarse above a day: the difference between eleven and thirteen
+ * days is not a difference anybody acts on, and a precise number invites the
+ * reader to do arithmetic about a stranger's habits.
+ */
+export function sinceShort(when: string | null | undefined): string | null {
+  if (!when) return null;
+  const then = new Date(when).getTime();
+  if (!Number.isFinite(then)) return null;
+
+  const mins = Math.floor((Date.now() - then) / 60000);
+  if (mins < 1) return 'now';
+  if (mins < 60) return `${mins}m ago`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return 'a while ago';
+}

@@ -87,7 +87,7 @@ export function AppHeader({
         {n(credits)}
       </Link>
 
-      <RoundButton href="/feedback" label="Reports on your apps" badge={messages}>
+      <RoundButton href="/messages" label="Messages" badge={messages}>
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden>
           <path
             d="M21 11.6a7.6 7.6 0 0 1-7.6 7.6H8l-4 2.4 1.1-3.2A7.6 7.6 0 1 1 21 11.6Z"

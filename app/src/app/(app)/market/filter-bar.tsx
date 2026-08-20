@@ -27,6 +27,13 @@ import {
   type MarketQuery, type PlatformFilter, type Scope,
 } from '@/lib/market';
 
+/**
+ * The scopes "My Activity" stands for. Kept as a list rather than as a check
+ * against `'all'` so that a scope added later has to be placed deliberately —
+ * on this chip or beside it — instead of falling into it by default.
+ */
+const MY_SCOPES: Scope[] = ['testing', 'due', 'tested', 'open', 'mine', 'saved'];
+
 export type ScopeCounts = Partial<
   Record<'open' | 'live' | 'testing' | 'due' | 'mine' | 'saved', number>
 >;
@@ -109,10 +116,23 @@ export function FilterBar({
   });
 
   /*
-   * Order is deliberate and is the order a thumb travels: the default, then the
-   * two store filters everyone recognises, then the three personal scopes. The
-   * personal ones carry counts because a count is the only reason to tap them.
+   * Four chips, and the order is the order a thumb travels: the default, the
+   * two stores everybody recognises by their logo, and then everything that is
+   * about you.
+   *
+   * The personal scopes used to be five separate chips — Open to me, Testing,
+   * Report due, My apps, Saved — which pushed the two store filters off the
+   * visible part of the row on a phone and made the first thing a member saw on
+   * opening the product a horizontal scrollbar of filter names.
+   *
+   * They are one chip now, and the five open underneath it when it is active.
+   * Nothing became unreachable: the URL grammar is unchanged, `marketHref`
+   * still builds every one of them, and a link to /market?scope=due still lands
+   * where it always did.
    */
+  const mine = MY_SCOPES.includes(query.scope);
+  const owed = (counts.due ?? 0) + (counts.testing ?? 0);
+
   const chips: ChipDef[] = [
     {
       key: 'all',
@@ -122,12 +142,29 @@ export function FilterBar({
     },
     platformChip('android', 'Android', IconAndroid),
     platformChip('ios', 'iOS', IconApple),
-    scopeChip('open', 'Open to me', counts.open),
-    scopeChip('testing', 'Testing', counts.testing),
-    scopeChip('due', 'Report due', counts.due),
-    scopeChip('mine', 'My apps', counts.mine),
-    scopeChip('saved', 'Saved', counts.saved),
+    {
+      key: 'mine',
+      label: 'My Activity',
+      Icon: IconCheck,
+      // Lands on the work in hand rather than on the whole history, because the
+      // reason to tap this is almost always "what do I still owe".
+      href: marketHref({ ...query, scope: 'testing', page: 1 }),
+      active: mine,
+      badge: owed || undefined,
+    },
   ];
+
+  // Shown only while one of them is active, so the row above stays four wide.
+  const sub: ChipDef[] = mine
+    ? [
+        scopeChip('testing', 'Testing', counts.testing),
+        scopeChip('due', 'Report due', counts.due),
+        scopeChip('tested', 'Tested'),
+        scopeChip('open', 'Open to me', counts.open),
+        scopeChip('mine', 'My apps', counts.mine),
+        scopeChip('saved', 'Saved', counts.saved),
+      ]
+    : [];
 
   const filtered = isFiltered(query);
 
@@ -163,6 +200,16 @@ export function FilterBar({
           <IconSearch size={19} />
         </button>
       </div>
+
+      {sub.length > 0 && (
+        <div className="-mx-4 overflow-x-auto px-4 md:-mx-8 md:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex items-center gap-2 pr-2">
+            {sub.map((chip) => (
+              <Chip key={chip.key} chip={chip} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {open && (
         <form onSubmit={submit} className="flex items-center gap-2">

@@ -48,6 +48,8 @@ export default async function MarketPage({
     { count: inbox },
     { count: openWork },
     { count: ownedApps },
+    { data: unread },
+    { data: featured },
   ] = await Promise.all([
     supabase.rpc('market_apps', {
       p_scope: query.scope,
@@ -77,14 +79,22 @@ export default async function MarketPage({
       .from('apps')
       .select('id', { count: 'exact', head: true })
       .eq('owner_id', auth.user.id),
+    supabase.rpc('unread_messages'),
+    supabase.rpc('featured_app_ids'),
+    // Presence, written on the way past. Takes no argument on purpose: an id
+    // parameter would make it "set anybody seen".
+    supabase.rpc('touch_presence'),
   ]);
 
   const me = (profileRow ?? null) as { display_name: string | null; handle: string; credits: number | null } | null;
   const viewer: ViewerSummary = {
     displayName: me?.display_name || me?.handle || 'there',
     credits: n(me?.credits, 0),
-    messages: inbox ?? 0,
-    alerts: openWork ?? 0,
+    // The envelope counts messages, which is what an envelope means. Reports
+    // waiting on your own apps are work rather than correspondence, and they
+    // are counted by the bell beside it.
+    messages: (unread as number | null) ?? 0,
+    alerts: (openWork ?? 0) + (inbox ?? 0),
     ownsApps: (ownedApps ?? 0) > 0,
   };
 
@@ -95,6 +105,7 @@ export default async function MarketPage({
       categories={(categoryRows ?? []) as { category: string; apps: number }[]}
       counts={(countRow ?? {}) as ScopeCounts}
       pulse={(pulseRow ?? null) as MarketPulse | null}
+      featured={(featured as string[] | null) ?? []}
       viewer={viewer}
       error={error}
     />

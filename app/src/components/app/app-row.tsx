@@ -71,7 +71,7 @@ export function PlatformChip({ ios }: { ios: boolean }) {
 }
 
 export function AppRow({
-  app, href, counts = false, bare = false,
+  app, href, counts = false, bare = false, featured = false,
 }: {
   app: MarketApp;
   href?: string;
@@ -84,6 +84,14 @@ export function AppRow({
    * as a rendering fault.
    */
   bare?: boolean;
+  /**
+   * Editorial badge. Passed in rather than read off the row because the feed's
+   * projection does not carry it: `market_apps` has a long return type defined
+   * across three migrations, and widening it for one boolean would mean
+   * reproducing the whole body. The page asks `featured_app_ids()` once and
+   * hands the answer down.
+   */
+  featured?: boolean;
 }) {
   const chip = cardChip(app);
   const reward = rewardFor(app);
@@ -109,7 +117,10 @@ export function AppRow({
       <AppIcon name={app.name} src={app.icon_url} size={62} />
 
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[16px] font-semibold leading-tight">{app.name}</div>
+        <div className="flex items-center gap-2">
+          <span className="truncate text-[16px] font-semibold leading-tight">{app.name}</span>
+          {featured && <Pill tone="amber">Featured</Pill>}
+        </div>
         <div className="mt-1 truncate text-[14px] text-[var(--color-dim)]">
           {app.owner_display_name || `@${app.owner_handle ?? 'unknown'}`}
         </div>

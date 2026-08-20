@@ -92,6 +92,17 @@ export interface MarketAppDetail extends MarketApp {
   owner_apps: number | null;
   owner_pods_completed: number | null;
   owner_apps_helped_ship: number | null;
+  /** Editorial badge. A badge only — it changes no price. */
+  featured: boolean | null;
+  owner_last_seen_at: string | null;
+  /**
+   * Whether a thread with this app's other party is open to the viewer.
+   * Mirrors `send_message`'s own rule, so a thread that opens is a thread the
+   * RPC will accept a message into.
+   */
+  can_message: boolean | null;
+  /** Messages waiting for the viewer on this app. */
+  unread: number | null;
 }
 
 /* ------------------------------------------------------------- filters */

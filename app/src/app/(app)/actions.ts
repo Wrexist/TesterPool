@@ -1165,3 +1165,50 @@ export async function arbitrateDispute(
   }
   return result;
 }
+
+/* ------------------------------------------------------------------ messages */
+
+/**
+ * Say one thing to the other party on one app.
+ *
+ * Every access question is answered inside `send_message`, which derives the
+ * recipient from the app rather than taking one: a tester reaches the owner of
+ * an app they hold a seat on, an owner reaches a tester who holds a seat on
+ * theirs, and there is no parameter that could express anybody else. This
+ * wrapper adds nothing to that rule — it only turns the refusals into sentences.
+ */
+export async function sendMessage(
+  appId: string,
+  body: string,
+  testerId?: string,
+): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ('error' in auth) return fail(auth.error, 'no_session');
+
+  const { data, error } = await auth.supabase.rpc('send_message', {
+    p_app: appId,
+    p_body: body,
+    p_tester: testerId ?? null,
+  });
+  if (error) return fail(error.message, 'rpc_error');
+
+  const result = fromRpc(data, 'Could not send that.');
+
+  if (result.ok) {
+    revalidatePath(`/market/${appId}/chat`);
+    revalidatePath(`/market/${appId}`);
+    return result;
+  }
+
+  const said: Record<string, string> = {
+    empty: 'Nothing to send.',
+    too_long: 'That is over 2000 characters. Trim it and send again.',
+    not_connected:
+      'You can only message a developer whose app you have taken on, or a tester who has taken yours.',
+    no_tester: 'Nobody has taken this app on yet, so there is nobody to write to.',
+    pick_tester: 'Several testers hold seats on this app. Open the one you mean from your inbox.',
+    no_such_app: 'That app is gone.',
+  };
+  result.message = said[result.error ?? ''] ?? result.message;
+  return result;
+}

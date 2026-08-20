@@ -45,16 +45,19 @@ export interface ViewerSummary {
 }
 
 export function MarketView({
-  query, apps, categories, counts, pulse, viewer, error,
+  query, apps, categories, counts, pulse, viewer, error, featured = [],
 }: {
   query: MarketQuery;
   apps: MarketApp[];
+  /** Ids of the listings wearing the editorial badge. */
+  featured?: string[];
   categories: { category: string; apps: number }[];
   counts: ScopeCounts;
   pulse?: MarketPulse | null;
   viewer: ViewerSummary;
   error?: { message: string } | null;
 }) {
+  const featuredSet = new Set(featured);
   const total = n(apps[0]?.total_count, apps.length);
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -91,7 +94,12 @@ export function MarketView({
 
           <div className="flex flex-col gap-3">
             {apps.map((app) => (
-              <AppRow key={app.id} app={app} counts={query.scope === 'mine'} />
+              <AppRow
+                key={app.id}
+                app={app}
+                counts={query.scope === 'mine'}
+                featured={featuredSet.has(app.id)}
+              />
             ))}
           </div>
         </section>
@@ -121,7 +129,7 @@ function ListYourAppCard() {
       <span className="min-w-0 flex-1">
         <span className="block text-[17px] font-bold leading-tight">Add your app to this list</span>
         <span className="mt-1 block text-[15px] leading-snug text-[var(--color-dim)]">
-          Get installs and written reports from real developers
+          Get installs and reviews from real developers
         </span>
       </span>
       <IconArrow size={18} className="shrink-0 text-[var(--color-mute)]" />
@@ -144,7 +152,7 @@ function PulseStrip({ pulse }: { pulse?: MarketPulse | null }) {
   const items = [
     { value: n(pulse.active_testers), label: 'Active' },
     { value: n(pulse.installs), label: 'Installs' },
-    { value: n(pulse.reports), label: 'Reports' },
+    { value: n(pulse.reports), label: 'Reviews' },
   ];
   if (items.every((i) => i.value === 0)) return null;
 
